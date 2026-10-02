@@ -5,4 +5,4 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "weekly-briefing-responses"
-database_id = "REPLACE_AFTER_CREATING_DATABASE"
+database_id = "736f85e7-75e0-4224-9e80-b9a3bb27c3fa"
