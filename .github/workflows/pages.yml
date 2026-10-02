@@ -7,6 +7,7 @@ on:
     paths:
       - "tools/週會宣導/**"
       - ".github/workflows/pages.yml"
+      - ".claude/skills/ai-dialogue-podcast-builder/assets/template.html"
   workflow_dispatch:
 
 permissions:
