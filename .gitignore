@@ -1,0 +1,27 @@
+# 這個 repo 是公開的——下面兩條是最重要的，絕對不能拿掉
+# 週會宣導：Cloudflare 部署金鑰（SITE_KEY / Worker 網址不進版控）
+tools/週會宣導/cloudflare/local-config.json
+tools/週會宣導/網頁-雲端版/
+
+# wrangler 本機狀態（含 Cloudflare 帳號資訊）
+.wrangler/
+**/.wrangler/
+
+# 敏感資料
+.env
+*.key
+credentials.*
+
+# Google Drive 系統檔
+desktop.ini
+*.tmp
+~$*
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
