@@ -1,0 +1,73 @@
+name: 部署週會宣導入口網站到 GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/週會宣導/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: 安裝 QR Code 套件
+        run: pip install qrcode
+
+      # local-config.json 只存在於這次 CI 執行的暫存空間，不會寫回 repo、
+      # 不會進 git 歷史；真正的值來自 GitHub Actions Secrets。
+      - name: 寫入雲端設定（來自 GitHub Secrets，不進 git）
+        working-directory: tools/週會宣導
+        env:
+          CLOUD_API_BASE: ${{ secrets.WEEKLY_BRIEFING_API_BASE }}
+          CLOUD_SITE_KEY: ${{ secrets.WEEKLY_BRIEFING_SITE_KEY }}
+        run: |
+          mkdir -p cloudflare
+          python3 -c "
+          import json, os
+          json.dump(
+              {'apiBase': os.environ['CLOUD_API_BASE'], 'siteKey': os.environ['CLOUD_SITE_KEY']},
+              open('cloudflare/local-config.json', 'w'),
+              ensure_ascii=False,
+          )
+          "
+
+      - name: 產生雲端版網頁
+        working-directory: tools/週會宣導
+        run: python3 產生網頁.py --cloud
+
+      # 組出真正要部署的資料夾：入口網站 + 雲端版的集數頁面，
+      # 刻意不含 cloudflare/local-config.json，避免它被當成靜態檔案一起發布出去。
+      - name: 組裝部署用資料夾
+        run: |
+          rm -rf _site
+          mkdir -p _site/網頁
+          cp "tools/週會宣導/index.html" _site/index.html
+          cp tools/週會宣導/網頁-雲端版/*.html _site/網頁/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>《工程師的價值》第九篇｜順口答應的代價</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#efefef; --panel:#ffffff; --ink:#111111; --sub:#6b6b6b; --line:#111111;
+  --host:#8ecae6; --eng:#c8961e; --mgr:#3949ab; --cli:#ec6fa0;
+  --disp:"Noto Sans TC",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--disp)}
+.wrap{max-width:640px;margin:auto;padding:24px 16px 60px}
+
+.masthead{position:relative;padding:18px 20px;background:var(--panel);border:3px solid var(--line);border-radius:10px;margin-bottom:18px}
+.masthead .kicker{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--sub)}
+.led{width:7px;height:7px;border-radius:50%;background:var(--mgr);flex:none}
+h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-height:1.25}
+.sub{color:var(--sub);font-size:13px;font-weight:500}
+.idplate{position:absolute;top:16px;right:16px;text-align:right;color:var(--sub);font-size:10.5px;font-weight:700;letter-spacing:.04em;border:2px solid var(--line);border-radius:999px;padding:4px 10px}
+
+.card{position:relative;background:var(--panel);border-radius:10px;padding:18px;margin-bottom:16px;border:3px solid var(--line)}
+
+.cast{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{display:flex;align-items:center;gap:7px;background:#fff;border:2px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;font-size:12px;font-weight:700;color:var(--ink)}
+.dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;flex:none}
+.dot.host{background:var(--host);color:#0d3049} .dot.eng{background:var(--eng)} .dot.mgr{background:var(--mgr)} .dot.cli{background:var(--cli)}
+
+.sectionLabel{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--sub)}
+
+/* ===== meme comic panel ===== */
+.panelWrap{position:relative;overflow:hidden;border:4px solid var(--line);border-radius:10px;background:#fff;min-height:520px;display:flex;flex-direction:column}
+.shutter{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:9;transition:opacity .1s ease}
+.shutter.on{opacity:1}
+.corner,.halftone,.panelWrap::before{display:none !important}
+.sceneTag{display:none}
+.panelCount{position:absolute;top:10px;right:12px;background:var(--line);color:#fff;font-weight:800;font-size:12px;padding:4px 12px;border-radius:999px;z-index:6}
+.stage{position:relative;flex:1;display:flex;flex-direction:column}
+
+/* scene backdrop — a soft tint + faint watermark icon that changes with the scene,
+   so the panel reads as "we're on the phone / in the workshop / etc." without
+   competing with the character illustration or captions */
+.bgLayer{position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:background .2s ease}
+.bgLayer svg{width:58%;height:58%;opacity:.07}
+.bgLayer svg *{stroke:var(--line) !important;fill:none !important}
+.bg-studio{background:#fafafa}
+.bg-workshop{background:#fdf5e8}
+.bg-office{background:#eef1fb}
+.bg-phone{background:#fdedf3}
+.bg-spotlight{background:radial-gradient(circle at 50% 32%,#fff3d6 0%,#ffffff 72%)}
+
+/* small corner badge showing the scene's icon, on the side opposite whoever's speaking */
+.iconRow{position:absolute;top:14px;z-index:6;display:flex;gap:6px}
+.iconRow.left{left:14px}
+.iconRow.right{right:14px}
+.iconBadge{width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid var(--line);display:flex;align-items:center;justify-content:center}
+.iconBadge svg{width:16px;height:16px}
+.iconBadge svg *{stroke:var(--line);fill:none}
+
+/* standout-beat reactions, toggled per line via effect:"speed"|"impact"|"spark" */
+.speedlines{position:absolute;inset:0;z-index:1;opacity:0;transition:opacity .12s ease;pointer-events:none}
+.speedlines.on{opacity:1}
+.impact{position:absolute;top:6%;right:4%;z-index:6;opacity:0;transition:opacity .12s ease;pointer-events:none;text-align:center}
+.impact.on{opacity:1}
+.impact svg{width:90px;height:90px}
+.impact .sfx{margin-top:-84px;font-weight:900;font-size:15px;color:#7a1414;text-shadow:1px 1px 0 #fff}
+.sparkWrap{position:absolute;inset:0;z-index:6;opacity:0;transition:opacity .15s ease;pointer-events:none}
+.sparkWrap.on{opacity:1}
+
+/* manga-style reaction mark beside the character's head — a small pop-in
+   symbol that reflects the line's emotion (sweat/surprise/anger/idea).
+   Positioned relative to .stage (a sibling of charWrap, never a child of it)
+   so it survives charWrap.innerHTML being wiped on the end card. */
+@keyframes markPop{0%{transform:scale(0) rotate(-10deg);opacity:0}55%{transform:scale(1.2) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+.reactionMark{position:absolute;top:30%;right:19%;width:34px;height:34px;z-index:7;pointer-events:none}
+.reactionMark:empty{display:none}
+.reactionMark svg{width:100%;height:100%;display:block;animation:markPop .35s cubic-bezier(.34,1.56,.64,1)}
+
+.bubbleWrap{position:relative;top:0;left:0;right:0;padding:26px 22px 4px;z-index:6}
+.speechBubble{position:relative;background:transparent;border:none;padding:0;font-size:23px;line-height:1.42;color:var(--ink);font-weight:900;font-family:var(--disp);text-align:center;max-width:100%}
+.speechBubble::before{display:none}
+.speechBubble .said{color:var(--ink)}
+.speechBubble .unsaid{color:#c9c9c9}
+.speechBubble.final{text-align:center;padding-top:10px}
+.speechBubble.final::before{display:none}
+.speechBubble.final .quoteLine{font-size:21px;color:var(--ink);font-weight:900;line-height:1.55}
+.speechBubble.final .endQuestion{margin-top:16px;padding-top:16px;border-top:2px dashed var(--line);color:var(--ink);font-size:18px;font-weight:800;line-height:1.6;opacity:0;animation:questionRise .5s ease .2s forwards}
+@keyframes questionRise{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
+
+/* end-card response box — saves the viewer's answer as a small local file
+   via a plain <a download> (no server, no network call, no upload anywhere) */
+.responseBox{margin-top:20px;padding-top:16px;border-top:2px dashed var(--line);text-align:left;opacity:0;animation:questionRise .5s ease .4s forwards}
+.responseInput{width:100%;min-height:64px;border:2px solid var(--line);border-radius:10px;padding:10px 12px;font-family:var(--disp);font-size:14px;color:var(--ink);resize:vertical;box-sizing:border-box}
+.responseSubmit{margin-top:8px;width:100%}
+.responseNote{margin-top:8px;font-size:12px;color:var(--sub);text-align:center;min-height:16px}
+.qrBlock{margin-top:14px;padding-top:14px;border-top:1px dashed #ccc;text-align:center}
+.qrImg{width:120px;height:120px;border:2px solid var(--line);border-radius:8px;background:#fff;padding:4px}
+.qrCaption{margin-top:6px;font-size:11.5px;color:var(--sub)}
+
+/* 動態顯示大家已經送出的回應（僅雲端版；本機版 RESPONSE_API_BASE 是空字串，整段不會出現） */
+.communityBlock{margin-top:14px;padding-top:14px;border-top:1px dashed #ccc}
+.communityHead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--sub);font-weight:700;margin-bottom:8px}
+.communityRefresh{font-size:11px;color:var(--sub);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit}
+.communityCloud{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;justify-content:center;min-height:34px;padding:6px 4px}
+.communityCloud .word{font-weight:800;line-height:1.3}
+.communityEmpty{font-size:12px;color:var(--sub);text-align:center;padding:6px 0;width:100%}
+
+.charWrap{position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;padding:10px 20px 20px;left:auto;bottom:auto;transform:none}
+.charSvg{width:180px;height:204px;display:block;filter:none;animation:charBob 2.6s ease-in-out infinite}
+@keyframes charBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+
+.roleLabel{position:absolute;bottom:16px;font-weight:800;font-size:12.5px;padding:5px 14px;color:#fff;border-radius:999px;z-index:5;left:50%;transform:translateX(-50%);right:auto;clip-path:none}
+
+.bubbleWrap{order:-1}
+/* end card: center the quote+question block in the whole panel instead of
+   leaving it pinned to the top with empty space below */
+.bubbleWrap:has(.speechBubble.final){position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;padding:30px 24px;overflow-y:auto}
+.speechBubble.final{width:100%}
+.dotsRow{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.dotsRow .pdot{width:7px;height:7px;border-radius:50%;background:#c7c7c7}
+.dotsRow .pdot.active{background:var(--line);width:9px;height:9px}
+
+#count{color:var(--sub);font-size:12px;margin-top:8px;font-weight:600}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select,input[type=range]{background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:700;font-family:var(--disp)}
+button{cursor:pointer;transition:background .1s ease,color .1s ease}
+button:hover{background:var(--ink);color:#fff}
+button.ghost{background:transparent;border-style:dashed}
+button#playBtn{background:var(--ink);color:#fff}
+button#playBtn:hover{filter:brightness(1.3)}
+label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);font-weight:700}
+input[type=range]{padding:0;border:none;background:transparent;accent-color:var(--ink);border-radius:0}
+.progress{height:8px;background:#e6e6e6;border:2px solid var(--line);border-radius:999px;margin:16px 0;overflow:hidden}
+.bar{height:100%;background:var(--ink);width:0;transition:width .2s ease}
+.hint{font-size:12.5px;color:var(--sub);line-height:1.7}
+
+.panel-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.panel-head h2{margin:0;font-size:13.5px;font-weight:800;letter-spacing:.02em;color:var(--ink)}
+.panel-head .arrow{transition:transform .2s ease;color:var(--sub);font-weight:900}
+.panel-head.open .arrow{transform:rotate(180deg)}
+.panel-body{display:none;margin-top:16px}
+.panel-body.open{display:block}
+
+.castGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.castCard{position:relative;border:2px solid var(--line);background:#fff;border-radius:10px;padding:14px}
+.castCard-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.castCard-face{width:42px;height:42px;border-radius:50%;background:#fff;border:2px solid var(--line);overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
+.castCard-face svg{width:54px;height:54px;margin-top:6px}
+.castCard-name{font-weight:800;font-size:13.5px}
+.castCard-tag{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--sub);text-transform:uppercase}
+.speaker-controls{display:flex;flex-direction:column;gap:10px}
+.mini{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--sub);font-weight:600}
+.mini output{color:var(--ink);font-weight:800}
+select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px}
+.reset-line{margin-top:14px;display:flex;justify-content:flex-end}
+
+@media (max-width: 480px){
+  .wrap{padding:16px 10px 44px}
+  h1{font-size:20px}
+  .panelWrap{min-height:460px}
+  .charSvg{width:140px;height:158px}
+  .speechBubble{font-size:19px}
+  .castGrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="idplate">EP 09</div>
+    <div class="kicker"><span class="led"></span>《工程師的價值》第九篇晨會宣導</div>
+    <h1>順口答應的代價</h1>
+    <div class="sub">幫忙沒有停損點，就會變成硬撐　·　約 2～3 分鐘</div>
+    <div class="cast">
+      <div class="chip"><span class="dot host">主</span>主持人 · 快、直接、有梗</div>
+      <div class="chip"><span class="dot eng">凱</span>阿凱 · 自嘲型工程師</div>
+      <div class="chip"><span class="dot mgr">管</span>主管 · 一句話戳重點</div>
+      <div class="chip"><span class="dot cli">客</span>客戶 · 短、直接、不留情</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">分格漫畫播放</div>
+    <div class="panelWrap" id="panelWrap">
+      <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+      <div class="shutter" id="shutter"></div>
+      <div class="bubbleWrap"><div class="speechBubble" id="speechBubble"></div></div>
+      <div class="stage">
+        <div class="bgLayer" id="bgLayer"></div>
+        <div class="halftone"></div>
+        <svg class="speedlines" id="speedlines" viewBox="0 0 400 250" preserveAspectRatio="none">
+          <g stroke="#4fd8e0" stroke-width="2" opacity="0.6">
+            <line x1="200" y1="125" x2="0" y2="10"/><line x1="200" y1="125" x2="0" y2="60"/><line x1="200" y1="125" x2="0" y2="125"/>
+            <line x1="200" y1="125" x2="0" y2="190"/><line x1="200" y1="125" x2="0" y2="240"/>
+            <line x1="200" y1="125" x2="400" y2="10"/><line x1="200" y1="125" x2="400" y2="60"/><line x1="200" y1="125" x2="400" y2="125"/>
+            <line x1="200" y1="125" x2="400" y2="190"/><line x1="200" y1="125" x2="400" y2="240"/>
+          </g>
+        </svg>
+        <div class="impact" id="impact">
+          <svg width="140" height="140" viewBox="0 0 100 100" style="position:absolute">
+            <polygon points="50,2 61,35 95,35 68,55 78,90 50,68 22,90 32,55 5,35 39,35" fill="#ff5252" stroke="#ffb020" stroke-width="3"/>
+          </svg>
+          <div class="sfx" id="sfxText"></div>
+        </div>
+        <div class="sparkWrap" id="sparkWrap">
+          <svg width="60" viewBox="0 0 60 60" style="position:absolute;top:8%;left:52%">
+            <path d="M15 0 L18 12 L30 15 L18 18 L15 30 L12 18 L0 15 L12 12 Z" fill="#ffb020" stroke="#4fd8e0" stroke-width="2"/>
+          </svg>
+          <svg width="30" viewBox="0 0 60 60" style="position:absolute;top:20%;left:60%">
+            <path d="M15 0 L18 12 L30 15 L18 18 L15 30 L12 18 L0 15 L12 12 Z" fill="#ffb020" stroke="#4fd8e0" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="iconRow left" id="iconRowLeft"></div>
+        <div class="iconRow right" id="iconRowRight"></div>
+        <div class="charWrap center" id="charWrap">
+          <svg id="charSvg" class="charSvg" viewBox="0 0 150 170"></svg>
+        </div>
+        <div class="reactionMark" id="reactionMark"></div>
+        <div class="roleLabel center" id="roleLabel"></div>
+      </div>
+      <div class="panelCount" id="panelCount">1/12</div>
+    </div>
+    <div class="dotsRow" id="dotsRow"></div>
+    <div id="count"></div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">播放控制</div>
+    <div class="controls">
+      <button onclick="prev()">◀◀ 上一段</button>
+      <button id="playBtn" onclick="play()">▶ 執行播放</button>
+      <button onclick="pause()">‖ 暫停</button>
+      <button onclick="next()">下一段 ▶▶</button>
+      <label>RATE <input id="rate" type="range" min=".75" max="1.5" step=".05" value="1"><span id="rv">1.00x</span></label>
+    </div>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div class="hint">按「執行播放」會自動一段接一段唸完整集，字幕跟著唸到的地方變色。四個角色各有自己的聲音、音調與語速，可以在下面的「配音設定」逐一調整；RATE 是整體語速（0.75×～1.5×）。播完會停在今日金句，再按一次播放就從頭重播。</div>
+  </div>
+
+  <div class="card">
+    <div id="panelHead" class="panel-head" onclick="togglePanel()">
+      <h2>配音設定</h2>
+      <span class="arrow">▾</span>
+    </div>
+    <div id="panelBody" class="panel-body">
+      <div id="speakerRows" class="castGrid"></div>
+      <div class="reset-line"><button class="ghost" onclick="resetDefaults()">還原預設分配</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div id="prepHead" class="panel-head" onclick="togglePrep()">
+      <h2>主管備課筆記（不會播出）</h2>
+      <span class="arrow">▾</span>
+    </div>
+    <div id="prepBody" class="panel-body">
+      <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:13.5px;color:var(--sub);font-weight:500">
+      <li>服務邊界（service boundary）觀念：專業不是有求必應，而是清楚說明自己能做的範圍、以及超出範圍後的處理方式，客戶反而更信任有清楚界線的服務。</li>
+      <li>「量力而為」不等於「拒絕幫忙」：初步查看、給時間點、超出範疇誠實告知，是三個可以並行的動作，重點在於不要無限展延、犧牲掉原本該完成的工作。</li>
+      <li>帶討論提醒：容易變成各自表態「我上次就是拒絕了」，可以換個角度問「上次答應額外的事之後，原本的工作有沒有被耽誤」，把重點放在有沒有抓到停損點。</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const ROLES = {
+  "主持人": {key:"host", color:"#8ecae6", basePitch:1.00, baseRate:1.05, avatar:"主", side:"center", voicePref:"曉臻"},
+  "阿凱工程師": {key:"eng", color:"#c8961e", basePitch:0.85, baseRate:1.10, avatar:"凱", side:"left", voicePref:"雲哲"},
+  "主管": {key:"mgr", color:"#3949ab", basePitch:1.06, baseRate:0.98, avatar:"管", side:"right", voicePref:"曉雨"},
+  "客戶": {key:"cli", color:"#ec6fa0", basePitch:1.38, baseRate:1.20, avatar:"客", side:"right", voicePref:"曉雨"}
+};
+const ROLE_ORDER = ["主持人", "阿凱工程師", "主管", "客戶"];
+const DEFAULT_EXPR = {"主持人": "calm", "阿凱工程師": "neutral", "主管": "stern", "客戶": "angry"};
+
+const SCRIPT = [
+{bg:"studio", tag:"開場：先自砍一刀", icon:"question", lines:[
+  ["主持人", "客戶多要求一件事，你會不會不好意思拒絕？", {expr:"calm"}],
+  ["主持人", "我以前也會。結果就是，自己越幫越忙。", {expr:"sheepish", effect:"sweat"}]
+]},
+{bg:"workshop", tag:"故事：順口答應", icon:"wrench", lines:[
+  ["阿凱工程師", "客戶說「順便幫我看一下這台舊機器好不好？」", {expr:"neutral"}],
+  ["阿凱工程師", "我想說舉手之勞，就順口答應了。", {expr:"confident"}],
+  ["阿凱工程師", "結果那台舊機器問題一堆，搞了兩小時，原本要修的那台反而遲到。", {expr:"sheepish", effect:"sweat"}]
+]},
+{bg:"phone", tag:"客戶的反應", icon:"phoneAlert", lines:[
+  ["客戶", "你不是說今天會修好嗎？怎麼還沒好？！", {expr:"angry", effect:"impact", sfx:"！"}],
+  ["阿凱工程師", "……", {expr:"shocked"}]
+]},
+{bg:"office", tag:"主管的提醒", icon:"question", lines:[
+  ["主管", "你答應的，是客戶要的那件事，還是你自己想表現？", {expr:"stern"}],
+  ["阿凱工程師", "我只是想說幫一下而已。", {expr:"sheepish"}],
+  ["主管", "初步看一下沒問題，但你要抓時間，不是無限展延。", {expr:"stern"}],
+  ["主管", "超出你能力或維護範圍，就該老實說，不是硬撐著全部扛。", {expr:"stern"}]
+]},
+{bg:"office", tag:"怎麼拿捏", icon:"layers", lines:[
+  ["主持人", "不是完全不幫忙，客戶多問一句，看一眼、初步判斷一下，沒問題。", {expr:"calm"}],
+  ["主持人", "重點是，你有沒有幫自己設一個停損點？", {expr:"stern"}]
+]},
+{bg:"studio", tag:"拿捏的三件事", icon:"checkCircle", lines:[
+  ["主持人", "所以拿捏的三件事。", {expr:"calm"}],
+  ["主持人", "第一，可以先看一下，但給自己一個時間停損點。", {expr:"confident"}],
+  ["主持人", "第二，超出自己能力或維護範疇，誠實說「這超出我能處理的範圍」。", {expr:"confident"}],
+  ["主持人", "第三，原本該做的事先做完，額外的另外約時間。", {expr:"confident"}]
+]},
+{bg:"spotlight", tag:"結尾", icon:"upgrade", lines:[
+  ["阿凱工程師", "後來我學會，先把手上的事情講清楚，再決定要不要多做。", {expr:"confident"}],
+  ["主持人", "因為亂答應，比拒絕更傷專業。", {expr:"spark", effect:"spark"}]
+]}
+];
+
+const GOLDEN_QUOTE = "幫忙沒有停損點，<br>就會變成硬撐。";
+const MANAGER_QUESTION = "最近一次你答應的事，超出了原本該做的範圍？<br>下次可以怎麼抓一個停損點？";
+const EPISODE_LABEL = "09_順口答應的代價";
+
+// flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
+const d = [];
+const PANELS = [];
+const ICONS = [];
+SCRIPT.forEach((scene, sceneIdx) => {
+  scene.lines.forEach(line => {
+    const [role, text, meta] = line;
+    d.push([role, text]);
+    const expr = (meta && meta.expr) || DEFAULT_EXPR[role] || "neutral";
+    PANELS.push({bg: scene.bg, icon: scene.icon, expr, effect: (meta && meta.effect) || null, sfx: (meta && meta.sfx) || "", tag: scene.tag, sceneIdx});
+    ICONS.push({left: ROLES[role].side==="left" ? [] : [scene.icon], right: ROLES[role].side==="left" ? [scene.icon] : []});
+  });
+});
+
+// ==== icon library (simple line icons) ====
+const ICONLIB = {
+  clock:      `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
+  wrench:     `<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2z"/>`,
+  clipboard:  `<rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3" rx="1"/><path d="M9 11h6M9 15h6"/>`,
+  repeat:     `<path d="M4 9a8 8 0 0 1 14-4l2 2M20 15a8 8 0 0 1-14 4l-2-2"/><path d="M18 3v4h-4M6 21v-4h4"/>`,
+  question:   `<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.2 1-1.2 2"/><circle cx="12" cy="17" r=".8" fill="var(--inkline)"/>`,
+  team:       `<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c0-3 2.5-5 6-5s6 2 6 5M10 20c0-3 2.5-5 6-5s6 2 6 5"/>`,
+  phoneAlert: `<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2C9.5 21 3 14.5 3 6a2 2 0 0 1 2-2z"/><path d="M18 2l1 4M20 2l-2 4"/>`,
+  layers:     `<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17l9 5 9-5"/>`,
+  checkCircle:`<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>`,
+  star:       `<path d="M12 2l3 7 7 .6-5.5 4.6L18 22l-6-4-6 4 1.5-7.8L2 9.6 9 9z"/>`,
+  upgrade:    `<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><path d="M5 21h14"/>`
+};
+function iconSVG(name){
+  return `<svg viewBox="0 0 24 24">${ICONLIB[name]||""}</svg>`;
+}
+
+// ==== manga-style reaction marks (beside the head, not part of the face itself) ====
+const MARKLIB = {
+  sweat:    `<path d="M12 2c4.2 5.4 6.2 8.6 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.6 7.8 7.4 12 2z" fill="#bfe4ff" stroke="#5fb0ff" stroke-width="1.4"/>`,
+  surprise: `<circle cx="12" cy="12" r="10.5" fill="#fff" stroke="#1a1a1a" stroke-width="1.6"/><text x="12" y="17" font-size="13" font-weight="900" text-anchor="middle" fill="#1a1a1a">!?</text>`,
+  anger:    `<g stroke="#d31f1f" stroke-width="2.3" stroke-linecap="round"><path d="M4 7l4.5 3"/><path d="M8.5 3.5l1 5.5"/><path d="M14.5 3.5l-1 5.5"/><path d="M20 7l-4.5 3"/><path d="M5 17l5-2.5"/><path d="M19 17l-5-2.5"/></g>`,
+  idea:     `<path d="M12 2.5a6.3 6.3 0 0 0-3.2 11.7v2.3h6.4v-2.3A6.3 6.3 0 0 0 12 2.5z" fill="#ffe58a" stroke="#d99a00" stroke-width="1.3"/><path d="M9.5 19h5M10 21.3h4" stroke="#1a1a1a" stroke-width="1.4" stroke-linecap="round"/>`
+};
+const EXPR_MARK = {sheepish:"sweat", shocked:"surprise", angry:"anger", spark:"idea"};
+function markSVG(name){
+  const inner = MARKLIB[name];
+  return inner ? `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${inner}</svg>` : "";
+}
+
+// ==== face SVG builder (simple manga-style bust) ====
+function faceSVG(role, expr){
+  const meta = ROLES[role];
+  const hair = meta.color;
+  const glasses = "";
+  let brows = `<line x1="45" y1="55" x2="65" y2="55" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/><line x1="85" y1="55" x2="105" y2="55" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>`;
+  let eyes  = `<circle cx="55" cy="66" r="5" fill="#1a1a1a"/><circle cx="95" cy="66" r="5" fill="#1a1a1a"/>`;
+  let mouth = `<path d="M60 90 Q75 96 90 90" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  let extra = "";
+  if(expr==="confident"){
+    brows = `<line x1="45" y1="52" x2="65" y2="48" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/><line x1="85" y1="48" x2="105" y2="52" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>`;
+    mouth = `<path d="M58 88 Q75 100 96 84" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  } else if(expr==="sheepish"){
+    brows = `<path d="M45 58 Q55 50 65 56" stroke="#1a1a1a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M85 56 Q95 50 105 58" stroke="#1a1a1a" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    mouth = `<path d="M62 92 Q75 88 88 92" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    extra = `<path d="M112 48 q6 8 0 16" stroke="#5fb0ff" stroke-width="3" fill="#bfe4ff"/>`;
+  } else if(expr==="calm"){
+    mouth = `<path d="M62 89 Q75 94 88 89" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  } else if(expr==="angry"){
+    brows = `<line x1="45" y1="50" x2="65" y2="58" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/><line x1="85" y1="58" x2="105" y2="50" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>`;
+    mouth = `<ellipse cx="75" cy="93" rx="14" ry="10" fill="#7a1414" stroke="#1a1a1a" stroke-width="3"/>`;
+    extra = `<path d="M108 40 l7 6 M106 48 l9 2" stroke="#d31f1f" stroke-width="3" stroke-linecap="round"/>`;
+  } else if(expr==="shocked"){
+    eyes = `<circle cx="55" cy="66" r="7" fill="#fff" stroke="#1a1a1a" stroke-width="2"/><circle cx="95" cy="66" r="7" fill="#fff" stroke="#1a1a1a" stroke-width="2"/><circle cx="55" cy="66" r="2.5" fill="#1a1a1a"/><circle cx="95" cy="66" r="2.5" fill="#1a1a1a"/>`;
+    brows = `<line x1="45" y1="46" x2="65" y2="50" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/><line x1="85" y1="50" x2="105" y2="46" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>`;
+    mouth = `<ellipse cx="75" cy="92" rx="8" ry="10" fill="#fff" stroke="#1a1a1a" stroke-width="3"/>`;
+    extra = `<path d="M112 48 q6 8 0 16" stroke="#5fb0ff" stroke-width="3" fill="#bfe4ff"/>`;
+  } else if(expr==="stern"){
+    brows = `<line x1="45" y1="52" x2="65" y2="54" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/><line x1="85" y1="54" x2="105" y2="52" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>`;
+    mouth = `<line x1="62" y1="91" x2="88" y2="91" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>`;
+  } else if(expr==="spark"){
+    mouth = `<path d="M62 90 Q75 96 88 90" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    extra = `<path d="M70 30 L74 40 L84 43 L74 46 L70 56 L66 46 L56 43 L66 40 Z" fill="#ffb020" stroke="#4fd8e0" stroke-width="2"/>`;
+  }
+  const arms = armsSVG(expr, hair);
+  return faceSVGInner(brows, eyes, mouth, glasses, extra, hair, arms);
+}
+// 手臂姿勢：讓角色不只是一顆頭，隨表情擺出對應的簡單動作
+// 手臂顏色跟身體同色，緊貼身體輪廓時會整個融在一起看不出來，
+// 所以每條手臂都先描一層深色外框（跟臉部五官同一套線稿風格）再疊上手臂色，
+// 這樣不管姿勢貼不貼著身體，輪廓都看得出來。
+function limb(d, hair){
+  return `<path d="${d}" stroke="#1a1a1a" stroke-width="18.5" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${hair}" stroke-width="14" fill="none" stroke-linecap="round"/>`;
+}
+function hand(cx, cy, hair){
+  return `<circle cx="${cx}" cy="${cy}" r="10.5" fill="#1a1a1a"/><circle cx="${cx}" cy="${cy}" r="9" fill="${hair}"/>`;
+}
+function armsSVG(expr, hair){
+  const down = (cx, sway) => limb(`M${cx} 138 Q${cx+sway} 158 ${cx+sway*0.6} 168`, hair);
+  const leftDown = down(38, -10), rightDown = down(112, 10);
+  if(expr==="confident"){
+    return leftDown + limb("M112 138 Q132 112 120 92", hair) + hand(120, 90, hair);
+  }
+  if(expr==="sheepish"){
+    return leftDown + limb("M112 138 Q136 118 102 100", hair) + hand(101, 99, hair);
+  }
+  if(expr==="shocked"){
+    return limb("M38 138 Q26 112 52 92", hair) + hand(53, 90, hair)
+      + limb("M112 138 Q124 112 98 92", hair) + hand(97, 90, hair);
+  }
+  if(expr==="angry" || expr==="stern"){
+    // 雙手叉腰：手肘往外撐出身體輪廓，靠外框線區隔身體/手臂，不會融成一團
+    return limb("M38 135 Q10 145 32 162", hair) + limb("M112 135 Q140 145 118 162", hair);
+  }
+  if(expr==="spark"){
+    return leftDown + limb("M112 138 Q118 100 110 68", hair) + hand(110, 64, hair);
+  }
+  return leftDown + rightDown;
+}
+function faceSVGInner(brows, eyes, mouth, glasses, extra, hair, arms){
+  return `
+    <ellipse cx="75" cy="150" rx="55" ry="26" fill="${hair}" opacity="0.9"/>
+    <path d="M28 60 Q30 8 75 8 Q120 8 122 60 L122 78 Q122 108 75 112 Q28 108 28 78 Z" fill="${hair}"/>
+    <ellipse cx="75" cy="82" rx="42" ry="46" fill="#ffe0c2" stroke="#1a1a1a" stroke-width="3"/>
+    ${brows}${eyes}${mouth}${glasses}${extra}${arms || ""}
+  `;
+}
+function faceSVGWrapped(role, expr){
+  return `<svg viewBox="0 0 150 170" width="150" height="170" xmlns="http://www.w3.org/2000/svg">${faceSVG(role, expr)}</svg>`;
+}
+
+// ==== Cloudflare Worker 設定（回應收集用）====
+// 部署好 Worker 後，把這兩個值換成你的，然後重新跑一次 產生網頁.py 讓全部集數套用。
+// RESPONSE_API_BASE 留空（""）的話，送出回應會直接退回本機下載，不會嘗試連網。
+const RESPONSE_API_BASE = ""; // 例如 "https://weekly-briefing-responses.xxx.workers.dev"
+const RESPONSE_SITE_KEY = ""; // 部署時用 `npx wrangler secret put SITE_KEY` 設定的同一組值
+// 這兩個由 產生網頁.py --cloud 用 Python 的 qrcode 套件預先產生好填入，不是在瀏覽器裡即時產生
+const RESPONSE_QR_IMG = ""; // base64 PNG data URI，掃了會連到 Worker 的 /respond 頁面
+const RESPONSE_QR_URL = ""; // 同一個網址的純文字版，QR Code 掃不出來時的備用
+
+let i=0, auto=false;
+let onEndCard=false;
+let actionSeq=0; // bumped by every next()/prev()/playFrom() step so a stale, already-
+                  // scheduled flashRender/showEndCard timer can tell it's been superseded
+let communityPollTimer=null; // polls /responses while the end card is showing; cleared in render()
+let zhVoices=[];
+let cfg = {};
+
+const who=document.getElementById("count"),
+      bar=document.getElementById("bar"), rate=document.getElementById("rate"), rv=document.getElementById("rv"),
+      speakerRows=document.getElementById("speakerRows"), panelHead=document.getElementById("panelHead"),
+      panelBody=document.getElementById("panelBody"),
+      bgLayer=document.getElementById("bgLayer"), charSvg=document.getElementById("charSvg"),
+      charWrap=document.getElementById("charWrap"), roleLabel=document.getElementById("roleLabel"),
+      speechBubble=document.getElementById("speechBubble"),
+      panelCount=document.getElementById("panelCount"), speedlines=document.getElementById("speedlines"),
+      impact=document.getElementById("impact"), sfxText=document.getElementById("sfxText"), sparkWrap=document.getElementById("sparkWrap"),
+      iconRowLeft=document.getElementById("iconRowLeft"), iconRowRight=document.getElementById("iconRowRight"),
+      reactionMark=document.getElementById("reactionMark"),
+      shutter=document.getElementById("shutter"), dotsRow=document.getElementById("dotsRow");
+
+function render(){
+  onEndCard = false;
+  if(communityPollTimer){ clearInterval(communityPollTimer); communityPollTimer = null; }
+  const role = d[i][0], meta = ROLES[role], p = PANELS[i];
+
+  bgLayer.className = "bgLayer bg-" + p.bg;
+  bgLayer.innerHTML = iconSVG(p.icon);
+  panelCount.textContent = `${p.sceneIdx+1}/${SCRIPT.length}`;
+  dotsRow.innerHTML = SCRIPT.map((s,idx) => `<span class="pdot${idx===p.sceneIdx?" active":""}"></span>`).join("");
+
+  charSvg.innerHTML = faceSVG(role, p.expr);
+  reactionMark.innerHTML = markSVG(EXPR_MARK[p.expr]);
+
+  const side = meta.side;
+  charWrap.className = "charWrap " + side;
+  roleLabel.className = "roleLabel " + side;
+  roleLabel.textContent = role;
+  roleLabel.style.background = meta.color;
+  roleLabel.style.color = (role==="主持人") ? "#0d3049" : "#fff";
+
+  speechBubble.innerHTML = `<span class="unsaid">${d[i][1]}</span>`;
+  speechBubble.className = "speechBubble" + (side==="left" ? " tail-left" : side==="right" ? " tail-right" : "");
+
+  speedlines.classList.toggle("on", p.effect==="speed");
+  impact.classList.toggle("on", p.effect==="impact");
+  sfxText.textContent = p.sfx || "";
+  sparkWrap.classList.toggle("on", p.effect==="spark");
+
+  const ic = ICONS[i] || {left:[],right:[]};
+  iconRowLeft.innerHTML = ic.left.map(name => `<div class="iconBadge">${iconSVG(name)}</div>`).join("");
+  iconRowRight.innerHTML = ic.right.map(name => `<div class="iconBadge">${iconSVG(name)}</div>`).join("");
+
+  who.textContent = `第 ${i+1} / ${d.length} 段 — ${role}`;
+  bar.style.background = meta.color;
+  bar.style.width = ((i+1)/d.length*100)+"%";
+}
+
+function loadVoices(){
+  zhVoices = speechSynthesis.getVoices().filter(v => /zh|TW|HK|CN/i.test(v.lang+" "+v.name));
+  if(Object.keys(cfg).length===0) buildDefaultConfig();
+  buildPanel();
+  render();
+}
+
+function buildDefaultConfig(){
+  ROLE_ORDER.forEach((role, idx) => {
+    const meta = ROLES[role];
+    let voiceIdx = zhVoices.length ? (idx % zhVoices.length) : -1;
+    if(meta.voicePref){
+      const found = zhVoices.findIndex(v => v.name.toLowerCase().includes(meta.voicePref));
+      if(found >= 0) voiceIdx = found;
+    }
+    cfg[role] = { voiceIdx, pitch: meta.basePitch, rateMul: meta.baseRate };
+  });
+}
+
+function resetDefaults(){ buildDefaultConfig(); buildPanel(); }
+
+function buildPanel(){
+  speakerRows.innerHTML = "";
+  ROLE_ORDER.forEach(role => {
+    const meta = ROLES[role], c = cfg[role];
+    const row = document.createElement("div");
+    row.className = "castCard";
+
+    const head = document.createElement("div");
+    head.className = "castCard-head";
+    head.innerHTML = `<div class="castCard-face">${faceSVGWrapped(role, DEFAULT_EXPR[role] || "neutral")}</div>
+      <div><div class="castCard-name">${role}</div><div class="castCard-tag">ROLE — ${meta.key.toUpperCase()}</div></div>`;
+
+    const controls = document.createElement("div");
+    controls.className = "speaker-controls";
+
+    const voiceWrap = document.createElement("div");
+    voiceWrap.className = "mini";
+    voiceWrap.innerHTML = `<span>指定聲音</span>`;
+    const sel = document.createElement("select");
+    sel.className = "voice-select";
+    const autoOpt = document.createElement("option");
+    autoOpt.value = "-1";
+    autoOpt.textContent = zhVoices.length ? "自動分配" : "（無中文語音，使用系統預設）";
+    sel.appendChild(autoOpt);
+    zhVoices.forEach((v, n) => {
+      const o = document.createElement("option");
+      o.value = n;
+      o.textContent = v.name + " · " + v.lang;
+      sel.appendChild(o);
+    });
+    sel.value = String(c.voiceIdx);
+    sel.onchange = () => { cfg[role].voiceIdx = parseInt(sel.value, 10); };
+    voiceWrap.appendChild(sel);
+
+    const pitchWrap = document.createElement("div");
+    pitchWrap.className = "mini";
+    pitchWrap.innerHTML = `<span>音調 <output id="pv-${meta.key}">${c.pitch.toFixed(2)}</output></span>`;
+    const pitchInput = document.createElement("input");
+    pitchInput.type = "range"; pitchInput.min = "0.6"; pitchInput.max = "1.6"; pitchInput.step = "0.02";
+    pitchInput.value = c.pitch;
+    pitchInput.oninput = () => { cfg[role].pitch = parseFloat(pitchInput.value); document.getElementById(`pv-${meta.key}`).textContent = cfg[role].pitch.toFixed(2); };
+    pitchWrap.appendChild(pitchInput);
+
+    const rateWrap = document.createElement("div");
+    rateWrap.className = "mini";
+    rateWrap.innerHTML = `<span>語速倍率 <output id="rv-${meta.key}">${c.rateMul.toFixed(2)}</output></span>`;
+    const rateInput = document.createElement("input");
+    rateInput.type = "range"; rateInput.min = "0.7"; rateInput.max = "1.4"; rateInput.step = "0.02";
+    rateInput.value = c.rateMul;
+    rateInput.oninput = () => { cfg[role].rateMul = parseFloat(rateInput.value); document.getElementById(`rv-${meta.key}`).textContent = cfg[role].rateMul.toFixed(2); };
+    rateWrap.appendChild(rateInput);
+
+    controls.appendChild(voiceWrap);
+    controls.appendChild(pitchWrap);
+    controls.appendChild(rateWrap);
+
+    row.appendChild(head);
+    row.appendChild(controls);
+    speakerRows.appendChild(row);
+  });
+}
+
+function togglePrep(){
+  document.getElementById("prepHead").classList.toggle("open");
+  document.getElementById("prepBody").classList.toggle("open");
+}
+
+function togglePanel(){
+  panelHead.classList.toggle("open");
+  panelBody.classList.toggle("open");
+}
+
+function speechText(text){
+  // spell "SOP" letter-by-letter for TTS, run together with no pause between letters
+  return text.replace(/SOP/g, "S O P");
+}
+
+function speakCurrent(onend){
+  speechSynthesis.cancel();
+  const role = d[i][0], c = cfg[role];
+  const displayText = d[i][1];
+  const spokenText = speechText(displayText);
+  const u = new SpeechSynthesisUtterance(spokenText);
+  u.lang = "zh-TW";
+  u.pitch = c.pitch;
+  u.rate = Math.min(2, Math.max(0.4, (+rate.value) * c.rateMul));
+  if(c.voiceIdx >= 0 && zhVoices[c.voiceIdx]) u.voice = zhVoices[c.voiceIdx];
+  u.onboundary = (e) => {
+    const ratio = Math.min(1, e.charIndex / Math.max(1, spokenText.length));
+    const cut = Math.round(ratio * displayText.length);
+    speechBubble.innerHTML = `<span class="said">${displayText.slice(0,cut)}</span><span class="unsaid">${displayText.slice(cut)}</span>`;
+  };
+  u.onend = () => { speechBubble.innerHTML = `<span class="said">${displayText}</span>`; onend(); };
+  speechSynthesis.speak(u);
+}
+
+// quick "scene cut" shutter flash before swapping the panel — gives a theatre-style transition between beats
+function flashRender(cb){
+  const seq = ++actionSeq;
+  shutter.classList.add("on");
+  setTimeout(() => { if(seq===actionSeq){ render(); } shutter.classList.remove("on"); if(cb) cb(); }, 110);
+}
+
+// speak the closing golden quote (the manager's discussion question is meant to be
+// posed live in the room, so it stays silent — only the quote gets narration)
+function speakGoldenQuote(){
+  speechSynthesis.cancel();
+  const role = ROLES["主持人"] ? "主持人" : d[d.length-1][0];
+  const c = cfg[role] || {pitch:1, rateMul:1, voiceIdx:-1};
+  const spoken = speechText(
+    GOLDEN_QUOTE
+      .replace(/<br\s*\/?>/gi, " ")   // plain space — the source text already carries its own punctuation
+      .replace(/<[^>]+>/g, "")
+      .replace(/([，。！？])\s+/g, "$1") // don't leave a pause-inducing gap right after punctuation
+  );
+  const u = new SpeechSynthesisUtterance(spoken);
+  u.lang = "zh-TW";
+  u.pitch = c.pitch;
+  u.rate = Math.min(2, Math.max(0.4, (+rate.value) * c.rateMul));
+  if(c.voiceIdx >= 0 && zhVoices[c.voiceIdx]) u.voice = zhVoices[c.voiceIdx];
+  speechSynthesis.speak(u);
+}
+
+// end-card response box: saves the viewer's answer as a small local file via
+// a plain <a download> — no fetch(), no server, no upload anywhere. Whoever
+// wants these collected can point the browser's default download folder at
+// a shared drive (e.g. a mapped NAS folder); this function never has to know.
+function downloadResponseLocally(payload){
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-`
+    + `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}-`
+    + String(Math.floor(1000 + Math.random()*9000));
+  const a = document.createElement("a");
+  a.href = url;
+  const safeLabel = EPISODE_LABEL.replace(/[\\/:*?"<>|]/g, "_"); // titles carry punctuation; Windows forbids these in filenames
+  a.download = `回應_${safeLabel}_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function submitResponse(){
+  const inputEl = document.getElementById("responseInput");
+  const note = document.getElementById("responseNote");
+  const text = inputEl.value.trim();
+  if(!text){ note.textContent = "打點字再送出喔"; return; }
+
+  const plainQuestion = MANAGER_QUESTION.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "");
+  const payload = {
+    episode: EPISODE_LABEL,
+    question: plainQuestion,
+    response: text,
+    submittedAt: new Date().toISOString()
+  };
+
+  if(RESPONSE_API_BASE){
+    try{
+      const res = await fetch(RESPONSE_API_BASE + "/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      inputEl.value = "";
+      note.textContent = "已送出，感謝分享！（已同步到雲端）";
+      loadCommunityResponses(); // 馬上刷新一次，讓自己的回應立刻反映在下面的統計裡
+      return;
+    } catch(e){
+      // 連不上（離線、被擋、Worker 掛了……）就退回本機下載，不讓回應憑空消失
+      downloadResponseLocally(payload);
+      inputEl.value = "";
+      note.textContent = "雲端連不上，改存成本機檔案了，感謝分享！";
+      return;
+    }
+  }
+
+  downloadResponseLocally(payload);
+  inputEl.value = "";
+  note.textContent = "已送出，感謝分享！（檔案存到瀏覽器的下載資料夾）";
+}
+
+// 跟 文字雲.html 用同一套簡化統計法：連續兩個字的字詞組合，不是真正的中文斷詞
+const COMMUNITY_STOPWORDS = new Set([
+  "的一","一次","這個","那個","我們","你們","他們","不會","沒有","就是","還是",
+  "但是","因為","所以","如果","可以","不要","一下","一點","什麼","怎麼","這樣",
+  "那樣","覺得","知道","不知","的時","時候","下次","最近","有沒","沒哪"
+]);
+function communityBigrams(text){
+  const cleaned = String(text).replace(/[\s，。！？、「」『』（）()\[\]{}\.,!?;:~—－_/\\]/g, "");
+  const grams = [];
+  for(let k = 0; k < cleaned.length - 1; k++){
+    const g = cleaned.slice(k, k + 2);
+    if(!COMMUNITY_STOPWORDS.has(g) && /[一-鿿]/.test(g)) grams.push(g);
+  }
+  return grams;
+}
+
+async function loadCommunityResponses(){
+  const countEl = document.getElementById("communityCount");
+  const cloudEl = document.getElementById("communityCloud");
+  if(!countEl || !cloudEl) return; // 使用者已經離開結尾畫面
+  countEl.textContent = "大家的回應載入中…";
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), {
+      headers: { "X-Site-Key": RESPONSE_SITE_KEY }
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const rows = (data.responses || []).filter(r => r.response);
+    if(!onEndCard) return; // 抓資料的這段時間使用者已經離開結尾畫面，不要再更新畫面
+    countEl.textContent = `目前 ${rows.length} 則回應`;
+    const freq = {};
+    rows.forEach(r => communityBigrams(r.response).forEach(g => { freq[g] = (freq[g] || 0) + 1; }));
+    const entries = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 30);
+    if(entries.length === 0){
+      cloudEl.innerHTML = rows.length
+        ? `<div class="communityEmpty">回應內容還太短，抓不到重複的字詞組合</div>`
+        : `<div class="communityEmpty">還沒有人回應，當第一個吧！</div>`;
+      return;
+    }
+    const maxCount = entries[0][1];
+    const colors = ["#8ecae6", "#c8961e", "#3949ab", "#ec6fa0", "#5fb0ff", "#d99a00"];
+    cloudEl.innerHTML = entries.map(([word, count]) => {
+      const size = 12 + Math.round((count / maxCount) * 18); // 12px ~ 30px
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      return `<span class="word" style="font-size:${size}px;color:${color}" title="出現 ${count} 次">${word}</span>`;
+    }).join("");
+  } catch(e){
+    if(!onEndCard) return;
+    countEl.textContent = "連不上雲端，晚點再試試看";
+    cloudEl.innerHTML = "";
+  }
+}
+
+function showEndCard(){
+  onEndCard = true;
+  bgLayer.className = "bgLayer bg-spotlight";
+  bgLayer.innerHTML = "";
+  panelCount.textContent = "完";
+  dotsRow.innerHTML = SCRIPT.map((s,idx) => `<span class="pdot active"></span>`).join("");
+  charWrap.innerHTML = "";
+  reactionMark.innerHTML = "";
+  iconRowLeft.innerHTML = ""; iconRowRight.innerHTML = "";
+  roleLabel.textContent = ""; roleLabel.style.background = "transparent";
+  speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.add("on");
+  speechBubble.className = "speechBubble final";
+  const qrBlock = RESPONSE_QR_IMG
+    ? `<div class="qrBlock"><img src="${RESPONSE_QR_IMG}" alt="掃描用手機回答" class="qrImg">`
+      + `<div class="qrCaption">或用手機掃描，直接在自己手機上回答</div></div>`
+    : "";
+  const communityBlock = RESPONSE_API_BASE
+    ? `<div class="communityBlock" id="communityBlock">`
+      + `<div class="communityHead"><span id="communityCount">大家的回應載入中…</span>`
+      + `<button type="button" class="communityRefresh" onclick="loadCommunityResponses()">重新整理</button></div>`
+      + `<div class="communityCloud" id="communityCloud"></div></div>`
+    : "";
+  speechBubble.innerHTML = `<div class="quoteLine">${GOLDEN_QUOTE}</div><div class="endQuestion">${MANAGER_QUESTION}</div>`
+    + `<div class="responseBox"><textarea id="responseInput" class="responseInput" placeholder="打幾個字，說說你的想法……" maxlength="300"></textarea>`
+    + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
+    + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
+  who.textContent = "播放完畢 — 今日金句與主管互動問題（再按一次執行播放可從頭重播）";
+  bar.style.width = "100%";
+  speakGoldenQuote();
+  if(RESPONSE_API_BASE){
+    loadCommunityResponses();
+    communityPollTimer = setInterval(loadCommunityResponses, 20000); // 每 20 秒自動更新一次
+  }
+}
+
+function playFrom(){
+  if(i >= d.length - 1 && !auto){ i = 0; } // replay from the start once the end card is showing
+  auto = true;
+  render();
+  const step = () => {
+    if(auto && i < d.length-1){
+      i++;
+      flashRender(() => speakCurrent(step));
+    } else if(!onEndCard){
+      auto = false;
+      onEndCard = true; // set immediately, not just inside showEndCard() — otherwise a
+                         // second call landing in this same 110ms window double-fires it
+      const seq = ++actionSeq;
+      shutter.classList.add("on");
+      setTimeout(() => { if(seq===actionSeq && onEndCard){ showEndCard(); } shutter.classList.remove("on"); }, 110);
+    }
+  };
+  speakCurrent(step);
+}
+window.play = playFrom;
+
+function pause(){ auto=false; speechSynthesis.pause(); render(); }
+function next(){
+  speechSynthesis.cancel(); auto=false;
+  if(onEndCard) return;
+  if(i<d.length-1){ i++; flashRender(); }
+  else {
+    onEndCard = true; // set immediately — a second "next" click inside this same
+                       // 110ms window must see onEndCard already true and no-op above
+    const seq = ++actionSeq;
+    shutter.classList.add("on");
+    setTimeout(() => { if(seq===actionSeq && onEndCard){ showEndCard(); } shutter.classList.remove("on"); }, 110);
+  }
+}
+function prev(){
+  speechSynthesis.cancel(); auto=false;
+  if(onEndCard){ onEndCard=false; flashRender(); return; }
+  if(i>0) i--;
+  flashRender();
+}
+
+
+rate.oninput = () => rv.textContent = (+rate.value).toFixed(2)+"x";
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+</script>
+</body></html>

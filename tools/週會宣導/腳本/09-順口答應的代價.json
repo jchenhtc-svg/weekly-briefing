@@ -1,0 +1,77 @@
+{
+  "series": "工程師的價值",
+  "episode": 9,
+  "episode_label": "第九篇",
+  "title": "順口答應的代價",
+  "subtitle": "幫忙沒有停損點，就會變成硬撐　·　約 2～3 分鐘",
+  "roles": [
+    { "name": "主持人",     "key": "host", "color": "#8ecae6", "voicePref": "曉臻", "avatar": "主", "side": "center", "pitch": 1.00, "rate": 1.05, "expr": "calm",    "chip": "主持人 · 快、直接、有梗" },
+    { "name": "阿凱工程師", "key": "eng",  "color": "#c8961e", "voicePref": "雲哲", "avatar": "凱", "side": "left",   "pitch": 0.85, "rate": 1.10, "expr": "neutral", "chip": "阿凱 · 自嘲型工程師" },
+    { "name": "主管",       "key": "mgr",  "color": "#3949ab", "voicePref": "曉雨", "avatar": "管", "side": "right",  "pitch": 1.06, "rate": 0.98, "expr": "stern",   "chip": "主管 · 一句話戳重點" },
+    { "name": "客戶",       "key": "cli",  "color": "#ec6fa0", "voicePref": "曉雨", "avatar": "客", "side": "right",  "pitch": 1.38, "rate": 1.20, "expr": "angry",   "chip": "客戶 · 短、直接、不留情" }
+  ],
+  "scenes": [
+    {
+      "tag": "開場：先自砍一刀", "bg": "studio", "icon": "question",
+      "lines": [
+        ["主持人", "客戶多要求一件事，你會不會不好意思拒絕？", {"expr": "calm"}],
+        ["主持人", "我以前也會。結果就是，自己越幫越忙。", {"expr": "sheepish", "effect": "sweat"}]
+      ]
+    },
+    {
+      "tag": "故事：順口答應", "bg": "workshop", "icon": "wrench",
+      "lines": [
+        ["阿凱工程師", "客戶說「順便幫我看一下這台舊機器好不好？」", {"expr": "neutral"}],
+        ["阿凱工程師", "我想說舉手之勞，就順口答應了。", {"expr": "confident"}],
+        ["阿凱工程師", "結果那台舊機器問題一堆，搞了兩小時，原本要修的那台反而遲到。", {"expr": "sheepish", "effect": "sweat"}]
+      ]
+    },
+    {
+      "tag": "客戶的反應", "bg": "phone", "icon": "phoneAlert",
+      "lines": [
+        ["客戶", "你不是說今天會修好嗎？怎麼還沒好？！", {"expr": "angry", "effect": "impact", "sfx": "！"}],
+        ["阿凱工程師", "……", {"expr": "shocked"}]
+      ]
+    },
+    {
+      "tag": "主管的提醒", "bg": "office", "icon": "question",
+      "lines": [
+        ["主管", "你答應的，是客戶要的那件事，還是你自己想表現？", {"expr": "stern"}],
+        ["阿凱工程師", "我只是想說幫一下而已。", {"expr": "sheepish"}],
+        ["主管", "初步看一下沒問題，但你要抓時間，不是無限展延。", {"expr": "stern"}],
+        ["主管", "超出你能力或維護範圍，就該老實說，不是硬撐著全部扛。", {"expr": "stern"}]
+      ]
+    },
+    {
+      "tag": "怎麼拿捏", "bg": "office", "icon": "layers",
+      "lines": [
+        ["主持人", "不是完全不幫忙，客戶多問一句，看一眼、初步判斷一下，沒問題。", {"expr": "calm"}],
+        ["主持人", "重點是，你有沒有幫自己設一個停損點？", {"expr": "stern"}]
+      ]
+    },
+    {
+      "tag": "拿捏的三件事", "bg": "studio", "icon": "checkCircle",
+      "lines": [
+        ["主持人", "所以拿捏的三件事。", {"expr": "calm"}],
+        ["主持人", "第一，可以先看一下，但給自己一個時間停損點。", {"expr": "confident"}],
+        ["主持人", "第二，超出自己能力或維護範疇，誠實說「這超出我能處理的範圍」。", {"expr": "confident"}],
+        ["主持人", "第三，原本該做的事先做完，額外的另外約時間。", {"expr": "confident"}]
+      ],
+      "bullets": ["① 先看一下，設停損點", "② 超出能力範疇就誠實說", "③ 該做的事優先完成"]
+    },
+    {
+      "tag": "結尾", "bg": "spotlight", "icon": "upgrade",
+      "lines": [
+        ["阿凱工程師", "後來我學會，先把手上的事情講清楚，再決定要不要多做。", {"expr": "confident"}],
+        ["主持人", "因為亂答應，比拒絕更傷專業。", {"expr": "spark", "effect": "spark"}]
+      ]
+    }
+  ],
+  "golden_quote": "幫忙沒有停損點，<br>就會變成硬撐。",
+  "manager_question": "最近一次你答應的事，超出了原本該做的範圍？<br>下次可以怎麼抓一個停損點？",
+  "prep_notes": [
+    "服務邊界（service boundary）觀念：專業不是有求必應，而是清楚說明自己能做的範圍、以及超出範圍後的處理方式，客戶反而更信任有清楚界線的服務。",
+    "「量力而為」不等於「拒絕幫忙」：初步查看、給時間點、超出範疇誠實告知，是三個可以並行的動作，重點在於不要無限展延、犧牲掉原本該完成的工作。",
+    "帶討論提醒：容易變成各自表態「我上次就是拒絕了」，可以換個角度問「上次答應額外的事之後，原本的工作有沒有被耽誤」，把重點放在有沒有抓到停損點。"
+  ]
+}

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>週會宣導 — 回應文字雲</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#efefef; --panel:#ffffff; --ink:#111111; --sub:#6b6b6b; --line:#111111;
+  --host:#8ecae6; --eng:#c8961e; --mgr:#3949ab; --cli:#ec6fa0;
+  --disp:"Noto Sans TC",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--disp)}
+.wrap{max-width:720px;margin:auto;padding:24px 16px 60px}
+
+.masthead{position:relative;padding:18px 20px;background:var(--panel);border:3px solid var(--line);border-radius:10px;margin-bottom:16px}
+h1{margin:0 0 6px;font-size:22px;font-weight:900;line-height:1.3}
+.sub{color:var(--sub);font-size:13px;font-weight:500;line-height:1.7}
+
+.card{position:relative;background:var(--panel);border-radius:10px;padding:18px;margin-bottom:16px;border:3px solid var(--line)}
+.sectionLabel{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--sub)}
+
+.dropzone{border:3px dashed var(--line);border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:background .1s ease}
+.dropzone:hover,.dropzone.drag{background:#f5f5f5}
+.dropzone input{display:none}
+.dropzone .hint{color:var(--sub);font-size:12.5px;margin-top:6px}
+
+.statusRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pill{border:2px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700}
+.pill.warn{border-color:#d31f1f;color:#d31f1f}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+select,button{background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:700;font-family:var(--disp)}
+button{cursor:pointer}
+button:hover{background:var(--ink);color:#fff}
+
+.cloud{min-height:220px;border:2px solid var(--line);border-radius:10px;padding:22px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 14px;background:#fafafa}
+.cloud .empty{color:var(--sub);font-size:13px}
+.cloud .word{font-weight:800;line-height:1.3;white-space:nowrap}
+
+.respList{margin-top:14px;max-height:320px;overflow-y:auto;border:2px solid var(--line);border-radius:10px}
+.respRow{padding:10px 14px;border-bottom:1px solid #ddd;font-size:13.5px;line-height:1.6}
+.respRow:last-child{border-bottom:none}
+.respRow .meta{color:var(--sub);font-size:11px;margin-top:3px}
+
+.honest{font-size:12.5px;color:var(--sub);line-height:1.8}
+.honest b{color:var(--ink)}
+
+@media (max-width:480px){
+  .wrap{padding:16px 10px 44px}
+  h1{font-size:19px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <h1>週會宣導 — 回應文字雲</h1>
+    <div class="sub">把大家的回應載進來，這裡會統計常出現的字詞、畫成文字雲。可以選本機檔案，也可以直接從 Cloudflare Worker 抓雲端資料。</div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">① 選擇回應檔案（本機）</div>
+    <div class="dropzone" id="dropzone">
+      <div><b>點這裡選擇檔案</b>，或把檔案拖進來</div>
+      <div class="hint">可以一次選很多個 .json 檔（就是播放器「送出回應」下載下來的那些檔案）</div>
+      <input type="file" id="fileInput" multiple accept=".json,application/json">
+    </div>
+    <div class="statusRow" id="statusRow"></div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">① 或者：從雲端載入（Cloudflare Worker）</div>
+    <div class="controls" style="flex-direction:column;align-items:stretch">
+      <input type="text" id="apiBaseInput" placeholder="Worker 網址，例如 https://weekly-briefing-responses.xxx.workers.dev" style="border:2px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--disp);font-size:13px">
+      <input type="text" id="siteKeyInput" placeholder="SITE_KEY（跟播放器裡設定的同一組）" style="border:2px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--disp);font-size:13px">
+      <button type="button" id="cloudLoadBtn" style="align-self:flex-start">從雲端載入</button>
+    </div>
+    <div class="statusRow" id="cloudStatusRow"></div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">② 文字雲</div>
+    <div class="controls">
+      <label style="font-size:12.5px;color:var(--sub);font-weight:700">篇集：</label>
+      <select id="episodeFilter"><option value="">（先選檔案）</option></select>
+      <button type="button" id="rerollBtn">換個排法</button>
+    </div>
+    <div class="cloud" id="cloud"><div class="empty">選好檔案後，這裡會顯示文字雲</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">③ 原始回應（方便直接看大家寫了什麼）</div>
+    <div class="respList" id="respList"><div class="respRow" style="color:var(--sub)">還沒有資料</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">誠實說明</div>
+    <div class="honest">
+      這個文字雲統計的是<b>連續兩個字的字詞組合</b>（例如「聆聽」「客戶」「先問」），不是真正的中文斷詞——真正準確的斷詞通常需要連網查字典，這個工具刻意不連網，所以用這個簡化做法。<br>
+      字越大代表出現次數越多；只有幾則回應時，字詞大小差異可能不明顯，這是正常的，人數越多統計才會越有意義。
+    </div>
+  </div>
+
+</div>
+
+<script>
+const COLORS = ["#8ecae6", "#c8961e", "#3949ab", "#ec6fa0", "#5fb0ff", "#d99a00"];
+
+// 常見但沒什麼資訊量的字詞組合，統計時濾掉，避免文字雲被這些洗版
+const STOPWORDS = new Set([
+  "的一","一次","這個","那個","我們","你們","他們","不會","沒有","就是","還是",
+  "但是","因為","所以","如果","可以","不要","一下","一點","什麼","怎麼","這樣",
+  "那樣","覺得","知道","不知","的時","時候","下次","最近","有沒","沒哪"
+]);
+
+let allResponses = []; // {episode, question, response, submittedAt, file}
+
+function extractBigrams(text){
+  const cleaned = text.replace(/[\s，。！？、「」『』（）()\[\]{}\.,!?;:~—－_/\\]/g, "");
+  const grams = [];
+  for(let i = 0; i < cleaned.length - 1; i++){
+    const g = cleaned.slice(i, i + 2);
+    if(!STOPWORDS.has(g) && /[一-鿿]/.test(g)) grams.push(g);
+  }
+  return grams;
+}
+
+function renderStatus(loadedCount, skipped){
+  const row = document.getElementById("statusRow");
+  let html = `<span class="pill">已載入 ${loadedCount} 則回應</span>`;
+  if(skipped > 0) html += `<span class="pill warn">${skipped} 個檔案無法辨識，已略過</span>`;
+  row.innerHTML = html;
+}
+
+function populateEpisodeFilter(){
+  const sel = document.getElementById("episodeFilter");
+  const episodes = [...new Set(allResponses.map(r => r.episode))].sort();
+  sel.innerHTML = `<option value="">全部篇集（${allResponses.length} 則）</option>`
+    + episodes.map(ep => {
+        const n = allResponses.filter(r => r.episode === ep).length;
+        return `<option value="${ep.replace(/"/g,'&quot;')}">${ep}（${n} 則）</option>`;
+      }).join("");
+}
+
+function currentFiltered(){
+  const ep = document.getElementById("episodeFilter").value;
+  return ep ? allResponses.filter(r => r.episode === ep) : allResponses;
+}
+
+function renderCloud(){
+  const list = currentFiltered();
+  const cloud = document.getElementById("cloud");
+  if(list.length === 0){
+    cloud.innerHTML = `<div class="empty">選好檔案後，這裡會顯示文字雲</div>`;
+    return;
+  }
+  const freq = {};
+  list.forEach(r => extractBigrams(r.response).forEach(g => { freq[g] = (freq[g] || 0) + 1; }));
+  const entries = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 60);
+  if(entries.length === 0){
+    cloud.innerHTML = `<div class="empty">回應內容太短，抓不到重複的字詞組合</div>`;
+    return;
+  }
+  const maxCount = entries[0][1];
+  cloud.innerHTML = entries.map(([word, count]) => {
+    const size = 14 + Math.round((count / maxCount) * 28); // 14px ~ 42px
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const rot = (Math.random() * 16 - 8).toFixed(1);
+    return `<span class="word" style="font-size:${size}px;color:${color};transform:rotate(${rot}deg)" title="出現 ${count} 次">${word}</span>`;
+  }).join("");
+}
+
+function renderRespList(){
+  const list = currentFiltered().slice().sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
+  const box = document.getElementById("respList");
+  if(list.length === 0){ box.innerHTML = `<div class="respRow" style="color:var(--sub)">還沒有資料</div>`; return; }
+  box.innerHTML = list.map(r => `
+    <div class="respRow">
+      ${r.response}
+      <div class="meta">${r.episode}${r.submittedAt ? " · " + r.submittedAt.slice(0,19).replace("T"," ") : ""}</div>
+    </div>
+  `).join("");
+}
+
+function renderAll(){
+  renderCloud();
+  renderRespList();
+}
+
+function loadFiles(){
+  // rebuilds the <select> options — only call this when the underlying
+  // file set actually changes, never from the filter's own "change" handler
+  // (that would reset the just-made selection straight back to "全部")
+  populateEpisodeFilter();
+  renderAll();
+}
+
+async function handleFiles(fileList){
+  let skipped = 0;
+  const files = Array.from(fileList).filter(f => f.name.endsWith(".json"));
+  for(const file of files){
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if(!data.response || typeof data.response !== "string"){ skipped++; continue; }
+      allResponses.push({
+        episode: data.episode || "（未知篇集）",
+        question: data.question || "",
+        response: data.response,
+        submittedAt: data.submittedAt || ""
+      });
+    } catch(e){ skipped++; }
+  }
+  renderStatus(allResponses.length, skipped);
+  loadFiles();
+}
+
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("fileInput");
+dropzone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
+["dragenter", "dragover"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("drag"); }));
+["dragleave", "drop"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("drag"); }));
+dropzone.addEventListener("drop", (e) => { if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+
+document.getElementById("episodeFilter").addEventListener("change", renderAll);
+document.getElementById("rerollBtn").addEventListener("click", renderCloud);
+
+// ==== 從雲端載入（Cloudflare Worker）====
+const apiBaseInput = document.getElementById("apiBaseInput");
+const siteKeyInput = document.getElementById("siteKeyInput");
+try{
+  apiBaseInput.value = localStorage.getItem("wc_apiBase") || "";
+  siteKeyInput.value = localStorage.getItem("wc_siteKey") || "";
+} catch(e){ /* 私密瀏覽模式可能擋 localStorage，忽略即可 */ }
+
+function renderCloudStatus(msg, isError){
+  const row = document.getElementById("cloudStatusRow");
+  row.innerHTML = `<span class="pill${isError ? " warn" : ""}">${msg}</span>`;
+}
+
+document.getElementById("cloudLoadBtn").addEventListener("click", async () => {
+  const apiBase = apiBaseInput.value.trim().replace(/\/$/, "");
+  const siteKey = siteKeyInput.value.trim();
+  if(!apiBase){ renderCloudStatus("請先填 Worker 網址", true); return; }
+  try{ localStorage.setItem("wc_apiBase", apiBase); localStorage.setItem("wc_siteKey", siteKey); } catch(e){}
+
+  renderCloudStatus("載入中……");
+  try{
+    const res = await fetch(apiBase + "/responses", { headers: { "X-Site-Key": siteKey } });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const rows = data.responses || [];
+    let added = 0;
+    rows.forEach(r => {
+      if(!r.response) return;
+      allResponses.push({
+        episode: r.episode || "（未知篇集）",
+        question: r.question || "",
+        response: r.response,
+        submittedAt: r.submitted_at || ""
+      });
+      added++;
+    });
+    renderCloudStatus(`已從雲端載入 ${added} 則回應`);
+    renderStatus(allResponses.length, 0);
+    loadFiles();
+  } catch(e){
+    renderCloudStatus("連不上這個 Worker 網址，確認網址跟 SITE_KEY 是否正確", true);
+  }
+});
+</script>
+</body>
+</html>
