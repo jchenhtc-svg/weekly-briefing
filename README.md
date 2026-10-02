@@ -26,3 +26,12 @@
 
 作答資料走 Cloudflare Worker + D1，程式在 `tools/週會宣導/cloudflare/`。
 Worker 的 CORS 設為 `*`，不綁來源，所以 Pages 網址改變不影響它。
+
+## 為什麼有一個孤零零的 `.claude/skills/.../assets/template.html`
+
+`產生網頁.py` 第 26 行把播放器範本的位置寫死成
+`<repo根>/.claude/skills/ai-dialogue-podcast-builder/assets/template.html`，
+所以這個 repo 必須在同樣位置放一份，CI 才生得出雲端版網頁。
+
+**只搬了 `assets/template.html`，沒搬整個技能。** 技能本體（`SKILL.md`）留在原本的
+`my-research-tools`（private），這個公開 repo 只保留建置真正需要的那一個檔案。
