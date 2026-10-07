@@ -117,9 +117,6 @@ h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-hei
 .roleLabel{position:absolute;bottom:16px;font-weight:800;font-size:12.5px;padding:5px 14px;color:#fff;border-radius:999px;z-index:5;left:50%;transform:translateX(-50%);right:auto;clip-path:none}
 
 .bubbleWrap{order:-1}
-/* end card: center the quote+question block in the whole panel instead of
-   leaving it pinned to the top with empty space below */
-.bubbleWrap:has(.speechBubble.final){position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;padding:30px 24px;overflow-y:auto}
 .speechBubble.final{width:100%}
 .dotsRow{display:flex;justify-content:center;gap:6px;margin-top:12px}
 .dotsRow .pdot{width:7px;height:7px;border-radius:50%;background:#c7c7c7}
@@ -160,13 +157,61 @@ input[type=range]{padding:0;border:none;background:transparent;accent-color:var(
 select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px}
 .reset-line{margin-top:14px;display:flex;justify-content:flex-end}
 
+/* 頁碼小膠囊（1/7、完）固定在右上角，字幕要往下讓位，不然會蓋到字 */
+.bubbleWrap{padding-top:46px}
+
+/* 播放控制列黏在畫面底部：不用捲過整個漫畫框才按得到播放 */
+.controlsCard{position:sticky;bottom:0;z-index:20;box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+
+/* 結尾畫面：整個框跟著內容長高，金句、回應欄、QR 都完整顯示，不在框裡面捲動被切掉 */
+.panelWrap.ended{min-height:0;background:radial-gradient(circle at 50% 18%,#fff3d6 0%,#ffffff 70%)}
+.panelWrap.ended .stage{display:none}
+.panelWrap.ended .bubbleWrap{position:relative;inset:auto;display:block;padding:52px 24px 26px;overflow:visible}
+
+/* QR Code 可以直接點開；手機上掃不到自己的螢幕，所以手機改顯示一顆按鈕 */
+.qrLink{display:inline-block;border-radius:10px}
+.qrLink:hover .qrImg{border-color:var(--mgr)}
+.qrOpenBtn{display:none;margin-top:4px;padding:12px 16px;border:2px solid var(--line);border-radius:999px;background:var(--ink);color:#fff;font-weight:800;font-size:15px;text-decoration:none;text-align:center}
+@media (hover:none) and (pointer:coarse), (max-width: 600px){
+  .qrLink,.qrCaption{display:none}
+  .qrOpenBtn{display:block}
+}
+
+/* 大螢幕／投影：放寬版面、放大字幕與角色，後排也看得清楚 */
+@media (min-width: 1024px){
+  .wrap{max-width:980px;padding-top:28px}
+  h1{font-size:30px}
+  .panelWrap{min-height:max(440px,calc(100vh - 430px))}
+  .controlsCard{padding:12px 18px}
+  .controlsCard .sectionLabel,.controlsCard .hint{display:none}
+  .controlsCard .progress{margin:10px 0 0}
+  .speechBubble{font-size:32px}
+  .charSvg{width:250px;height:283px}
+  .speechBubble.final .quoteLine{font-size:30px}
+  .speechBubble.final .endQuestion{font-size:23px}
+  .responseInput{font-size:16px}
+  .qrImg{width:150px;height:150px}
+}
+
 @media (max-width: 480px){
-  .wrap{padding:16px 10px 44px}
-  h1{font-size:20px}
-  .panelWrap{min-height:460px}
+  .wrap{padding:12px 10px 20px}
+  .masthead{padding:14px 14px 12px}
+  h1{font-size:20px;padding-right:58px}
+  .cast{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;margin-top:10px}
+  .chip{flex:none}
+  .panelWrap{min-height:440px}
   .charSvg{width:140px;height:158px}
-  .speechBubble{font-size:19px}
+  .speechBubble{font-size:20px}
+  .speechBubble.final .quoteLine{font-size:20px}
+  .speechBubble.final .endQuestion{font-size:16px}
+  .panelWrap.ended .bubbleWrap{padding:48px 16px 20px}
   .castGrid{grid-template-columns:1fr}
+  .controlsCard{padding:10px 10px 8px;border-radius:12px 12px 0 0;margin-bottom:0}
+  .controlsCard .sectionLabel,.controlsCard .hint{display:none}
+  .controls{display:grid;grid-template-columns:1fr 1.3fr 1fr 1fr;gap:6px}
+  .controls button{padding:10px 4px;font-size:12.5px;white-space:nowrap}
+  .controls label{grid-column:1 / -1;justify-content:center}
+  .progress{margin:8px 0 2px}
 }
 </style>
 </head>
@@ -232,7 +277,7 @@ select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px
     <div id="count"></div>
   </div>
 
-  <div class="card">
+  <div class="card controlsCard">
     <div class="sectionLabel">播放控制</div>
     <div class="controls">
       <button onclick="prev()">◀◀ 上一段</button>
@@ -522,6 +567,7 @@ const who=document.getElementById("count"),
 
 function render(){
   onEndCard = false;
+  document.getElementById("panelWrap").classList.remove("ended");
   if(communityPollTimer){ clearInterval(communityPollTimer); communityPollTimer = null; }
   const role = d[i][0], meta = ROLES[role], p = PANELS[i];
 
@@ -822,15 +868,17 @@ function showEndCard(){
   bgLayer.innerHTML = "";
   panelCount.textContent = "完";
   dotsRow.innerHTML = SCRIPT.map((s,idx) => `<span class="pdot active"></span>`).join("");
-  charWrap.innerHTML = "";
   reactionMark.innerHTML = "";
   iconRowLeft.innerHTML = ""; iconRowRight.innerHTML = "";
   roleLabel.textContent = ""; roleLabel.style.background = "transparent";
-  speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.add("on");
+  speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.remove("on");
+  document.getElementById("panelWrap").classList.add("ended");
   speechBubble.className = "speechBubble final";
   const qrBlock = RESPONSE_QR_IMG
-    ? `<div class="qrBlock"><img src="${RESPONSE_QR_IMG}" alt="掃描用手機回答" class="qrImg">`
-      + `<div class="qrCaption">或用手機掃描，直接在自己手機上回答</div></div>`
+    ? `<div class="qrBlock"><a class="qrLink" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">`
+      + `<img src="${RESPONSE_QR_IMG}" alt="開啟回饋表單" class="qrImg"></a>`
+      + `<div class="qrCaption">用手機掃描，或直接點 QR Code 開啟回饋表單</div>`
+      + `<a class="qrOpenBtn" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">開啟回饋表單 ↗</a></div>`
     : "";
   const communityBlock = RESPONSE_API_BASE
     ? `<div class="communityBlock" id="communityBlock">`
