@@ -106,9 +106,26 @@ h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-hei
 .communityBlock{margin-top:14px;padding-top:14px;border-top:1px dashed #ccc}
 .communityHead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--sub);font-weight:700;margin-bottom:8px}
 .communityRefresh{font-size:11px;color:var(--sub);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit}
-.communityCloud{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;justify-content:center;min-height:34px;padding:6px 4px}
-.communityCloud .word{font-weight:800;line-height:1.3}
 .communityEmpty{font-size:12px;color:var(--sub);text-align:center;padding:6px 0;width:100%}
+.statTitle{font-size:12px;font-weight:800;color:var(--ink);margin:12px 0 6px}
+.statRow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;margin-bottom:8px;font-size:13px;font-weight:700}
+.statTrack{grid-column:1 / -1;height:10px;border:2px solid var(--line);border-radius:999px;background:#fff;overflow:hidden}
+.statFill{height:100%;background:var(--mgr);border-radius:999px;transition:width .4s ease}
+.statRow.top .statFill{background:var(--eng)}
+.statNum{font-size:12px;color:var(--sub);font-weight:800;white-space:nowrap}
+.kwChips{display:flex;flex-wrap:wrap;gap:6px}
+.kwChip{border:2px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:800;background:#fff}
+.kwChip b{color:var(--mgr);margin-left:4px}
+.quoteList{display:flex;flex-direction:column;gap:6px}
+.quoteItem{border-left:4px solid var(--host);background:#f6f8fb;border-radius:6px;padding:7px 10px;font-size:13.5px;line-height:1.6;font-weight:500;word-break:break-word}
+
+/* 結尾「這集你最有感的是哪一點」：點一下就選好，不用打字 */
+.choiceHead{font-size:14px;font-weight:900;margin-bottom:8px;text-align:center}
+.choiceList{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.choiceBtn{width:100%;text-align:left;border-radius:12px;padding:11px 14px;font-size:14.5px;font-weight:800;line-height:1.45;background:#fff;color:var(--ink)}
+.choiceBtn:hover{background:#f2f4fb;color:var(--ink)}
+.choiceBtn.selected{background:var(--mgr);border-color:var(--mgr);color:#fff}
+.choiceBtn .num{display:inline-block;width:1.6em;font-weight:900}
 
 .charWrap{position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;padding:10px 20px 20px;left:auto;bottom:auto;transform:none}
 .charSvg{width:180px;height:204px;display:block;filter:none;animation:charBob 2.6s ease-in-out infinite}
@@ -370,6 +387,8 @@ const SCRIPT = [
 const GOLDEN_QUOTE = "修好設備是技術，<br>讓客戶安心才是專業。";
 const MANAGER_QUESTION = "最近一次你覺得「已經修好了」的案子，<br>如果多做一步，客戶會不會更安心？";
 const EPISODE_LABEL = "01_我們修的不是設備，而是客戶的一天";
+const TAKEAWAYS = ["修完一起確認", "30 秒說明前因後果", "留下紀錄"];
+const KEYWORDS = ["確認", "說明", "紀錄", "安心", "前因後果"];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -569,7 +588,7 @@ function loadVoices(){
   zhVoices = speechSynthesis.getVoices().filter(v => /zh|TW|HK|CN/i.test(v.lang+" "+v.name));
   if(Object.keys(cfg).length===0) buildDefaultConfig();
   buildPanel();
-  render();
+  if(!onEndCard) render(); // 語音清單可能晚到才觸發這裡，不要把停在結尾畫面的人踢回第一段
 }
 
 function buildDefaultConfig(){
@@ -731,18 +750,38 @@ function downloadResponseLocally(payload){
   URL.revokeObjectURL(url);
 }
 
+let selectedChoice = null;
+function pickChoice(idx){
+  selectedChoice = (selectedChoice === idx) ? null : idx;
+  document.querySelectorAll(".choiceBtn").forEach((b, k) => b.classList.toggle("selected", k === selectedChoice));
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
 async function submitResponse(){
   const inputEl = document.getElementById("responseInput");
   const note = document.getElementById("responseNote");
   const text = inputEl.value.trim();
-  if(!text){ note.textContent = "打點字再送出喔"; return; }
+  const choice = selectedChoice === null ? "" : TAKEAWAYS[selectedChoice];
+  if(!text && !choice){
+    note.textContent = TAKEAWAYS.length ? "先選一個最有感的重點，或打幾個字再送出喔" : "打點字再送出喔";
+    return;
+  }
 
   const plainQuestion = MANAGER_QUESTION.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "");
   const payload = {
     episode: EPISODE_LABEL,
     question: plainQuestion,
+    choice: choice,
     response: text,
     submittedAt: new Date().toISOString()
+  };
+  const resetForm = () => {
+    inputEl.value = "";
+    selectedChoice = null;
+    document.querySelectorAll(".choiceBtn").forEach(b => b.classList.remove("selected"));
   };
 
   if(RESPONSE_API_BASE){
@@ -753,44 +792,65 @@ async function submitResponse(){
         body: JSON.stringify(payload)
       });
       if(!res.ok) throw new Error("HTTP " + res.status);
-      inputEl.value = "";
+      resetForm();
       note.textContent = "已送出，感謝分享！（已同步到雲端）";
       loadCommunityResponses(); // 馬上刷新一次，讓自己的回應立刻反映在下面的統計裡
       return;
     } catch(e){
       // 連不上（離線、被擋、Worker 掛了……）就退回本機下載，不讓回應憑空消失
       downloadResponseLocally(payload);
-      inputEl.value = "";
+      resetForm();
       note.textContent = "雲端連不上，改存成本機檔案了，感謝分享！";
       return;
     }
   }
 
   downloadResponseLocally(payload);
-  inputEl.value = "";
+  resetForm();
   note.textContent = "已送出，感謝分享！（檔案存到瀏覽器的下載資料夾）";
 }
 
-// 跟 文字雲.html 用同一套簡化統計法：連續兩個字的字詞組合，不是真正的中文斷詞
-const COMMUNITY_STOPWORDS = new Set([
-  "的一","一次","這個","那個","我們","你們","他們","不會","沒有","就是","還是",
-  "但是","因為","所以","如果","可以","不要","一下","一點","什麼","怎麼","這樣",
-  "那樣","覺得","知道","不知","的時","時候","下次","最近","有沒","沒哪"
-]);
-function communityBigrams(text){
-  const cleaned = String(text).replace(/[\s，。！？、「」『』（）()\[\]{}\.,!?;:~—－_/\\]/g, "");
-  const grams = [];
-  for(let k = 0; k < cleaned.length - 1; k++){
-    const g = cleaned.slice(k, k + 2);
-    if(!COMMUNITY_STOPWORDS.has(g) && /[一-鿿]/.test(g)) grams.push(g);
+// 大家的回應：①「最有感的一點」各選項的人數長條圖 ②本集關鍵字在打字回應裡被提到幾次
+// ③最新幾則打字回應原文。全部只做計數，不做斷詞、不送去任何 AI 服務。
+function renderCommunityStats(rows){
+  const parts = [];
+  const choiceRows = rows.filter(r => r.choice);
+  if(TAKEAWAYS.length){
+    const counts = TAKEAWAYS.map(t => choiceRows.filter(r => r.choice === t).length);
+    const max = Math.max(...counts);
+    parts.push(`<div class="statTitle">最有感的一點（${choiceRows.length} 人選）</div>`);
+    parts.push(TAKEAWAYS.map((t, k) => {
+      const pct = choiceRows.length ? Math.round(counts[k] / choiceRows.length * 100) : 0;
+      const top = max > 0 && counts[k] === max ? " top" : "";
+      return `<div class="statRow${top}"><span>${"①②③④⑤"[k] || ""} ${escapeHtml(t)}</span>`
+        + `<span class="statNum">${counts[k]} 人・${pct}%</span>`
+        + `<div class="statTrack"><div class="statFill" style="width:${pct}%"></div></div></div>`;
+    }).join(""));
   }
-  return grams;
+  const textRows = rows.filter(r => r.response);
+  if(KEYWORDS.length && textRows.length){
+    const kw = KEYWORDS
+      .map(k => [k, textRows.filter(r => r.response.toLowerCase().includes(k.toLowerCase())).length])
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1]);
+    if(kw.length){
+      parts.push(`<div class="statTitle">回應裡提到的關鍵字</div><div class="kwChips">`
+        + kw.map(([k, n]) => `<span class="kwChip">${escapeHtml(k)}<b>×${n}</b></span>`).join("")
+        + `</div>`);
+    }
+  }
+  if(textRows.length){
+    parts.push(`<div class="statTitle">最新回應</div><div class="quoteList">`
+      + textRows.slice(0, 3).map(r => `<div class="quoteItem">${escapeHtml(r.response)}</div>`).join("")
+      + `</div>`);
+  }
+  return parts.join("");
 }
 
 async function loadCommunityResponses(){
   const countEl = document.getElementById("communityCount");
-  const cloudEl = document.getElementById("communityCloud");
-  if(!countEl || !cloudEl) return; // 使用者已經離開結尾畫面
+  const statsEl = document.getElementById("communityStats");
+  if(!countEl || !statsEl) return; // 使用者已經離開結尾畫面
   countEl.textContent = "大家的回應載入中…";
   try{
     const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), {
@@ -798,34 +858,22 @@ async function loadCommunityResponses(){
     });
     if(!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    const rows = (data.responses || []).filter(r => r.response);
+    const rows = (data.responses || []).filter(r => r.response || r.choice);
     if(!onEndCard) return; // 抓資料的這段時間使用者已經離開結尾畫面，不要再更新畫面
     countEl.textContent = `目前 ${rows.length} 則回應`;
-    const freq = {};
-    rows.forEach(r => communityBigrams(r.response).forEach(g => { freq[g] = (freq[g] || 0) + 1; }));
-    const entries = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 30);
-    if(entries.length === 0){
-      cloudEl.innerHTML = rows.length
-        ? `<div class="communityEmpty">回應內容還太短，抓不到重複的字詞組合</div>`
-        : `<div class="communityEmpty">還沒有人回應，當第一個吧！</div>`;
-      return;
-    }
-    const maxCount = entries[0][1];
-    const colors = ["#8ecae6", "#c8961e", "#3949ab", "#ec6fa0", "#5fb0ff", "#d99a00"];
-    cloudEl.innerHTML = entries.map(([word, count]) => {
-      const size = 12 + Math.round((count / maxCount) * 18); // 12px ~ 30px
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      return `<span class="word" style="font-size:${size}px;color:${color}" title="出現 ${count} 次">${word}</span>`;
-    }).join("");
+    statsEl.innerHTML = rows.length
+      ? renderCommunityStats(rows)
+      : `<div class="communityEmpty">還沒有人回應，當第一個吧！</div>`;
   } catch(e){
     if(!onEndCard) return;
     countEl.textContent = "連不上雲端，晚點再試試看";
-    cloudEl.innerHTML = "";
+    statsEl.innerHTML = "";
   }
 }
 
-function showEndCard(){
+function showEndCard(opts = {}){
   onEndCard = true;
+  selectedChoice = null;
   bgLayer.className = "bgLayer bg-spotlight";
   bgLayer.innerHTML = "";
   panelCount.textContent = "完";
@@ -836,7 +884,7 @@ function showEndCard(){
   speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.remove("on");
   document.getElementById("panelWrap").classList.add("ended");
   speechBubble.className = "speechBubble final";
-  const qrBlock = RESPONSE_QR_IMG
+  const qrBlock = (RESPONSE_QR_IMG && !opts.respond) // 已經是掃 QR 進來的人，不用再給一次連結
     ? `<div class="qrBlock"><a class="qrLink" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">`
       + `<img src="${RESPONSE_QR_IMG}" alt="開啟回饋表單" class="qrImg"></a>`
       + `<div class="qrCaption">用手機掃描，或直接點 QR Code 開啟回饋表單</div>`
@@ -846,15 +894,22 @@ function showEndCard(){
     ? `<div class="communityBlock" id="communityBlock">`
       + `<div class="communityHead"><span id="communityCount">大家的回應載入中…</span>`
       + `<button type="button" class="communityRefresh" onclick="loadCommunityResponses()">重新整理</button></div>`
-      + `<div class="communityCloud" id="communityCloud"></div></div>`
+      + `<div id="communityStats"></div></div>`
     : "";
+  const choiceBlock = TAKEAWAYS.length
+    ? `<div class="choiceHead">這集你最有感的是哪一點？</div><div class="choiceList">`
+      + TAKEAWAYS.map((t, k) => `<button type="button" class="choiceBtn" onclick="pickChoice(${k})">`
+        + `<span class="num">${"①②③④⑤"[k] || ""}</span>${escapeHtml(t)}</button>`).join("")
+      + `</div>`
+    : "";
+  const placeholder = TAKEAWAYS.length ? "想多說一點也可以（選填）……" : "打幾個字，說說你的想法……";
   speechBubble.innerHTML = `<div class="quoteLine">${GOLDEN_QUOTE}</div><div class="endQuestion">${MANAGER_QUESTION}</div>`
-    + `<div class="responseBox"><textarea id="responseInput" class="responseInput" placeholder="打幾個字，說說你的想法……" maxlength="300"></textarea>`
+    + `<div class="responseBox">${choiceBlock}<textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
     + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
     + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
   who.textContent = "播放完畢 — 今日金句與主管互動問題（再按一次執行播放可從頭重播）";
   bar.style.width = "100%";
-  speakGoldenQuote();
+  if(!opts.silent) speakGoldenQuote();
   if(RESPONSE_API_BASE){
     loadCommunityResponses();
     communityPollTimer = setInterval(loadCommunityResponses, 20000); // 每 20 秒自動更新一次
@@ -906,5 +961,12 @@ function prev(){
 rate.oninput = () => rv.textContent = (+rate.value).toFixed(2)+"x";
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
+
+// 從 QR Code／入口網站 ?r= 轉進來的人：直接打開結尾回饋畫面（不唸金句、不自動播放）
+if(new URLSearchParams(location.search).get("respond") === "1"){
+  i = d.length - 1;
+  showEndCard({silent: true, respond: true});
+  document.getElementById("panelWrap").scrollIntoView({block: "start"});
+}
 </script>
 </body></html>

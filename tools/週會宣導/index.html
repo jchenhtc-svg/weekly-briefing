@@ -66,6 +66,12 @@
   .upcoming::before{background:var(--line);box-shadow:0 0 0 2px var(--line)}
   .upcoming:hover{transform:none;border-color:var(--line);background:var(--card)}
 
+  .phaseTag{display:inline-block;font-size:11px;font-weight:800;padding:1px 8px;margin-right:8px;
+    border-radius:999px;border:1px solid currentColor;vertical-align:1px}
+  .phaseTag.p1{color:#ffcc33} .phaseTag.p2{color:#4fd1c5} .phaseTag.p3{color:#8ab4ff} .phaseTag.p4{color:#ff8fb8}
+  .phases{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px}
+  .phases .phaseTag{font-size:12px;padding:3px 10px;margin:0}
+
   footer{max-width:760px;margin:0 auto;padding:0 20px 60px;color:var(--sub);
     font-size:12px;line-height:1.9;text-align:center}
   footer a{color:var(--accent2)}
@@ -74,14 +80,18 @@
 <body>
 
   <div class="hero">
-    <div class="kicker"><span class="led"></span>SERVICE ENGINEER TRAINING</div>
+    <div class="kicker"><span class="led"></span>52 週晨會故事 × 動畫教育訓練教材</div>
     <h1>《工程師的價值》</h1>
     <p>每週一集，5 分鐘晨會 podcast，用真實現場對話帶出一個工程師該有的判斷力。
       點一集開始播放，播完會停在今日金句，也可以留下你的想法。</p>
+    <div class="phases">
+      <span class="phaseTag p1">① 建立使命感</span><span class="phaseTag p2">② 建立專業習慣</span>
+      <span class="phaseTag p3">③ 建立高績效思維</span><span class="phaseTag p4">④ 建立品牌文化</span>
+    </div>
     <div class="progress">
       <div class="num">9</div>
-      <div class="bar"><i style="width:100%"></i></div>
-      <div class="label">已發布 9 集</div>
+      <div class="bar"><i style="width:17%"></i></div>
+      <div class="label">已發布 9 / 52 週</div>
     </div>
   </div>
 
@@ -89,86 +99,122 @@
     <div class="section-title">課程清單 · Lessons</div>
     <div class="track">
 
-      <a class="lesson" href="網頁/第01週_我們修的不是設備，而是客戶的一天.html">
+      <a class="lesson" href="網頁/第01週_我們修的不是設備，而是客戶的一天.html" data-ep="01" data-file="網頁/第01週_我們修的不是設備，而是客戶的一天.html">
         <div class="badge"><small>EP</small><b>01</b></div>
         <div class="meta">
           <p class="tt">我們修的不是設備，而是客戶的一天</p>
-          <p class="st">修好設備是技術，讓客戶安心才是專業　·　約 2～3 分鐘</p>
+          <p class="st"><span class="phaseTag p1">① 使命感</span>修好設備是技術，讓客戶安心才是專業　·　約 2～3 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第02週_現場危機溝通與降溫術.html">
+      <a class="lesson" href="網頁/第02週_現場危機溝通與降溫術.html" data-ep="02" data-file="網頁/第02週_現場危機溝通與降溫術.html">
         <div class="badge"><small>EP</small><b>02</b></div>
         <div class="meta">
           <p class="tt">現場危機溝通與降溫術</p>
-          <p class="st">先處理心情，事情才有機會被解決　·　約 2～3 分鐘</p>
+          <p class="st"><span class="phaseTag p3">③ 高績效思維</span>先處理心情，事情才有機會被解決　·　約 2～3 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第03週_SOP 不是限制，是保障.html">
+      <a class="lesson" href="網頁/第03週_SOP 不是限制，是保障.html" data-ep="03" data-file="網頁/第03週_SOP 不是限制，是保障.html">
         <div class="badge"><small>EP</small><b>03</b></div>
         <div class="meta">
           <p class="tt">SOP 不是限制，是保障</p>
-          <p class="st">經驗讓你修得快，SOP讓你不漏接　·　約 2～3 分鐘</p>
+          <p class="st"><span class="phaseTag p2">② 專業習慣</span>經驗讓你修得快，SOP讓你不漏接　·　約 2～3 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第04週_真正的專業，是把一次經驗變成下一次的能力.html">
+      <a class="lesson" href="網頁/第04週_真正的專業，是把一次經驗變成下一次的能力.html" data-ep="04" data-file="網頁/第04週_真正的專業，是把一次經驗變成下一次的能力.html">
         <div class="badge"><small>EP</small><b>04</b></div>
         <div class="meta">
           <p class="tt">真正的專業，是把一次經驗變成下一次的能力</p>
-          <p class="st">修好一次是能力，留下一次經驗才是專業　·　約 5～7 分鐘</p>
+          <p class="st"><span class="phaseTag p3">③ 高績效思維</span>修好一次是能力，留下一次經驗才是專業　·　約 5～7 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第05週_一張維修紀錄，為什麼值幾十萬元？.html">
+      <a class="lesson" href="網頁/第05週_一張維修紀錄，為什麼值幾十萬元？.html" data-ep="05" data-file="網頁/第05週_一張維修紀錄，為什麼值幾十萬元？.html">
         <div class="badge"><small>EP</small><b>05</b></div>
         <div class="meta">
           <p class="tt">一張維修紀錄，為什麼值幾十萬元？</p>
-          <p class="st">沒寫下來的問題，遲早要別人重新學一次　·　約 5～7 分鐘</p>
+          <p class="st"><span class="phaseTag p2">② 專業習慣</span>沒寫下來的問題，遲早要別人重新學一次　·　約 5～7 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第06週_遲到 15 分鐘，會怎樣？.html">
+      <a class="lesson" href="網頁/第06週_遲到 15 分鐘，會怎樣？.html" data-ep="06" data-file="網頁/第06週_遲到 15 分鐘，會怎樣？.html">
         <div class="badge"><small>EP</small><b>06</b></div>
         <div class="meta">
           <p class="tt">遲到 15 分鐘，會怎樣？</p>
-          <p class="st">遲到十分鐘，客戶付出的代價不只是十分鐘　·　約 2～3 分鐘</p>
+          <p class="st"><span class="phaseTag p2">② 專業習慣</span>遲到十分鐘，客戶付出的代價不只是十分鐘　·　約 2～3 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第07週_客戶生氣的時候，你在聽什麼？.html">
+      <a class="lesson" href="網頁/第07週_客戶生氣的時候，你在聽什麼？.html" data-ep="07" data-file="網頁/第07週_客戶生氣的時候，你在聽什麼？.html">
         <div class="badge"><small>EP</small><b>07</b></div>
         <div class="meta">
           <p class="tt">客戶生氣的時候，你在聽什麼？</p>
-          <p class="st">先處理情緒，事情才有機會被解決　·　約 2～3 分鐘</p>
+          <p class="st"><span class="phaseTag p1">① 使命感</span>先處理情緒，事情才有機會被解決　·　約 2～3 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第08週_厲害的工程師，敢說「我不知道」.html">
+      <a class="lesson" href="網頁/第08週_厲害的工程師，敢說「我不知道」.html" data-ep="08" data-file="網頁/第08週_厲害的工程師，敢說「我不知道」.html">
         <div class="badge"><small>EP</small><b>08</b></div>
         <div class="meta">
           <p class="tt">厲害的工程師，敢說「我不知道」</p>
-          <p class="st">裝懂比不會更麻煩　·　約 2～3 分鐘</p>
+          <p class="st"><span class="phaseTag p2">② 專業習慣</span>裝懂比不會更麻煩　·　約 2～3 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
 
-      <a class="lesson" href="網頁/第09週_順口答應的代價.html">
+      <a class="lesson" href="網頁/第09週_順口答應的代價.html" data-ep="09" data-file="網頁/第09週_順口答應的代價.html">
         <div class="badge"><small>EP</small><b>09</b></div>
         <div class="meta">
           <p class="tt">順口答應的代價</p>
-          <p class="st">幫忙沒有停損點，就會變成硬撐　·　約 2～3 分鐘</p>
+          <p class="st"><span class="phaseTag p3">③ 高績效思維</span>幫忙沒有停損點，就會變成硬撐　·　約 2～3 分鐘</p>
         </div>
         <div class="go">開始收看</div>
       </a>
+
+      <div class="lesson upcoming" data-ep="10" data-file="網頁/第10週_看到了，為什麼不說？.html">
+        <div class="badge"><small>EP</small><b>10</b></div>
+        <div class="meta">
+          <p class="tt">看到了，為什麼不說？</p>
+          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>不說，不是客氣，是讓問題繼續長大　·　尚未開放</p>
+        </div>
+        <div class="go">尚未開放</div>
+      </div>
+
+      <div class="lesson upcoming" data-ep="11" data-file="網頁/第11週_等零件的那三天，你在做什麼？.html">
+        <div class="badge"><small>EP</small><b>11</b></div>
+        <div class="meta">
+          <p class="tt">等零件的那三天，你在做什麼？</p>
+          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>控制不了的事放下，能做的事先做　·　尚未開放</p>
+        </div>
+        <div class="go">尚未開放</div>
+      </div>
+
+      <div class="lesson upcoming" data-ep="12" data-file="網頁/第12週_會議上點頭，會議後抱怨.html">
+        <div class="badge"><small>EP</small><b>12</b></div>
+        <div class="meta">
+          <p class="tt">會議上點頭，會議後抱怨</p>
+          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>不敢在桌上講，問題就會在桌下長　·　尚未開放</p>
+        </div>
+        <div class="go">尚未開放</div>
+      </div>
+
+      <div class="lesson upcoming" data-ep="13" data-file="網頁/第13週_客戶說：上次那位不是這樣做的.html">
+        <div class="badge"><small>EP</small><b>13</b></div>
+        <div class="meta">
+          <p class="tt">客戶說：上次那位不是這樣做的</p>
+          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>一致的標準，才是客戶記得的品牌　·　尚未開放</p>
+        </div>
+        <div class="go">尚未開放</div>
+      </div>
 
     </div>
   </main>
@@ -180,5 +226,15 @@
     來自 <a href="https://github.com/jchenhtc-svg/my-research-tools" target="_blank" rel="noopener">jchenhtc-svg/my-research-tools</a>
   </footer>
 
+<script>
+  // QR Code 短網址：?r=09 → 轉到第 09 集並直接打開結尾回饋畫面。
+  // 用 data-file 而不是 href，這樣尚未開放（沒有連結）的集數播完也能收回饋。
+  (function(){
+    var r = new URLSearchParams(location.search).get("r");
+    if(!r) return;
+    var card = document.querySelector('[data-ep="' + r.replace(/[^0-9a-z]/gi, "") + '"]');
+    if(card) location.replace(card.getAttribute("data-file") + "?respond=1");
+  })();
+</script>
 </body>
 </html>

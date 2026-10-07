@@ -1,0 +1,81 @@
+{
+  "series": "工程師的價值",
+  "episode": 10,
+  "episode_label": "第十篇",
+  "title": "看到了，為什麼不說？",
+  "subtitle": "不說，不是客氣，是讓問題繼續長大　·　約 2～3 分鐘",
+  "phase": 4,
+  "roles": [
+    { "name": "主持人",     "key": "host", "color": "#8ecae6", "voicePref": "曉臻", "avatar": "主", "side": "center", "pitch": 1.00, "rate": 1.05, "expr": "calm",    "chip": "主持人 · 快、直接、有梗" },
+    { "name": "阿凱工程師", "key": "eng",  "color": "#c8961e", "voicePref": "雲哲", "avatar": "凱", "side": "left",   "pitch": 0.85, "rate": 1.10, "expr": "neutral", "chip": "阿凱 · 自嘲型工程師" },
+    { "name": "主管",       "key": "mgr",  "color": "#3949ab", "voicePref": "曉雨", "avatar": "管", "side": "right",  "pitch": 1.06, "rate": 0.98, "expr": "stern",   "chip": "主管 · 一句話戳重點" },
+    { "name": "客戶",       "key": "cli",  "color": "#ec6fa0", "voicePref": "曉雨", "avatar": "客", "side": "right",  "pitch": 1.38, "rate": 1.20, "expr": "angry",   "chip": "客戶 · 短、直接、不留情" }
+  ],
+  "scenes": [
+    {
+      "tag": "開場：先問一句", "bg": "studio", "icon": "question",
+      "lines": [
+        ["主持人", "看到同事做錯，你會講嗎？", {"expr": "calm"}],
+        ["主持人", "大部分人的答案是：又不是我的案子。", {"expr": "sheepish"}]
+      ]
+    },
+    {
+      "tag": "故事：我看到了", "bg": "workshop", "icon": "wrench",
+      "lines": [
+        ["阿凱工程師", "上禮拜跟小林一起去做保養。", {"expr": "neutral"}],
+        ["阿凱工程師", "我看到他有一顆螺絲沒確認扭力，就直接蓋上外殼。", {"expr": "neutral"}],
+        ["阿凱工程師", "想說他資歷比我深，應該有他的道理。", {"expr": "sheepish", "effect": "sweat"}]
+      ]
+    },
+    {
+      "tag": "客戶的反應", "bg": "phone", "icon": "phoneAlert",
+      "lines": [
+        ["客戶", "保養完才三天就漏油！你們到底有沒有檢查？！", {"expr": "angry", "effect": "impact", "sfx": "！"}],
+        ["阿凱工程師", "……", {"expr": "shocked"}]
+      ]
+    },
+    {
+      "tag": "主管的提醒", "bg": "office", "icon": "team",
+      "lines": [
+        ["主管", "你那時候有看到嗎？", {"expr": "stern"}],
+        ["阿凱工程師", "有……可是那不是我負責的。", {"expr": "sheepish"}],
+        ["主管", "客戶不會分是誰負責，他只知道我們公司來過。", {"expr": "stern"}],
+        ["主管", "你不講，不是給他面子，是讓他在客戶面前丟臉。", {"expr": "stern"}]
+      ]
+    },
+    {
+      "tag": "交通號誌", "bg": "studio", "icon": "layers",
+      "lines": [
+        ["主持人", "交通號誌不是為了限制駕駛。", {"expr": "calm"}],
+        ["主持人", "是為了讓每個人都能安全到達。", {"expr": "calm"}],
+        ["主持人", "團隊裡互相提醒，就是彼此的號誌燈。", {"expr": "confident"}]
+      ]
+    },
+    {
+      "tag": "怎麼提醒才不傷感情", "bg": "studio", "icon": "checkCircle",
+      "lines": [
+        ["主持人", "怎麼提醒，才不傷感情？", {"expr": "calm"}],
+        ["主持人", "第一，當下、私下說，不要事後在群組講。", {"expr": "confident"}],
+        ["主持人", "第二，講事情不講人：「這顆扭力好像還沒確認」。", {"expr": "confident"}],
+        ["主持人", "第三，被提醒的人，先說一聲謝謝。", {"expr": "confident"}]
+      ],
+      "bullets": ["① 當下私下說", "② 對事不對人", "③ 被提醒先說謝謝"]
+    },
+    {
+      "tag": "結尾", "bg": "spotlight", "icon": "upgrade",
+      "lines": [
+        ["阿凱工程師", "後來小林跟我說，還好那次你有講。", {"expr": "confident"}],
+        ["主持人", "高績效團隊不是沒有衝突，是有人願意先開口。", {"expr": "spark", "effect": "spark"}]
+      ]
+    }
+  ],
+  "golden_quote": "能力決定一個人走多快，<br>態度決定一個團隊走多遠。",
+  "manager_question": "最近一次看到同事可以更好的地方，你說了嗎？<br>如果被提醒的是你，你希望對方怎麼說？",
+  "takeaways": ["當下私下說", "對事不對人", "被提醒先說謝謝"],
+  "keywords": ["提醒", "私下", "對事", "謝謝", "開口"],
+  "prep_notes": [
+    "出處：Patrick Lencioni《團隊的五種機能障礙》。五層由下往上是：缺乏信任 → 害怕衝突 → 缺乏承諾 → 逃避當責 → 忽視結果。本集對應「逃避當責」——同儕之間不願意提醒彼此的標準，把提醒當成主管的事。",
+    "書裡的重點：高績效團隊的當責來自同儕，不只來自主管。同事之間願意說「這樣不對喔」，比主管抓到再罵有效得多，也更不傷感情。",
+    "帶討論提醒：避免變成在會議上檢討某位特定同事的案子。可以先請大家分享「被同事提醒、結果幫了自己一把」的經驗，從正面經驗切入，比較容易開口。"
+  ]
+}

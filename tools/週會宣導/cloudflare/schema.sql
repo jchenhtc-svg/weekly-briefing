@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS responses (
   episode TEXT NOT NULL,
   question TEXT NOT NULL,
   response TEXT NOT NULL,
+  choice TEXT,                 -- 「這集你最有感的是哪一點」選的選項文字（可空）
   submitted_at TEXT NOT NULL
 );
 

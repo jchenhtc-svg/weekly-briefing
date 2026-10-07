@@ -2,7 +2,7 @@
  * 週會宣導 — 回應收集用的 Cloudflare Worker
  *
  * 三個端點：
- *   POST /submit     寫入一則回應到 D1
+ *   POST /submit     寫入一則回應到 D1（response 打字回應、choice「最有感的一點」，至少要有一個）
  *   GET  /responses  讀出回應（可用 ?episode=xxx 篩選單一篇集）
  *   GET  /respond    手機掃 QR Code 進來看到的簡易回應頁面
  *                    （?ep=<episode>&q=<question> 帶入要回答的問題）
@@ -102,13 +102,24 @@ export default {
       const episode = String(body.episode || "").slice(0, 200);
       const question = String(body.question || "").slice(0, 500);
       const response = String(body.response || "").trim().slice(0, 1000);
+      const choice = String(body.choice || "").trim().slice(0, 100);
       const submittedAt = new Date().toISOString();
-      if (!episode || !response) {
-        return json({ error: "episode and response are required" }, 400);
+      if (!episode || (!response && !choice)) {
+        return json({ error: "episode and a response or choice are required" }, 400);
       }
-      await env.DB.prepare(
-        "INSERT INTO responses (episode, question, response, submitted_at) VALUES (?, ?, ?, ?)"
-      ).bind(episode, question, response, submittedAt).run();
+      try {
+        await env.DB.prepare(
+          "INSERT INTO responses (episode, question, response, choice, submitted_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind(episode, question, response, choice || null, submittedAt).run();
+      } catch (e) {
+        // 還沒跑 migrations/001_add_choice.sql 的舊資料表沒有 choice 欄位：只存文字，
+        // 只選了選項沒打字的那種回應就無處可存，回 503 讓播放器退回本機下載。
+        if (!String(e).includes("choice")) throw e;
+        if (!response) return json({ error: "choice column missing; run migration" }, 503);
+        await env.DB.prepare(
+          "INSERT INTO responses (episode, question, response, submitted_at) VALUES (?, ?, ?, ?)"
+        ).bind(episode, question, response, submittedAt).run();
+      }
       return json({ ok: true });
     }
 
@@ -117,10 +128,18 @@ export default {
         return json({ error: "unauthorized" }, 401);
       }
       const episode = url.searchParams.get("episode");
-      const stmt = episode
-        ? env.DB.prepare("SELECT episode, question, response, submitted_at FROM responses WHERE episode = ? ORDER BY id DESC").bind(episode)
-        : env.DB.prepare("SELECT episode, question, response, submitted_at FROM responses ORDER BY id DESC");
-      const { results } = await stmt.all();
+      const query = (cols) => {
+        const where = episode ? " WHERE episode = ?" : "";
+        const stmt = env.DB.prepare(`SELECT ${cols} FROM responses${where} ORDER BY id DESC`);
+        return (episode ? stmt.bind(episode) : stmt).all();
+      };
+      let results;
+      try {
+        ({ results } = await query("episode, question, response, choice, submitted_at"));
+      } catch (e) {
+        if (!String(e).includes("choice")) throw e;
+        ({ results } = await query("episode, question, response, submitted_at"));
+      }
       return json({ responses: results });
     }
 

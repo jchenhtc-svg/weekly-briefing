@@ -1,0 +1,81 @@
+{
+  "series": "工程師的價值",
+  "episode": 12,
+  "episode_label": "第十二篇",
+  "title": "會議上點頭，會議後抱怨",
+  "subtitle": "不敢在桌上講，問題就會在桌下長　·　約 2～3 分鐘",
+  "phase": 4,
+  "roles": [
+    { "name": "主持人",     "key": "host", "color": "#8ecae6", "voicePref": "曉臻", "avatar": "主", "side": "center", "pitch": 1.00, "rate": 1.05, "expr": "calm",    "chip": "主持人 · 快、直接、有梗" },
+    { "name": "阿凱工程師", "key": "eng",  "color": "#c8961e", "voicePref": "雲哲", "avatar": "凱", "side": "left",   "pitch": 0.85, "rate": 1.10, "expr": "neutral", "chip": "阿凱 · 自嘲型工程師" },
+    { "name": "主管",       "key": "mgr",  "color": "#3949ab", "voicePref": "曉雨", "avatar": "管", "side": "right",  "pitch": 1.06, "rate": 0.98, "expr": "stern",   "chip": "主管 · 一句話戳重點" },
+    { "name": "客戶",       "key": "cli",  "color": "#ec6fa0", "voicePref": "曉雨", "avatar": "客", "side": "right",  "pitch": 1.38, "rate": 1.20, "expr": "angry",   "chip": "客戶 · 短、直接、不留情" }
+  ],
+  "scenes": [
+    {
+      "tag": "開場：你開過這種會嗎", "bg": "studio", "icon": "team",
+      "lines": [
+        ["主持人", "你有沒有開過這種會？", {"expr": "calm"}],
+        ["主持人", "會議上大家都說好。", {"expr": "calm"}],
+        ["主持人", "一走出會議室，群組就開始：「這根本做不到吧。」", {"expr": "sheepish", "effect": "sweat"}]
+      ]
+    },
+    {
+      "tag": "故事：我點頭了", "bg": "office", "icon": "clipboard",
+      "lines": [
+        ["阿凱工程師", "上個月調整週末排班，會議上我沒講話。", {"expr": "neutral"}],
+        ["阿凱工程師", "其實我知道週末人力根本不夠。", {"expr": "neutral"}],
+        ["阿凱工程師", "想說講了也沒用，就跟著點頭了。", {"expr": "sheepish"}]
+      ]
+    },
+    {
+      "tag": "客戶的反應", "bg": "phone", "icon": "phoneAlert",
+      "lines": [
+        ["客戶", "週六說好要來，怎麼又改到下週？！", {"expr": "angry", "effect": "impact", "sfx": "！"}],
+        ["阿凱工程師", "……", {"expr": "shocked"}]
+      ]
+    },
+    {
+      "tag": "主管的提醒", "bg": "office", "icon": "question",
+      "lines": [
+        ["主管", "開會的時候，你為什麼不講？", {"expr": "stern"}],
+        ["阿凱工程師", "怕講了，好像在反對你。", {"expr": "sheepish"}],
+        ["主管", "我要的不是大家都同意，是大家講真話。", {"expr": "stern"}],
+        ["主管", "會議上沒說出口的反對，最後都會變成客戶的問題。", {"expr": "stern"}]
+      ]
+    },
+    {
+      "tag": "健康的衝突", "bg": "studio", "icon": "layers",
+      "lines": [
+        ["主持人", "好的團隊不是沒有爭論。", {"expr": "calm"}],
+        ["主持人", "是對事不對人，吵完之後一起承諾。", {"expr": "confident"}]
+      ]
+    },
+    {
+      "tag": "三件事", "bg": "studio", "icon": "checkCircle",
+      "lines": [
+        ["主持人", "下次開會，記得三件事。", {"expr": "calm"}],
+        ["主持人", "第一，有疑慮就在會議上講，不留到會後。", {"expr": "confident"}],
+        ["主持人", "第二，提出問題的同時，帶一個可能的做法。", {"expr": "confident"}],
+        ["主持人", "第三，決定之後，就算原本不同意，也全力去做。", {"expr": "confident"}]
+      ],
+      "bullets": ["① 疑慮當場講", "② 問題帶著做法來", "③ 決定後全力執行"]
+    },
+    {
+      "tag": "結尾", "bg": "spotlight", "icon": "upgrade",
+      "lines": [
+        ["阿凱工程師", "下次會議，我第一個舉手講了人力的問題。", {"expr": "confident"}],
+        ["主持人", "把話說在桌上，比把抱怨留在心裡，更尊重團隊。", {"expr": "spark", "effect": "spark"}]
+      ]
+    }
+  ],
+  "golden_quote": "會議上的沉默，<br>不是同意，是延後的問題。",
+  "manager_question": "最近一次會議，你有沒有話沒說出口？<br>如果現在說，你會怎麼說？",
+  "takeaways": ["疑慮當場講", "問題帶著做法來", "決定後全力執行"],
+  "keywords": ["會議", "疑慮", "做法", "執行", "真話"],
+  "prep_notes": [
+    "出處：Patrick Lencioni《團隊的五種機能障礙》第二、三層：「害怕衝突」與「缺乏承諾」。害怕衝突的團隊表面和諧，但真正的意見都留到會後；沒有充分討論，大家對決定就不會真心承諾。",
+    "書裡的說法：好的衝突是針對想法與做法，不是針對人；而且「不同意，但承諾執行」（disagree and commit）是健康團隊的特徵。",
+    "帶討論提醒：主管自己的反應決定大家敢不敢講。當有人提出反對意見時，先說「謝謝你提出來」，比立刻解釋為什麼不行更重要。"
+  ]
+}

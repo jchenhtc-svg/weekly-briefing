@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>週會宣導 — 回應文字雲</title>
+<title>週會宣導 — 回應分析</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -47,6 +47,17 @@ button:hover{background:var(--ink);color:#fff}
 .respRow:last-child{border-bottom:none}
 .respRow .meta{color:var(--sub);font-size:11px;margin-top:3px}
 
+.epBlock{margin-bottom:18px}
+.epBlock:last-child{margin-bottom:0}
+.epName{font-size:13.5px;font-weight:900;margin-bottom:8px}
+.statRow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;margin-bottom:8px;font-size:13.5px;font-weight:700}
+.statTrack{grid-column:1 / -1;height:10px;border:2px solid var(--line);border-radius:999px;background:#fff;overflow:hidden}
+.statFill{height:100%;background:var(--mgr);border-radius:999px}
+.statRow.top .statFill{background:var(--eng)}
+.statNum{font-size:12px;color:var(--sub);font-weight:800;white-space:nowrap}
+.choiceTag{display:inline-block;font-size:11.5px;font-weight:800;color:var(--mgr);border:1px solid var(--mgr);border-radius:999px;padding:0 8px;margin-right:6px}
+.empty{color:var(--sub);font-size:13px}
+
 .honest{font-size:12.5px;color:var(--sub);line-height:1.8}
 .honest b{color:var(--ink)}
 
@@ -60,8 +71,8 @@ button:hover{background:var(--ink);color:#fff}
 <div class="wrap">
 
   <div class="masthead">
-    <h1>週會宣導 — 回應文字雲</h1>
-    <div class="sub">把大家的回應載進來，這裡會統計常出現的字詞、畫成文字雲。可以選本機檔案，也可以直接從 Cloudflare Worker 抓雲端資料。</div>
+    <h1>週會宣導 — 回應分析</h1>
+    <div class="sub">把大家的回應載進來，這裡會統計每集「最有感的一點」各選項的人數，也會列出大家寫的原文，另附字詞統計當參考。可以選本機檔案，也可以直接從 Cloudflare Worker 抓雲端資料。</div>
   </div>
 
   <div class="card">
@@ -85,7 +96,12 @@ button:hover{background:var(--ink);color:#fff}
   </div>
 
   <div class="card">
-    <div class="sectionLabel">② 文字雲</div>
+    <div class="sectionLabel">② 最有感的一點（各集分開統計）</div>
+    <div id="choiceStats"><div class="empty">選好檔案後，這裡會顯示每集各選項的人數</div></div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">③ 文字雲（輔助參考）</div>
     <div class="controls">
       <label style="font-size:12.5px;color:var(--sub);font-weight:700">篇集：</label>
       <select id="episodeFilter"><option value="">（先選檔案）</option></select>
@@ -95,14 +111,14 @@ button:hover{background:var(--ink);color:#fff}
   </div>
 
   <div class="card">
-    <div class="sectionLabel">③ 原始回應（方便直接看大家寫了什麼）</div>
+    <div class="sectionLabel">④ 原始回應（方便直接看大家寫了什麼）</div>
     <div class="respList" id="respList"><div class="respRow" style="color:var(--sub)">還沒有資料</div></div>
   </div>
 
   <div class="card">
     <div class="sectionLabel">誠實說明</div>
     <div class="honest">
-      這個文字雲統計的是<b>連續兩個字的字詞組合</b>（例如「聆聽」「客戶」「先問」），不是真正的中文斷詞——真正準確的斷詞通常需要連網查字典，這個工具刻意不連網，所以用這個簡化做法。<br>
+      「最有感的一點」是看的人自己點選的，最能直接看出哪個重點有被記住；文字雲只是輔助。<br>這個文字雲統計的是<b>連續兩個字的字詞組合</b>（例如「聆聽」「客戶」「先問」），不是真正的中文斷詞——真正準確的斷詞通常需要連網查字典，這個工具刻意不連網，所以用這個簡化做法。<br>
       字越大代表出現次數越多；只有幾則回應時，字詞大小差異可能不明顯，這是正常的，人數越多統計才會越有意義。
     </div>
   </div>
@@ -119,7 +135,36 @@ const STOPWORDS = new Set([
   "那樣","覺得","知道","不知","的時","時候","下次","最近","有沒","沒哪"
 ]);
 
-let allResponses = []; // {episode, question, response, submittedAt, file}
+let allResponses = []; // {episode, question, choice, response, submittedAt}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function renderChoiceStats(){
+  const box = document.getElementById("choiceStats");
+  const list = currentFiltered().filter(r => r.choice);
+  if(list.length === 0){
+    box.innerHTML = `<div class="empty">${allResponses.length ? "這些回應裡沒有人點選重點（可能是舊版播放器送出的）" : "選好檔案後，這裡會顯示每集各選項的人數"}</div>`;
+    return;
+  }
+  const episodes = [...new Set(list.map(r => r.episode))].sort();
+  box.innerHTML = episodes.map(ep => {
+    const rows = list.filter(r => r.choice && r.episode === ep);
+    const counts = {};
+    rows.forEach(r => { counts[r.choice] = (counts[r.choice] || 0) + 1; });
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const max = entries[0][1];
+    return `<div class="epBlock"><div class="epName">${escapeHtml(ep)}（${rows.length} 人選）</div>`
+      + entries.map(([c, n]) => {
+          const pct = Math.round(n / rows.length * 100);
+          return `<div class="statRow${n === max ? " top" : ""}"><span>${escapeHtml(c)}</span>`
+            + `<span class="statNum">${n} 人・${pct}%</span>`
+            + `<div class="statTrack"><div class="statFill" style="width:${pct}%"></div></div></div>`;
+        }).join("")
+      + `</div>`;
+  }).join("");
+}
 
 function extractBigrams(text){
   const cleaned = text.replace(/[\s，。！？、「」『』（）()\[\]{}\.,!?;:~—－_/\\]/g, "");
@@ -144,7 +189,7 @@ function populateEpisodeFilter(){
   sel.innerHTML = `<option value="">全部篇集（${allResponses.length} 則）</option>`
     + episodes.map(ep => {
         const n = allResponses.filter(r => r.episode === ep).length;
-        return `<option value="${ep.replace(/"/g,'&quot;')}">${ep}（${n} 則）</option>`;
+        return `<option value="${escapeHtml(ep)}">${escapeHtml(ep)}（${n} 則）</option>`;
       }).join("");
 }
 
@@ -161,7 +206,7 @@ function renderCloud(){
     return;
   }
   const freq = {};
-  list.forEach(r => extractBigrams(r.response).forEach(g => { freq[g] = (freq[g] || 0) + 1; }));
+  list.forEach(r => extractBigrams(r.response || "").forEach(g => { freq[g] = (freq[g] || 0) + 1; }));
   const entries = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 60);
   if(entries.length === 0){
     cloud.innerHTML = `<div class="empty">回應內容太短，抓不到重複的字詞組合</div>`;
@@ -177,18 +222,19 @@ function renderCloud(){
 }
 
 function renderRespList(){
-  const list = currentFiltered().slice().sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
+  const list = currentFiltered().filter(r => r.response).slice().sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
   const box = document.getElementById("respList");
   if(list.length === 0){ box.innerHTML = `<div class="respRow" style="color:var(--sub)">還沒有資料</div>`; return; }
   box.innerHTML = list.map(r => `
     <div class="respRow">
-      ${r.response}
-      <div class="meta">${r.episode}${r.submittedAt ? " · " + r.submittedAt.slice(0,19).replace("T"," ") : ""}</div>
+      ${r.choice ? `<span class="choiceTag">${escapeHtml(r.choice)}</span>` : ""}${escapeHtml(r.response)}
+      <div class="meta">${escapeHtml(r.episode)}${r.submittedAt ? " · " + r.submittedAt.slice(0,19).replace("T"," ") : ""}</div>
     </div>
   `).join("");
 }
 
 function renderAll(){
+  renderChoiceStats();
   renderCloud();
   renderRespList();
 }
@@ -208,11 +254,14 @@ async function handleFiles(fileList){
     try{
       const text = await file.text();
       const data = JSON.parse(text);
-      if(!data.response || typeof data.response !== "string"){ skipped++; continue; }
+      const resp = typeof data.response === "string" ? data.response : "";
+      const choice = typeof data.choice === "string" ? data.choice : "";
+      if(!resp && !choice){ skipped++; continue; }
       allResponses.push({
         episode: data.episode || "（未知篇集）",
         question: data.question || "",
-        response: data.response,
+        choice: choice,
+        response: resp,
         submittedAt: data.submittedAt || ""
       });
     } catch(e){ skipped++; }
@@ -259,11 +308,12 @@ document.getElementById("cloudLoadBtn").addEventListener("click", async () => {
     const rows = data.responses || [];
     let added = 0;
     rows.forEach(r => {
-      if(!r.response) return;
+      if(!r.response && !r.choice) return;
       allResponses.push({
         episode: r.episode || "（未知篇集）",
         question: r.question || "",
-        response: r.response,
+        choice: r.choice || "",
+        response: r.response || "",
         submittedAt: r.submitted_at || ""
       });
       added++;
