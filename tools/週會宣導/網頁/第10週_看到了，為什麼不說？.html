@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>《工程師的價值》第七篇｜客戶生氣的時候，你在聽什麼？</title>
+<title>《工程師的價值》第十篇｜看到了，為什麼不說？</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -237,10 +237,10 @@ select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px
 <div class="wrap">
 
   <div class="masthead">
-    <div class="idplate">EP 07</div>
-    <div class="kicker"><span class="led"></span>《工程師的價值》第七篇晨會宣導</div>
-    <h1>客戶生氣的時候，你在聽什麼？</h1>
-    <div class="sub">先處理情緒，事情才有機會被解決　·　約 2～3 分鐘</div>
+    <div class="idplate">EP 10</div>
+    <div class="kicker"><span class="led"></span>《工程師的價值》第十篇晨會宣導</div>
+    <h1>看到了，為什麼不說？</h1>
+    <div class="sub">不說，不是客氣，是讓問題繼續長大　·　約 2～3 分鐘</div>
     <div class="cast">
       <div class="chip"><span class="dot host">主</span>主持人 · 快、直接、有梗</div>
       <div class="chip"><span class="dot eng">凱</span>阿凱 · 自嘲型工程師</div>
@@ -325,9 +325,9 @@ select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px
     </div>
     <div id="prepBody" class="panel-body">
       <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:13.5px;color:var(--sub);font-weight:500">
-      <li>客服／衝突管理研究常見觀點：情緒未被安撫前，對方的認知資源會優先花在「有沒有被理解」，講道理或給方案在這個階段很難被聽進去；先承接情緒、再處理事情，成功率明顯較高。</li>
-      <li>「複述對方重點」（active listening 的核心技巧之一）不只是話術，重點是讓對方確認「你聽到的版本」跟他想表達的一致，避免雞同鴨講。</li>
-      <li>帶討論提醒：可以現場示範一次「先解釋 vs 先複述」的對比，讓同仁自己感受語氣差異，比空講道理更有效。</li>
+      <li>出處：Patrick Lencioni《團隊的五種機能障礙》。五層由下往上是：缺乏信任 → 害怕衝突 → 缺乏承諾 → 逃避當責 → 忽視結果。本集對應「逃避當責」——同儕之間不願意提醒彼此的標準，把提醒當成主管的事。</li>
+      <li>書裡的重點：高績效團隊的當責來自同儕，不只來自主管。同事之間願意說「這樣不對喔」，比主管抓到再罵有效得多，也更不傷感情。</li>
+      <li>帶討論提醒：避免變成在會議上檢討某位特定同事的案子。可以先請大家分享「被同事提醒、結果幫了自己一把」的經驗，從正面經驗切入，比較容易開口。</li>
       </ul>
     </div>
   </div>
@@ -346,49 +346,46 @@ const DEFAULT_EXPR = {"主持人": "calm", "阿凱工程師": "neutral", "主管
 
 const SCRIPT = [
 {bg:"studio", tag:"開場：先問一句", icon:"question", lines:[
-  ["主持人", "客戶生氣的時候，你都在想什麼？", {expr:"neutral"}],
-  ["主持人", "我以前都在想——他到底想怎樣，我只是想趕快修好設備。", {expr:"sheepish", effect:"sweat"}],
-  ["主持人", "後來才知道，這樣想，剛好把事情搞得更糟。", {expr:"stern"}]
+  ["主持人", "看到同事做錯，你會講嗎？", {expr:"calm"}],
+  ["主持人", "大部分人的答案是：又不是我的案子。", {expr:"sheepish"}]
 ]},
-{bg:"phone", tag:"故事：解釋得很清楚", icon:"phoneAlert", lines:[
-  ["阿凱工程師", "有一次客戶在電話裡罵，我想都沒想，直接解釋技術原因。", {expr:"confident"}],
-  ["阿凱工程師", "我講得很清楚——是網路設定的問題，不是我們的錯。", {expr:"confident"}],
-  ["客戶", "我不管是誰的問題！我要的是有人聽我把話講完！", {expr:"angry", effect:"impact", sfx:"！"}],
+{bg:"workshop", tag:"故事：我看到了", icon:"wrench", lines:[
+  ["阿凱工程師", "上禮拜跟小林一起去做保養。", {expr:"neutral"}],
+  ["阿凱工程師", "我看到他有一顆螺絲沒確認扭力，就直接蓋上外殼。", {expr:"neutral"}],
+  ["阿凱工程師", "想說他資歷比我深，應該有他的道理。", {expr:"sheepish", effect:"sweat"}]
+]},
+{bg:"phone", tag:"客戶的反應", icon:"phoneAlert", lines:[
+  ["客戶", "保養完才三天就漏油！你們到底有沒有檢查？！", {expr:"angry", effect:"impact", sfx:"！"}],
   ["阿凱工程師", "……", {expr:"shocked"}]
 ]},
-{bg:"office", tag:"主管一句話", icon:"question", lines:[
-  ["主管", "你在回答他的問題，還是回答他的情緒？", {expr:"stern"}],
-  ["阿凱工程師", "蛤？", {expr:"sheepish", effect:"sweat"}],
-  ["主管", "他在氣的時候，你給答案，他聽不進去。", {expr:"stern"}]
+{bg:"office", tag:"主管的提醒", icon:"team", lines:[
+  ["主管", "你那時候有看到嗎？", {expr:"stern"}],
+  ["阿凱工程師", "有……可是那不是我負責的。", {expr:"sheepish"}],
+  ["主管", "客戶不會分是誰負責，他只知道我們公司來過。", {expr:"stern"}],
+  ["主管", "你不講，不是給他面子，是讓他在客戶面前丟臉。", {expr:"stern"}]
 ]},
-{bg:"office", tag:"順序顛倒", icon:"layers", lines:[
-  ["主持人", "客戶生氣的時候，通常要的不是解釋。", {expr:"neutral"}],
-  ["主持人", "是有沒有人先聽他說完。", {expr:"spark", effect:"spark"}],
-  ["主持人", "這個順序顛倒，道理講得再對，也沒用。", {expr:"stern"}]
+{bg:"studio", tag:"交通號誌", icon:"layers", lines:[
+  ["主持人", "交通號誌不是為了限制駕駛。", {expr:"calm"}],
+  ["主持人", "是為了讓每個人都能安全到達。", {expr:"calm"}],
+  ["主持人", "團隊裡互相提醒，就是彼此的號誌燈。", {expr:"confident"}]
 ]},
-{bg:"studio", tag:"別家怎麼做", icon:"checkCircle", lines:[
-  ["主持人", "客服研究早就講過：先處理情緒，再處理事情，客戶才聽得進方案。", {expr:"confident"}],
-  ["主持人", "順序對了，事情才有機會被解決。", {expr:"spark"}]
+{bg:"studio", tag:"怎麼提醒才不傷感情", icon:"checkCircle", lines:[
+  ["主持人", "怎麼提醒，才不傷感情？", {expr:"calm"}],
+  ["主持人", "第一，當下、私下說，不要事後在群組講。", {expr:"confident"}],
+  ["主持人", "第二，講事情不講人：「這顆扭力好像還沒確認」。", {expr:"confident"}],
+  ["主持人", "第三，被提醒的人，先說一聲謝謝。", {expr:"confident"}]
 ]},
-{bg:"studio", tag:"記住三件事", icon:"checkCircle", lines:[
-  ["主持人", "所以只要記住三件事。", {expr:"calm"}],
-  ["主持人", "先聽完，不要打斷。", {expr:"confident"}],
-  ["主持人", "複述一次他的重點，讓他知道你有聽到。", {expr:"confident"}],
-  ["主持人", "最後，才提解決方案。", {expr:"confident"}]
-]},
-{bg:"spotlight", tag:"結尾：後來呢", icon:"upgrade", lines:[
-  ["阿凱工程師", "後來我學會先說一句：我聽到你的意思是……", {expr:"confident"}],
-  ["阿凱工程師", "客戶整個語氣都軟下來。", {expr:"spark", effect:"spark"}],
-  ["主持人", "因為他不是要吵贏，是要有人聽懂他。", {expr:"confident"}],
-  ["主持人", "修好設備是技術，聽懂客戶才是專業。", {expr:"spark", effect:"spark"}]
+{bg:"spotlight", tag:"結尾", icon:"upgrade", lines:[
+  ["阿凱工程師", "後來小林跟我說，還好那次你有講。", {expr:"confident"}],
+  ["主持人", "高績效團隊不是沒有衝突，是有人願意先開口。", {expr:"spark", effect:"spark"}]
 ]}
 ];
 
-const GOLDEN_QUOTE = "客戶要的不是答案，<br>是被聽見。";
-const MANAGER_QUESTION = "最近一次被客訴，你是先解釋，還是先聽完？<br>下次先把「我聽到你的意思是……」放在嘴邊。";
-const EPISODE_LABEL = "07_客戶生氣的時候，你在聽什麼？";
-const TAKEAWAYS = ["先聽完，不要打斷", "複述重點，讓他知道你有聽到", "最後才提方案"];
-const KEYWORDS = ["聽完", "打斷", "複述", "情緒", "方案"];
+const GOLDEN_QUOTE = "能力決定一個人走多快，<br>態度決定一個團隊走多遠。";
+const MANAGER_QUESTION = "最近一次看到同事可以更好的地方，你說了嗎？<br>如果被提醒的是你，你希望對方怎麼說？";
+const EPISODE_LABEL = "10_看到了，為什麼不說？";
+const TAKEAWAYS = ["當下私下說", "對事不對人", "被提醒先說謝謝"];
+const KEYWORDS = ["提醒", "私下", "對事", "謝謝", "開口"];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];

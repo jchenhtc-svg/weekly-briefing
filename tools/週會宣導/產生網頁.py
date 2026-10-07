@@ -82,7 +82,9 @@ def build_data_block(ep):
         + "const SCRIPT = [\n" + ",\n".join(scene_blocks) + "\n];\n\n"
         + "const GOLDEN_QUOTE = " + js(ep["golden_quote"]) + ";\n"
         + "const MANAGER_QUESTION = " + js(ep["manager_question"]) + ";\n"
-        + "const EPISODE_LABEL = " + js(f'{ep_num(ep)}_{ep["title"]}') + ";\n\n"
+        + "const EPISODE_LABEL = " + js(f'{ep_num(ep)}_{ep["title"]}') + ";\n"
+        + "const TAKEAWAYS = " + js(ep.get("takeaways", [])) + ";\n"
+        + "const KEYWORDS = " + js(ep.get("keywords", [])) + ";\n\n"
     )
 
 
@@ -175,13 +177,18 @@ def render(ep, template, cloud_config=None):
             html, count=1,
         )
         episode_label = f'{ep_num(ep)}_{ep["title"]}'
-        # 只帶 ep（集數標籤），不帶完整問題文字：CJK 經過 URL 編碼會膨脹約 9 倍，
-        # 問題全文塞進去會讓 QR Code 密度太高、印出來/顯示在小尺寸時掃不出來。
-        # 手機頁面改用通用提示語，因為看的人剛剛已經在共用畫面上看過/聽過問題了。
-        respond_url = (
-            cloud_config["apiBase"].rstrip("/") + "/respond"
-            + f"?ep={quote(episode_label)}"
-        )
+        if cloud_config.get("pagesBase"):
+            # 有公開網站時，QR 指向入口網站的短網址 ?r=09，入口網站再轉到這一集並直接
+            # 打開結尾回饋畫面（手機上看得到「最有感的一點」選項＋大家的統計）。
+            # 全 ASCII、不到 60 字元，QR 很稀疏，投影在螢幕上也好掃。
+            respond_url = cloud_config["pagesBase"].rstrip("/") + f"/?r={ep_num(ep)}"
+        else:
+            # 只帶 ep（集數標籤），不帶完整問題文字：CJK 經過 URL 編碼會膨脹約 9 倍，
+            # 問題全文塞進去會讓 QR Code 密度太高、印出來/顯示在小尺寸時掃不出來。
+            respond_url = (
+                cloud_config["apiBase"].rstrip("/") + "/respond"
+                + f"?ep={quote(episode_label)}"
+            )
         html = re.sub(
             r'const RESPONSE_QR_IMG = ".*?";',
             f'const RESPONSE_QR_IMG = {js(make_qr_data_uri(respond_url))};',

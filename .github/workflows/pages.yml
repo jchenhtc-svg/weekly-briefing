@@ -42,12 +42,14 @@ jobs:
         env:
           CLOUD_API_BASE: ${{ secrets.WEEKLY_BRIEFING_API_BASE }}
           CLOUD_SITE_KEY: ${{ secrets.WEEKLY_BRIEFING_SITE_KEY }}
+          # QR Code 指向入口網站短網址 ?r=NN（不是祕密，就是這個 Pages 網站自己的網址）
+          PAGES_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
           mkdir -p cloudflare
           python3 -c "
           import json, os
           json.dump(
-              {'apiBase': os.environ['CLOUD_API_BASE'], 'siteKey': os.environ['CLOUD_SITE_KEY']},
+              {'apiBase': os.environ['CLOUD_API_BASE'], 'siteKey': os.environ['CLOUD_SITE_KEY'], 'pagesBase': os.environ['PAGES_BASE']},
               open('cloudflare/local-config.json', 'w'),
               ensure_ascii=False,
           )
