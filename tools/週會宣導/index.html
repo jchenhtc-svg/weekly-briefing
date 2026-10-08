@@ -78,6 +78,76 @@
 </style>
 </head>
 <body>
+<!-- 外部瀏覽器：在 LINE／FB／IG 等 App 內建瀏覽器開啟時，改用手機預設瀏覽器（iOS Safari／Android Chrome 等）。
+     App 內建瀏覽器常常不支援語音朗讀，所以要跳出去。 -->
+<style>
+  #inAppBar{display:none;position:sticky;top:0;z-index:9999;background:#1f2937;color:#fff;
+    padding:12px 16px;font-size:15px;line-height:1.55;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+  #inAppBar.show{display:block}
+  #inAppBar b{color:#fde68a}
+  #inAppBar .iabRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  #inAppBar .iabBtn{appearance:none;border:0;border-radius:999px;padding:8px 14px;font-size:14px;
+    font-weight:700;cursor:pointer;text-decoration:none;background:#fde68a;color:#1f2937}
+  #inAppBar .iabBtn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
+</style>
+<div id="inAppBar" role="alert">
+  <div id="iabMsg"></div>
+  <div class="iabRow">
+    <a id="iabOpen" class="iabBtn" href="#" style="display:none">用瀏覽器開啟</a>
+    <button id="iabCopy" class="iabBtn" type="button">複製網址</button>
+    <button class="iabBtn ghost" type="button" onclick="document.getElementById('inAppBar').classList.remove('show')">先在這裡看</button>
+  </div>
+</div>
+<script>
+  (function(){
+    var ua = navigator.userAgent || "";
+    var isAndroid = /Android/i.test(ua);
+    var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isLine = /\bLine\//i.test(ua);
+    var inApp = isLine ||
+      /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Threads|Barcelona|MicroMessenger|KAKAOTALK|Messenger|LinkedInApp|Snapchat|TikTok|musical_ly|Bytedance|Twitter/i.test(ua) ||
+      (isAndroid && /; wv\)/.test(ua));
+    if(!inApp || !(isAndroid || isIOS)) return;
+
+    var here = new URL(location.href);
+    // LINE：網址加上 openExternalBrowser=1，LINE 會自動改用預設瀏覽器開啟（iOS、Android 都適用）
+    if(isLine && here.searchParams.get("openExternalBrowser") !== "1"){
+      here.searchParams.set("openExternalBrowser", "1");
+      window.__goingExternal = true;
+      location.replace(here.href);
+      return;
+    }
+
+    var clean = new URL(location.href);
+    clean.searchParams.delete("openExternalBrowser");
+    var link = clean.href;
+
+    var bar = document.getElementById("inAppBar");
+    var msg = document.getElementById("iabMsg");
+    var openBtn = document.getElementById("iabOpen");
+    if(isAndroid){
+      // Android：intent 網址交給系統，用預設瀏覽器打開同一頁
+      openBtn.href = "intent://" + clean.host + clean.pathname + clean.search +
+        "#Intent;scheme=" + clean.protocol.replace(":", "") + ";action=android.intent.action.VIEW;" +
+        "category=android.intent.category.BROWSABLE;end";
+      openBtn.style.display = "";
+      msg.innerHTML = "目前在 App 內建瀏覽器，<b>語音可能不會播</b>。請按「用瀏覽器開啟」，或點右上角 <b>⋮</b> →「在瀏覽器中開啟」。";
+    } else {
+      msg.innerHTML = "目前在 App 內建瀏覽器，<b>語音可能不會播</b>。請點右上角或右下角的 <b>⋯</b> 或 <b>分享</b> 圖示 →「<b>在 Safari 中開啟</b>」，或複製網址貼到 Safari。";
+    }
+    document.getElementById("iabCopy").onclick = function(){
+      var btn = this;
+      function done(){ btn.textContent = "已複製 ✓"; }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(link).then(done, function(){ window.prompt("長按複製這個網址：", link); });
+      } else {
+        window.prompt("長按複製這個網址：", link);
+      }
+    };
+    bar.classList.add("show");
+  })();
+</script>
+
 
   <div class="hero">
     <div class="kicker"><span class="led"></span>52 週晨會故事 × 動畫教育訓練教材</div>
@@ -231,7 +301,7 @@
   // 用 data-file 而不是 href，這樣尚未開放（沒有連結）的集數播完也能收回饋。
   (function(){
     var r = new URLSearchParams(location.search).get("r");
-    if(!r) return;
+    if(!r || window.__goingExternal) return;
     var card = document.querySelector('[data-ep="' + r.replace(/[^0-9a-z]/gi, "") + '"]');
     if(card) location.replace(card.getAttribute("data-file") + "?respond=1");
   })();
