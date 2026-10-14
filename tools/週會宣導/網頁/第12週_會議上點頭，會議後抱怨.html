@@ -29,7 +29,7 @@ h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-hei
 .cast{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .chip{display:flex;align-items:center;gap:7px;background:#fff;border:2px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;font-size:12px;font-weight:700;color:var(--ink)}
 .dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;flex:none}
-.dot.host{background:var(--host);color:#0d3049} .dot.eng{background:var(--eng)} .dot.mgr{background:var(--mgr)} .dot.cli{background:var(--cli)}
+.dot.host{background:var(--host);color:#0d3049} .dot.eng{background:var(--eng)} .dot.mgr{background:var(--mgr)} .dot.cli{background:var(--cli)} .dot.ai{background:#10b981;font-size:10px}
 
 .sectionLabel{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--sub)}
 
@@ -126,6 +126,35 @@ h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-hei
 .choiceBtn:hover{background:#f2f4fb;color:var(--ink)}
 .choiceBtn.selected{background:var(--mgr);border-color:var(--mgr);color:#fff}
 .choiceBtn .num{display:inline-block;width:1.6em;font-weight:900}
+/* 情境卡（SCENARIOS 有內容時，結尾畫面改成情境選擇遊戲） */
+.scnBox{margin-top:16px;padding-top:16px;border-top:2px dashed var(--line);text-align:left}
+.scnHead{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:800;color:var(--sub);margin-bottom:8px}
+.scnSituation{font-size:16px;font-weight:800;line-height:1.65;color:var(--ink);margin-bottom:12px}
+.scnOpt{width:100%;text-align:left;border-radius:12px;padding:11px 14px;font-size:14.5px;font-weight:800;line-height:1.45;background:#fff;color:var(--ink);margin-bottom:8px;display:block}
+.scnOpt:hover:not(:disabled){background:#f2f4fb;color:var(--ink)}
+.scnOpt:disabled{cursor:default;opacity:.55}
+.scnOpt.picked{background:var(--mgr);border-color:var(--mgr);color:#fff;opacity:1}
+.scnOpt .num{display:inline-block;width:1.6em;font-weight:900}
+.scnResult{border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin:4px 0 10px;background:#fffbea;font-size:14px;font-weight:700;line-height:1.65}
+.scnResult.other{background:#fff;opacity:.85;font-size:13px}
+.scnResult .lab{font-size:12px;font-weight:900;color:var(--sub);margin-bottom:4px}
+.scnDeltas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.scnDelta{font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;border:2px solid var(--line);background:#fff}
+.scnDelta.up{background:#dcfce7;border-color:#15803d;color:#14532d}
+.scnDelta.down{background:#fee2e2;border-color:#b91c1c;color:#7f1d1d}
+.scnNav{display:flex;gap:8px;margin-top:10px}
+.scnNav button{flex:1}
+button.scnLink,.scnLink{font-size:12.5px;color:var(--sub);background:none;border:none;border-radius:0;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;font-weight:700;width:auto;box-shadow:none}
+button.scnLink:hover{background:none;color:var(--ink)}
+summary.scnLink{display:block;margin:2px 0 10px}
+.scnMetric{display:grid;grid-template-columns:7.5em 1fr 3em;gap:8px;align-items:center;font-size:14px;font-weight:800;margin-bottom:8px}
+.scnMetric .track{height:12px;border:2px solid var(--line);border-radius:999px;background:#fff;position:relative;overflow:hidden}
+.scnMetric .track i{position:absolute;top:0;bottom:0;border-radius:999px}
+.scnMetric .track .mid{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--line)}
+.scnMetric .val{text-align:right}
+.scnNote{font-size:13px;color:var(--sub);font-weight:700;line-height:1.6;margin:10px 0}
+.scnStatCard{margin-bottom:14px}
+.scnStatCard .q{font-size:13px;font-weight:800;margin-bottom:6px;line-height:1.5}
 
 .charWrap{position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;padding:10px 20px 20px;left:auto;bottom:auto;transform:none}
 .charSvg{width:180px;height:204px;display:block;filter:none;animation:charBob 2.6s ease-in-out infinite}
@@ -456,6 +485,8 @@ const MANAGER_QUESTION = "最近一次會議，你有沒有話沒說出口？<br
 const EPISODE_LABEL = "12_會議上點頭，會議後抱怨";
 const TAKEAWAYS = ["疑慮當場講", "問題帶著做法來", "決定後全力執行"];
 const KEYWORDS = ["會議", "疑慮", "做法", "執行", "真話"];
+const SCENARIOS = [];
+const SCENARIO_METRICS = [];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -506,6 +537,7 @@ function markSVG(name){
 function faceSVG(role, expr){
   const meta = ROLES[role];
   const hair = meta.color;
+  if(meta.key === "ai") return robotSVG(expr, hair);
   const glasses = "";
   let brows = `<line x1="45" y1="55" x2="65" y2="55" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/><line x1="85" y1="55" x2="105" y2="55" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>`;
   let eyes  = `<circle cx="55" cy="66" r="5" fill="#1a1a1a"/><circle cx="95" cy="66" r="5" fill="#1a1a1a"/>`;
@@ -538,6 +570,33 @@ function faceSVG(role, expr){
   }
   const arms = armsSVG(expr, hair);
   return faceSVGInner(brows, eyes, mouth, glasses, extra, hair, arms);
+}
+// AI 角色畫成機器人：方頭、天線、螢幕臉，表情用螢幕上的發光眼睛／嘴巴表現
+function robotSVG(expr, color){
+  const glow = "#5ef0c0";
+  let eyes = `<rect x="56" y="60" width="11" height="15" rx="4" fill="${glow}"/><rect x="83" y="60" width="11" height="15" rx="4" fill="${glow}"/>`;
+  let mouth = `<path d="M62 86 Q75 93 88 86" stroke="${glow}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+  if(expr==="confident" || expr==="spark"){
+    eyes = `<path d="M55 72 Q61 60 67 72" stroke="${glow}" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M83 72 Q89 60 95 72" stroke="${glow}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    mouth = `<path d="M58 84 Q75 98 92 84" stroke="${glow}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+  } else if(expr==="calm"){
+    eyes = `<line x1="55" y1="68" x2="67" y2="68" stroke="${glow}" stroke-width="4" stroke-linecap="round"/><line x1="83" y1="68" x2="95" y2="68" stroke="${glow}" stroke-width="4" stroke-linecap="round"/>`;
+  } else if(expr==="shocked" || expr==="sheepish"){
+    eyes = `<circle cx="61" cy="67" r="7" fill="none" stroke="${glow}" stroke-width="3.5"/><circle cx="89" cy="67" r="7" fill="none" stroke="${glow}" stroke-width="3.5"/>`;
+    mouth = `<line x1="66" y1="89" x2="84" y2="89" stroke="${glow}" stroke-width="3.5" stroke-linecap="round"/>`;
+  }
+  return `
+    <ellipse cx="75" cy="150" rx="55" ry="26" fill="${color}" opacity="0.9"/>
+    <line x1="75" y1="12" x2="75" y2="30" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="75" cy="10" r="6" fill="#ffb020" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="21" y="60" width="11" height="26" rx="4" fill="${color}" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="118" y="60" width="11" height="26" rx="4" fill="${color}" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="30" y="28" width="90" height="94" rx="24" fill="#e9eef2" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="41" y="44" width="68" height="60" rx="14" fill="#13212b"/>
+    ${eyes}${mouth}
+    <circle cx="48" cy="113" r="3" fill="#9aa5ad"/><circle cx="102" cy="113" r="3" fill="#9aa5ad"/>
+    ${armsSVG(expr, color)}
+  `;
 }
 // 手臂姿勢：讓角色不只是一顆頭，隨表情擺出對應的簡單動作
 // 手臂顏色跟身體同色，緊貼身體輪廓時會整個融在一起看不出來，
@@ -938,6 +997,161 @@ async function loadCommunityResponses(){
   }
 }
 
+// ==== 情境卡（SCENARIOS 有內容時，結尾畫面改成情境三選一遊戲）====
+// 每張卡選一個選項 → 馬上看到後果與各指標加減分 → 下一張 → 最後看自己的取捨總結。
+// 雲端版：每張卡的選擇送一筆到 Worker（question=「情境N」、choice=A/B/C，同一台裝置每張只送一次），
+// 卡片下方即時顯示全場各選項人數；主持人可以按「只看全場統計」投影出來帶討論。
+const SCN_LETTERS = "ABCDE";
+let scnIdx = 0, scnPicks = [], scnView = "play", scnRows = null, scnStatsError = false, scnRespondMode = false;
+
+function scnStorageKey(k){ return `scn:${EPISODE_LABEL}:${k}`; }
+function scnAlreadySent(k){ try{ return localStorage.getItem(scnStorageKey(k)) === "1"; }catch(e){ return false; } }
+function scnMarkSent(k){ try{ localStorage.setItem(scnStorageKey(k), "1"); }catch(e){} }
+
+async function scnSubmit(k, idx){
+  if(!RESPONSE_API_BASE || scnAlreadySent(k)) return;
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY },
+      body: JSON.stringify({ episode: EPISODE_LABEL, question: `情境${k+1}`, choice: SCN_LETTERS[idx],
+                             response: "", submittedAt: new Date().toISOString() })
+    });
+    if(res.ok){ scnMarkSent(k); loadScenarioStats(); }
+  } catch(e){ /* 連不上就算了：自己的結果照樣看得到，只是不列入全場統計 */ }
+}
+
+function scnPick(idx){
+  if(scnPicks[scnIdx] !== undefined) return;
+  scnPicks[scnIdx] = idx;
+  scnSubmit(scnIdx, idx);
+  renderScenario();
+}
+function scnGo(delta){
+  scnIdx = Math.max(0, Math.min(SCENARIOS.length, scnIdx + delta));
+  renderScenario();
+  const box = document.getElementById("scnBox");
+  if(box) box.scrollIntoView({block: "start", behavior: "smooth"});
+}
+function scnRestart(){ scnIdx = 0; scnPicks = []; scnView = "play"; renderScenario(); }
+function scnShowStats(on){ scnView = on ? "stats" : "play"; renderScenario(); }
+
+function scnDeltaHtml(score){
+  return SCENARIO_METRICS.map(m => {
+    const v = (score && score[m.name]) || 0;
+    if(!v) return "";
+    return `<span class="scnDelta ${v > 0 ? "up" : "down"}">${m.icon} ${escapeHtml(m.name)} ${v > 0 ? "+" : ""}${v}</span>`;
+  }).join("");
+}
+
+function scnDistInner(k){
+  if(scnRows === null) return scnStatsError
+    ? `<div class="communityEmpty">連不上雲端，晚點再試試看</div>`
+    : `<div class="communityEmpty">全場統計載入中…</div>`;
+  const rows = scnRows.filter(r => r.question === `情境${k+1}`);
+  const opts = SCENARIOS[k].options;
+  const counts = opts.map((o, j) => rows.filter(r => r.choice === SCN_LETTERS[j]).length);
+  const total = counts.reduce((a, b) => a + b, 0);
+  const max = Math.max(...counts);
+  return `<div class="statTitle">全場 ${total} 人作答</div>` + opts.map((o, j) => {
+    const pct = total ? Math.round(counts[j] / total * 100) : 0;
+    const top = max > 0 && counts[j] === max ? " top" : "";
+    return `<div class="statRow${top}"><span>${SCN_LETTERS[j]}. ${escapeHtml(o.text)}</span>`
+      + `<span class="statNum">${counts[j]} 人・${pct}%</span>`
+      + `<div class="statTrack"><div class="statFill" style="width:${pct}%"></div></div></div>`;
+  }).join("");
+}
+function scnDistBlock(k){
+  return RESPONSE_API_BASE ? `<div class="communityBlock" data-scn-dist="${k}">${scnDistInner(k)}</div>` : "";
+}
+function scnUpdateDists(){
+  document.querySelectorAll("[data-scn-dist]").forEach(el => { el.innerHTML = scnDistInner(+el.dataset.scnDist); });
+}
+
+async function loadScenarioStats(){
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), {
+      headers: { "X-Site-Key": RESPONSE_SITE_KEY }
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    scnRows = (data.responses || []).filter(r => /^情境\d+$/.test(r.question || "") && r.choice);
+    scnStatsError = false;
+  } catch(e){
+    scnStatsError = true;
+  }
+  if(onEndCard) scnUpdateDists(); // 只換統計那幾塊，不重畫整張卡（展開中的「其他選項」不會被收起來）
+}
+
+function renderScenario(){
+  const box = document.getElementById("scnBox");
+  if(!box) return;
+  const N = SCENARIOS.length;
+
+  if(scnView === "stats"){
+    box.innerHTML = `<div class="scnHead"><span>全場統計（只看，不會送出作答）</span>`
+      + `<button type="button" class="scnLink" onclick="scnShowStats(false)">回到作答</button></div>`
+      + SCENARIOS.map((sc, k) => `<div class="scnStatCard"><div class="q">情境 ${k+1}｜${escapeHtml(sc.situation)}</div>${scnDistBlock(k)}</div>`).join("");
+    return;
+  }
+
+  if(scnIdx >= N){
+    // 這組情境卡完全沒用到的指標（例如還沒教到的「資料安全」）不列出來，免得大家以為漏算
+    const metrics = SCENARIO_METRICS.filter(m => SCENARIOS.some(sc => sc.options.some(o => (o.score || {})[m.name])));
+    const totals = {};
+    metrics.forEach(m => { totals[m.name] = 0; });
+    scnPicks.forEach((j, k) => {
+      const sc = (SCENARIOS[k].options[j] || {}).score || {};
+      Object.keys(totals).forEach(name => { totals[name] += sc[name] || 0; });
+    });
+    // 長條的滿格 = 這組情境卡裡該指標理論上拿得到的最大絕對值，讓不同指標的長條可以互相比較
+    const reach = Math.max(1, ...metrics.map(m =>
+      SCENARIOS.reduce((acc, sc) => acc + Math.max(...sc.options.map(o => Math.abs((o.score || {})[m.name] || 0))), 0)));
+    const rows = metrics.map(m => {
+      const v = totals[m.name], w = Math.min(50, Math.abs(v) / reach * 50);
+      const bar = v >= 0
+        ? `<i style="left:50%;width:${w}%;background:#16a34a"></i>`
+        : `<i style="right:50%;width:${w}%;background:#dc2626"></i>`;
+      return `<div class="scnMetric"><span>${m.icon} ${escapeHtml(m.name)}</span>`
+        + `<span class="track">${bar}<span class="mid"></span></span><span class="val">${v > 0 ? "+" : ""}${v}</span></div>`;
+    }).join("");
+    const sorted = metrics.map(m => [m.name, totals[m.name]]).sort((a, b) => b[1] - a[1]);
+    const best = sorted[0], worst = sorted[sorted.length - 1];
+    let note = `這一輪你最顧到的是「${escapeHtml(best[0])}」。`;
+    if(worst[1] < 0) note += `被犧牲最多的是「${escapeHtml(worst[0])}」——想想看，下次怎麼兩邊都顧到？`;
+    box.innerHTML = `<div class="scnHead"><span>你的取捨總結</span>`
+      + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
+      + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
+      + `<div class="endQuestion">${MANAGER_QUESTION}</div>`
+      + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
+      + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`;
+    return;
+  }
+
+  const k = scnIdx, sc = SCENARIOS[k], picked = scnPicks[k];
+  const optsHtml = sc.options.map((o, j) =>
+    `<button type="button" class="scnOpt${picked === j ? " picked" : ""}" onclick="scnPick(${j})"${picked !== undefined ? " disabled" : ""}>`
+    + `<span class="num">${SCN_LETTERS[j]}.</span>${escapeHtml(o.text)}</button>`).join("");
+  let after = "";
+  if(picked !== undefined){
+    const o = sc.options[picked];
+    const others = sc.options.map((x, j) => j === picked ? "" :
+      `<div class="scnResult other"><div class="lab">${SCN_LETTERS[j]}. ${escapeHtml(x.text)}</div>${escapeHtml(x.result)}`
+      + `<div class="scnDeltas">${scnDeltaHtml(x.score)}</div></div>`).join("");
+    after = `<div class="scnResult"><div class="lab">你選了 ${SCN_LETTERS[picked]}，結果……</div>${escapeHtml(o.result)}`
+      + `<div class="scnDeltas">${scnDeltaHtml(o.score)}</div></div>`
+      + `<details><summary class="scnLink">看看其他選項會怎樣</summary>${others}</details>`
+      + scnDistBlock(k);
+  }
+  const nav = `<div class="scnNav">`
+    + (k > 0 ? `<button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>` : "")
+    + (picked !== undefined ? `<button type="button" onclick="scnGo(1)">${k === N - 1 ? "看我的取捨總結 →" : "下一張 →"}</button>` : "")
+    + `</div>`;
+  box.innerHTML = `<div class="scnHead"><span>情境卡 ${k+1} / ${N}</span>`
+    + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
+    + `</div><div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
+}
+
 function showEndCard(opts = {}){
   onEndCard = true;
   selectedChoice = null;
@@ -951,12 +1165,28 @@ function showEndCard(opts = {}){
   speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.remove("on");
   document.getElementById("panelWrap").classList.add("ended");
   speechBubble.className = "speechBubble final";
+  const isScn = SCENARIOS.length > 0;
+  const qrWhat = isScn ? "情境卡" : "回饋表單";
   const qrBlock = (RESPONSE_QR_IMG && !opts.respond) // 已經是掃 QR 進來的人，不用再給一次連結
     ? `<div class="qrBlock"><a class="qrLink" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">`
-      + `<img src="${RESPONSE_QR_IMG}" alt="開啟回饋表單" class="qrImg"></a>`
-      + `<div class="qrCaption">用手機掃描，或直接點 QR Code 開啟回饋表單</div>`
-      + `<a class="qrOpenBtn" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">開啟回饋表單 ↗</a></div>`
+      + `<img src="${RESPONSE_QR_IMG}" alt="開啟${qrWhat}" class="qrImg"></a>`
+      + `<div class="qrCaption">${isScn ? "用手機掃描，大家一起玩情境卡（或直接點 QR Code）" : "用手機掃描，或直接點 QR Code 開啟回饋表單"}</div>`
+      + `<a class="qrOpenBtn" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">開啟${qrWhat} ↗</a></div>`
     : "";
+  if(isScn){
+    scnIdx = 0; scnPicks = []; scnView = "play"; scnRows = null; scnStatsError = false;
+    scnRespondMode = !!opts.respond;
+    speechBubble.innerHTML = `<div class="quoteLine">${GOLDEN_QUOTE}</div>${qrBlock}<div class="scnBox" id="scnBox"></div>`;
+    renderScenario();
+    who.textContent = "播放完畢 — 一起玩情境卡（再按一次執行播放可從頭重播）";
+    bar.style.width = "100%";
+    if(!opts.silent) speakGoldenQuote();
+    if(RESPONSE_API_BASE){
+      loadScenarioStats();
+      communityPollTimer = setInterval(loadScenarioStats, 5000); // 現場大家同時作答，5 秒更新一次
+    }
+    return;
+  }
   const communityBlock = RESPONSE_API_BASE
     ? `<div class="communityBlock" id="communityBlock">`
       + `<div class="communityHead"><span id="communityCount">大家的回應載入中…</span>`

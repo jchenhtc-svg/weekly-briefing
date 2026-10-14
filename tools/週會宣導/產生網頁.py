@@ -6,7 +6,7 @@
 所以每週出新的一集，只要新增一個 JSON，不需要改網頁或改這支程式。
 
 用法：
-    python3 產生網頁.py                      # 產生 腳本/ 底下全部（公開版，網頁/，會進 git）
+    python3 產生網頁.py                      # 產生 腳本/ 和 腳本-AI素養/ 底下全部（公開版，網頁/，會進 git）
     python3 產生網頁.py 腳本/04-*.json        # 只產生指定的一集
     python3 產生網頁.py --cloud               # 額外產生連得到 Cloudflare 的「雲端版」到
                                               # 網頁-雲端版/（讀 cloudflare/local-config.json，
@@ -25,6 +25,9 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 TEMPLATE = REPO / ".claude" / "skills" / "ai-dialogue-podcast-builder" / "assets" / "template.html"
 SCRIPT_DIR = HERE / "腳本"
+# 獨立系列（例如月例會的 AI 素養四堂課）的腳本放這裡，輸出一樣進 網頁/，
+# 檔名、集數標籤由腳本裡的 id／file_prefix 決定，不會跟 52 週系列撞名。
+EXTRA_SCRIPT_DIRS = [HERE / "腳本-AI素養"]
 OUT_DIR = HERE / "網頁"
 CLOUD_OUT_DIR = HERE / "網頁-雲端版"  # .gitignore 排除，絕不進版控
 CLOUD_CONFIG = HERE / "cloudflare" / "local-config.json"  # 同樣排除在外
@@ -82,9 +85,11 @@ def build_data_block(ep):
         + "const SCRIPT = [\n" + ",\n".join(scene_blocks) + "\n];\n\n"
         + "const GOLDEN_QUOTE = " + js(ep["golden_quote"]) + ";\n"
         + "const MANAGER_QUESTION = " + js(ep["manager_question"]) + ";\n"
-        + "const EPISODE_LABEL = " + js(f'{ep_num(ep)}_{ep["title"]}') + ";\n"
+        + "const EPISODE_LABEL = " + js(episode_label(ep)) + ";\n"
         + "const TAKEAWAYS = " + js(ep.get("takeaways", [])) + ";\n"
-        + "const KEYWORDS = " + js(ep.get("keywords", [])) + ";\n\n"
+        + "const KEYWORDS = " + js(ep.get("keywords", [])) + ";\n"
+        + "const SCENARIOS = " + js(ep.get("scenario_cards", [])) + ";\n"
+        + "const SCENARIO_METRICS = " + js(ep.get("scenario_metrics", [])) + ";\n\n"
     )
 
 
@@ -97,8 +102,8 @@ def build_masthead(ep):
     )
     return (
         '  <div class="masthead">\n'
-        f'    <div class="idplate">EP {ep_num(ep)}</div>\n'
-        f'    <div class="kicker"><span class="led"></span>《{ep["series"]}》{ep["episode_label"]}晨會宣導</div>\n'
+        f'    <div class="idplate">{ep.get("id") or "EP " + ep_num(ep)}</div>\n'
+        f'    <div class="kicker"><span class="led"></span>《{ep["series"]}》{ep["episode_label"]}{ep.get("kicker", "晨會宣導")}</div>\n'
         f'    <h1>{ep["title"]}</h1>\n'
         f'    <div class="sub">{ep["subtitle"]}</div>\n'
         f'    <div class="cast">\n{chips}\n    </div>\n'
@@ -176,18 +181,18 @@ def render(ep, template, cloud_config=None):
             f'const RESPONSE_SITE_KEY = {js(cloud_config["siteKey"])};',
             html, count=1,
         )
-        episode_label = f'{ep_num(ep)}_{ep["title"]}'
+        episode_label_ = episode_label(ep)
         if cloud_config.get("pagesBase"):
             # 有公開網站時，QR 指向入口網站的短網址 ?r=09，入口網站再轉到這一集並直接
             # 打開結尾回饋畫面（手機上看得到「最有感的一點」選項＋大家的統計）。
             # 全 ASCII、不到 60 字元，QR 很稀疏，投影在螢幕上也好掃。
-            respond_url = cloud_config["pagesBase"].rstrip("/") + f"/?r={ep_num(ep)}"
+            respond_url = cloud_config["pagesBase"].rstrip("/") + f"/?r={ep_key(ep)}"
         else:
             # 只帶 ep（集數標籤），不帶完整問題文字：CJK 經過 URL 編碼會膨脹約 9 倍，
             # 問題全文塞進去會讓 QR Code 密度太高、印出來/顯示在小尺寸時掃不出來。
             respond_url = (
                 cloud_config["apiBase"].rstrip("/") + "/respond"
-                + f"?ep={quote(episode_label)}"
+                + f"?ep={quote(episode_label_)}"
             )
         html = re.sub(
             r'const RESPONSE_QR_IMG = ".*?";',
@@ -236,7 +241,19 @@ def ep_num(ep):
     return f'{n:02d}' if isinstance(n, int) else str(n)
 
 
+def ep_key(ep):
+    """入口網站卡片的 data-ep、QR 短網址 ?r= 用的代號：52 週系列是 09，獨立系列是 id 小寫（ai01）。"""
+    return ep["id"].lower() if ep.get("id") else ep_num(ep)
+
+
+def episode_label(ep):
+    """存進雲端資料庫的集數標籤；獨立系列用 id 開頭（AI01_…），不會跟 52 週系列（01_…）混在一起。"""
+    return f'{ep.get("id") or ep_num(ep)}_{ep["title"]}'
+
+
 def out_name(ep):
+    if ep.get("file_prefix"):
+        return f'{ep["file_prefix"]}_{ep["title"]}.html'
     return f'第{ep_num(ep)}週_{ep["title"]}.html'
 
 
@@ -247,7 +264,9 @@ def main(argv):
     cloud_mode = "--cloud" in argv
     argv = [a for a in argv if a != "--cloud"]
 
-    targets = [Path(a) for a in argv] or sorted(SCRIPT_DIR.glob("*.json"))
+    targets = [Path(a) for a in argv] or [
+        p for d in [SCRIPT_DIR, *EXTRA_SCRIPT_DIRS] if d.exists() for p in sorted(d.glob("*.json"))
+    ]
     if not targets:
         sys.exit(f"{SCRIPT_DIR} 底下沒有腳本 JSON。")
 
