@@ -129,6 +129,7 @@ h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-hei
 /* 情境卡（SCENARIOS 有內容時，結尾畫面改成情境選擇遊戲） */
 .scnBox{margin-top:16px;padding-top:16px;border-top:2px dashed var(--line);text-align:left}
 .scnHead{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:800;color:var(--sub);margin-bottom:8px}
+.scnLegend{font-size:12.5px;font-weight:700;color:var(--sub);background:#fff;border:1.5px dashed #bbb;border-radius:10px;padding:6px 10px;margin-bottom:10px;line-height:1.6}
 .scnSituation{font-size:16px;font-weight:800;line-height:1.65;color:var(--ink);margin-bottom:12px}
 .scnOpt{width:100%;text-align:left;border-radius:12px;padding:11px 14px;font-size:14.5px;font-weight:800;line-height:1.45;background:#fff;color:var(--ink);margin-bottom:8px;display:block}
 .scnOpt:hover:not(:disabled){background:#f2f4fb;color:var(--ink)}
@@ -512,8 +513,8 @@ const MANAGER_QUESTION = "你用 AI 問過什麼工作上的問題？<br>有沒�
 const EPISODE_LABEL = "AI01_AI 不是查資料的，是很會接話的實習生";
 const TAKEAWAYS = ["AI 在猜下一個字，不是查資料", "講得越順，越要查證", "要想法找 AI，故障代碼查手冊"];
 const KEYWORDS = ["查證", "手冊", "幻覺", "實習生", "數字"];
-const SCENARIOS = [{"situation": "夜班，機台跳出沒看過的錯誤碼，客戶站在旁邊盯著你。你把錯誤碼丟給 AI，它很有自信地說：「更換控制板即可。」", "options": [{"text": "直接照做，先讓機台動起來", "score": {"效率": 2, "正確性": -3, "資料安全": 0, "客戶信任": -2}, "result": "換了板子，問題還在。客戶多等了兩小時，還多付一片板子的錢。"}, {"text": "先對照原廠手冊的錯誤碼表", "score": {"效率": -1, "正確性": 3, "資料安全": 0, "客戶信任": 1}, "result": "多花五分鐘走去車上，但找到真正的原因。AI 給的方向可以參考，數字和判斷要靠手冊。"}, {"text": "打給資深同事確認", "score": {"效率": 0, "正確性": 2, "資料安全": 0, "客戶信任": 1}, "result": "學長說「我印象中是水路問題」——方向對了。不過記憶也會出錯，最後還是對一下手冊最保險。"}]}, {"situation": "主管要你把一份維修報告寄給國外原廠（客戶名稱已經拿掉了）。你的英文普普，報告有兩頁。", "options": [{"text": "全部自己慢慢寫", "score": {"效率": -3, "正確性": 1, "資料安全": 0, "客戶信任": 0}, "result": "花了一整個下午，文法還是有點卡。這種「翻譯、潤稿」，正好是 AI 擅長的事。"}, {"text": "丟給 AI 翻譯，直接寄出", "score": {"效率": 3, "正確性": -2, "資料安全": 0, "客戶信任": -1}, "result": "原廠回信問：「Service No.2 是什麼零件？」——型號 SV-2 被翻成了「服務二號」。"}, {"text": "AI 翻譯，自己逐一檢查型號、數字、專有名詞", "score": {"效率": 2, "正確性": 2, "資料安全": 0, "客戶信任": 1}, "result": "二十分鐘搞定，還抓到兩個翻錯的零件名稱。AI 寫草稿、你負責把關，這就是實習生的正確用法。"}]}, {"situation": "新來的學弟跑來說：「AI 說這個參數調高一點效率會更好，網路上也有人這樣改。」他問你可不可以試試看。", "options": [{"text": "聽起來有道理，讓他試", "score": {"效率": 1, "正確性": -2, "資料安全": 0, "客戶信任": -2}, "result": "效率是變好了，但機台保固條款寫明「不得超出原廠設定範圍」。出事的話，保固沒了。"}, {"text": "叫他以後不要用 AI", "score": {"效率": -1, "正確性": 0, "資料安全": 0, "客戶信任": 0}, "result": "他點點頭。下次還是會用，只是不會再來問你了。禁止不會讓人不用，只會讓人不說。"}, {"text": "陪他一起對手冊，順便講 AI 為什麼會說錯", "score": {"效率": -1, "正確性": 3, "資料安全": 0, "客戶信任": 1}, "result": "多花十分鐘，他學到的不是「AI 不能用」，而是「AI 的話要查證」。這十分鐘，以後會幫他省很多次。"}]}];
-const SCENARIO_METRICS = [{"name": "效率", "icon": "⏱"}, {"name": "正確性", "icon": "✅"}, {"name": "資料安全", "icon": "🔒"}, {"name": "客戶信任", "icon": "🤝"}];
+const SCENARIOS = [{"situation": "夜班，機台跳出沒看過的錯誤碼，客戶站在旁邊盯著你。你把錯誤碼丟給 AI，它很有自信地說：「更換控制板即可。」", "options": [{"text": "直接照做，先讓機台動起來", "score": {"效率": -2, "正確性": -3, "資料安全": 0, "客戶信任": -2}, "result": "換了板子，問題還在。客戶多等了兩小時，還多付一片板子的錢。"}, {"text": "先對照原廠手冊的錯誤碼表", "score": {"效率": 1, "正確性": 3, "資料安全": 0, "客戶信任": 1}, "result": "多花五分鐘走去車上，但找到真正的原因。AI 給的方向可以參考，數字和判斷要靠手冊。"}, {"text": "打給資深同事確認", "score": {"效率": 0, "正確性": 2, "資料安全": 0, "客戶信任": 1}, "result": "學長說「我印象中是水路問題」——方向對了。不過記憶也會出錯，最後還是對一下手冊最保險。"}]}, {"situation": "主管要你把一份維修報告寄給國外原廠（客戶名稱已經拿掉了）。你的英文普普，報告有兩頁。", "options": [{"text": "全部自己慢慢寫", "score": {"效率": -3, "正確性": 1, "資料安全": 0, "客戶信任": 0}, "result": "花了一整個下午，文法還是有點卡。這種「翻譯、潤稿」，正好是 AI 擅長的事。"}, {"text": "丟給 AI 翻譯，直接寄出", "score": {"效率": 1, "正確性": -2, "資料安全": 0, "客戶信任": -1}, "result": "原廠回信問：「Service No.2 是什麼零件？」——型號 SV-2 被翻成了「服務二號」。"}, {"text": "AI 翻譯，自己逐一檢查型號、數字、專有名詞", "score": {"效率": 2, "正確性": 2, "資料安全": 0, "客戶信任": 1}, "result": "二十分鐘搞定，還抓到兩個翻錯的零件名稱。AI 寫草稿、你負責把關，這就是實習生的正確用法。"}]}, {"situation": "新來的學弟跑來說：「AI 說這個參數調高一點效率會更好，網路上也有人這樣改。」他問你可不可以試試看。", "options": [{"text": "聽起來有道理，讓他試", "score": {"效率": 0, "正確性": -2, "資料安全": 0, "客戶信任": -2}, "result": "效率是變好了，但機台保固條款寫明「不得超出原廠設定範圍」。出事的話，保固沒了。"}, {"text": "叫他以後不要用 AI", "score": {"效率": 0, "正確性": -1, "資料安全": 0, "客戶信任": 0}, "result": "他點點頭。下次還是會用，只是不會再來問你了。禁止不會讓人不用，只會讓人不說。"}, {"text": "陪他一起對手冊，順便講 AI 為什麼會說錯", "score": {"效率": -1, "正確性": 3, "資料安全": 0, "客戶信任": 1}, "result": "多花十分鐘，他學到的不是「AI 不能用」，而是「AI 的話要查證」。這十分鐘，以後會幫他省很多次。"}]}];
+const SCENARIO_METRICS = [{"name": "效率", "icon": "⏱", "desc": "把事情真正解決，總共花了多少時間（包含後果）"}, {"name": "正確性", "icon": "✅"}, {"name": "資料安全", "icon": "🔒"}, {"name": "客戶信任", "icon": "🤝"}];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -1072,6 +1073,12 @@ function scnDeltaHtml(score){
   }).join("");
 }
 
+// 第一張卡上方說明指標的意思（腳本 scenario_metrics 有寫 desc 的才列），避免大家各自解讀
+function scnLegendHtml(){
+  const items = SCENARIO_METRICS.filter(m => m.desc);
+  if(!items.length) return "";
+  return `<div class="scnLegend">` + items.map(m => `${m.icon} ${escapeHtml(m.name)}＝${escapeHtml(m.desc)}`).join("<br>") + `</div>`;
+}
 function scnDistInner(k){
   if(scnRows === null) return scnStatsError
     ? `<div class="communityEmpty">連不上雲端，晚點再試試看</div>`
@@ -1177,7 +1184,7 @@ function renderScenario(){
     + `</div>`;
   box.innerHTML = `<div class="scnHead"><span>情境卡 ${k+1} / ${N}</span>`
     + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
-    + `</div><div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
+    + `</div>${k === 0 ? scnLegendHtml() : ""}<div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
 }
 
 function showEndCard(opts = {}){
