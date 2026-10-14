@@ -805,7 +805,8 @@ function togglePanel(){
 
 function speechText(text){
   // spell "SOP" letter-by-letter for TTS, run together with no pause between letters
-  return text.replace(/SOP/g, "S O P");
+  // 「AI」也要一個字母一個字母唸（A I），不然中文語音會連成一個音；前後是英文字母的（例如 MAIL）不動
+  return text.replace(/SOP/g, "S O P").replace(/(^|[^A-Za-z])AI(?![A-Za-z])/g, "$1A I");
 }
 
 function speakCurrent(onend){
