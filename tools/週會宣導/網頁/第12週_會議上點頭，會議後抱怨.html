@@ -129,6 +129,7 @@ h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-hei
 /* 情境卡（SCENARIOS 有內容時，結尾畫面改成情境選擇遊戲） */
 .scnBox{margin-top:16px;padding-top:16px;border-top:2px dashed var(--line);text-align:left}
 .scnHead{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:800;color:var(--sub);margin-bottom:8px}
+.scnLegend{font-size:12.5px;font-weight:700;color:var(--sub);background:#fff;border:1.5px dashed #bbb;border-radius:10px;padding:6px 10px;margin-bottom:10px;line-height:1.6}
 .scnSituation{font-size:16px;font-weight:800;line-height:1.65;color:var(--ink);margin-bottom:12px}
 .scnOpt{width:100%;text-align:left;border-radius:12px;padding:11px 14px;font-size:14.5px;font-weight:800;line-height:1.45;background:#fff;color:var(--ink);margin-bottom:8px;display:block}
 .scnOpt:hover:not(:disabled){background:#f2f4fb;color:var(--ink)}
@@ -1045,6 +1046,12 @@ function scnDeltaHtml(score){
   }).join("");
 }
 
+// 第一張卡上方說明指標的意思（腳本 scenario_metrics 有寫 desc 的才列），避免大家各自解讀
+function scnLegendHtml(){
+  const items = SCENARIO_METRICS.filter(m => m.desc);
+  if(!items.length) return "";
+  return `<div class="scnLegend">` + items.map(m => `${m.icon} ${escapeHtml(m.name)}＝${escapeHtml(m.desc)}`).join("<br>") + `</div>`;
+}
 function scnDistInner(k){
   if(scnRows === null) return scnStatsError
     ? `<div class="communityEmpty">連不上雲端，晚點再試試看</div>`
@@ -1150,7 +1157,7 @@ function renderScenario(){
     + `</div>`;
   box.innerHTML = `<div class="scnHead"><span>情境卡 ${k+1} / ${N}</span>`
     + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
-    + `</div><div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
+    + `</div>${k === 0 ? scnLegendHtml() : ""}<div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
 }
 
 function showEndCard(opts = {}){
