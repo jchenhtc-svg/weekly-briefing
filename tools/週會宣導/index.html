@@ -71,6 +71,11 @@
   .phaseTag.p1{color:#ffcc33} .phaseTag.p2{color:#4fd1c5} .phaseTag.p3{color:#8ab4ff} .phaseTag.p4{color:#ff8fb8}
   .phases{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px}
   .phases .phaseTag{font-size:12px;padding:3px 10px;margin:0}
+  .phaseTag.ai{color:#5ef0c0}
+  .section-title.second{margin-top:44px}
+  .seriesNote{margin:-6px 0 18px;color:var(--sub);font-size:13.5px;line-height:1.7}
+  .seriesJump{display:inline-block;margin-top:14px;font-size:13px;font-weight:800;color:#5ef0c0;text-decoration:none}
+  .seriesJump:hover{text-decoration:underline}
 
   footer{max-width:760px;margin:0 auto;padding:0 20px 60px;color:var(--sub);
     font-size:12px;line-height:1.9;text-align:center}
@@ -158,6 +163,7 @@
       <span class="phaseTag p1">① 建立使命感</span><span class="phaseTag p2">② 建立專業習慣</span>
       <span class="phaseTag p3">③ 建立高績效思維</span><span class="phaseTag p4">④ 建立品牌文化</span>
     </div>
+    <a class="seriesJump" href="#ai">＋ 另一個系列：AI 素養 × 工程師（月例會四堂課）↓</a>
     <div class="progress">
       <div class="num">10</div>
       <div class="bar"><i style="width:19%"></i></div>
@@ -287,6 +293,48 @@
       </div>
 
     </div>
+
+    <div class="section-title second" id="ai">AI 素養 × 工程師 · 月例會四堂課</div>
+    <p class="seriesNote">每月例會 10 分鐘：對談 5～6 分鐘，播完用手機一起玩情境卡，現場即時看全場選擇。跟 52 週系列分開。</p>
+    <div class="track">
+
+      <div class="lesson upcoming" data-ep="ai01" data-file="網頁/AI素養_第1堂_AI 不是查資料的，是很會接話的實習生.html">
+        <div class="badge"><small>AI</small><b>01</b></div>
+        <div class="meta">
+          <p class="tt">AI 不是查資料的，是很會接話的實習生</p>
+          <p class="st"><span class="phaseTag ai">10/28 月例會</span>講得越順，越要多看一眼　·　尚未開放</p>
+        </div>
+        <div class="go">尚未開放</div>
+      </div>
+
+      <div class="lesson upcoming" data-ep="ai02">
+        <div class="badge"><small>AI</small><b>02</b></div>
+        <div class="meta">
+          <p class="tt">問對問題，再查證答案</p>
+          <p class="st"><span class="phaseTag ai">11 月月例會</span>好的提問＝角色＋背景＋格式　·　規劃中</p>
+        </div>
+        <div class="go">規劃中</div>
+      </div>
+
+      <div class="lesson upcoming" data-ep="ai03">
+        <div class="badge"><small>AI</small><b>03</b></div>
+        <div class="meta">
+          <p class="tt">哪些東西不能貼給 AI</p>
+          <p class="st"><span class="phaseTag ai">12 月月例會</span>你貼上去的那一刻，資料就不是你的了　·　規劃中</p>
+        </div>
+        <div class="go">規劃中</div>
+      </div>
+
+      <div class="lesson upcoming" data-ep="ai04">
+        <div class="badge"><small>AI</small><b>04</b></div>
+        <div class="meta">
+          <p class="tt">AI 寫的，簽名的是你</p>
+          <p class="st"><span class="phaseTag ai">1 月月例會</span>AI 負責草稿，人負責判斷和責任　·　規劃中</p>
+        </div>
+        <div class="go">規劃中</div>
+      </div>
+
+    </div>
   </main>
 
   <footer>
@@ -303,7 +351,7 @@
     var r = new URLSearchParams(location.search).get("r");
     if(!r || window.__goingExternal) return;
     var card = document.querySelector('[data-ep="' + r.replace(/[^0-9a-z]/gi, "") + '"]');
-    if(card) location.replace(card.getAttribute("data-file") + "?respond=1");
+    if(card && card.getAttribute("data-file")) location.replace(card.getAttribute("data-file") + "?respond=1");
   })();
 </script>
 </body>
