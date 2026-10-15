@@ -1,0 +1,1298 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>《AI 素養 × 工程師》第四堂｜AI 寫的，簽名的是你</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#efefef; --panel:#ffffff; --ink:#111111; --sub:#6b6b6b; --line:#111111;
+  --host:#8ecae6; --eng:#c8961e; --mgr:#3949ab; --cli:#ec6fa0;
+  --disp:"Noto Sans TC",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--disp)}
+.wrap{max-width:640px;margin:auto;padding:24px 16px 60px}
+
+.masthead{position:relative;padding:18px 20px;background:var(--panel);border:3px solid var(--line);border-radius:10px;margin-bottom:18px}
+.masthead .kicker{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--sub)}
+.led{width:7px;height:7px;border-radius:50%;background:var(--mgr);flex:none}
+h1{margin:6px 0 2px;font-size:24px;font-weight:900;letter-spacing:.01em;line-height:1.25}
+.sub{color:var(--sub);font-size:13px;font-weight:500}
+.idplate{position:absolute;top:16px;right:16px;text-align:right;color:var(--sub);font-size:10.5px;font-weight:700;letter-spacing:.04em;border:2px solid var(--line);border-radius:999px;padding:4px 10px}
+
+.card{position:relative;background:var(--panel);border-radius:10px;padding:18px;margin-bottom:16px;border:3px solid var(--line)}
+
+.cast{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{display:flex;align-items:center;gap:7px;background:#fff;border:2px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;font-size:12px;font-weight:700;color:var(--ink)}
+.dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:#fff;flex:none}
+.dot.host{background:var(--host);color:#0d3049} .dot.eng{background:var(--eng)} .dot.mgr{background:var(--mgr)} .dot.cli{background:var(--cli)} .dot.ai{background:#10b981;font-size:10px}
+
+.sectionLabel{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--sub)}
+
+/* ===== meme comic panel ===== */
+.panelWrap{position:relative;overflow:hidden;border:4px solid var(--line);border-radius:10px;background:#fff;min-height:520px;display:flex;flex-direction:column}
+.shutter{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:9;transition:opacity .1s ease}
+.shutter.on{opacity:1}
+.corner,.halftone,.panelWrap::before{display:none !important}
+.sceneTag{display:none}
+.panelCount{position:absolute;top:10px;right:12px;background:var(--line);color:#fff;font-weight:800;font-size:12px;padding:4px 12px;border-radius:999px;z-index:6}
+.stage{position:relative;flex:1;display:flex;flex-direction:column}
+
+/* scene backdrop — a soft tint + faint watermark icon that changes with the scene,
+   so the panel reads as "we're on the phone / in the workshop / etc." without
+   competing with the character illustration or captions */
+.bgLayer{position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:background .2s ease}
+.bgLayer svg{width:58%;height:58%;opacity:.07}
+.bgLayer svg *{stroke:var(--line) !important;fill:none !important}
+.bg-studio{background:#fafafa}
+.bg-workshop{background:#fdf5e8}
+.bg-office{background:#eef1fb}
+.bg-phone{background:#fdedf3}
+.bg-spotlight{background:radial-gradient(circle at 50% 32%,#fff3d6 0%,#ffffff 72%)}
+
+/* small corner badge showing the scene's icon, on the side opposite whoever's speaking */
+.iconRow{position:absolute;top:14px;z-index:6;display:flex;gap:6px}
+.iconRow.left{left:14px}
+.iconRow.right{right:14px}
+.iconBadge{width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid var(--line);display:flex;align-items:center;justify-content:center}
+.iconBadge svg{width:16px;height:16px}
+.iconBadge svg *{stroke:var(--line);fill:none}
+
+/* standout-beat reactions, toggled per line via effect:"speed"|"impact"|"spark" */
+.speedlines{position:absolute;inset:0;z-index:1;opacity:0;transition:opacity .12s ease;pointer-events:none}
+.speedlines.on{opacity:1}
+.impact{position:absolute;top:6%;right:4%;z-index:6;opacity:0;transition:opacity .12s ease;pointer-events:none;text-align:center}
+.impact.on{opacity:1}
+.impact svg{width:90px;height:90px}
+.impact .sfx{margin-top:-84px;font-weight:900;font-size:15px;color:#7a1414;text-shadow:1px 1px 0 #fff}
+.sparkWrap{position:absolute;inset:0;z-index:6;opacity:0;transition:opacity .15s ease;pointer-events:none}
+.sparkWrap.on{opacity:1}
+
+/* manga-style reaction mark beside the character's head — a small pop-in
+   symbol that reflects the line's emotion (sweat/surprise/anger/idea).
+   Positioned relative to .stage (a sibling of charWrap, never a child of it)
+   so it survives charWrap.innerHTML being wiped on the end card. */
+@keyframes markPop{0%{transform:scale(0) rotate(-10deg);opacity:0}55%{transform:scale(1.2) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+.reactionMark{position:absolute;top:30%;right:19%;width:34px;height:34px;z-index:7;pointer-events:none}
+.reactionMark:empty{display:none}
+.reactionMark svg{width:100%;height:100%;display:block;animation:markPop .35s cubic-bezier(.34,1.56,.64,1)}
+
+.bubbleWrap{position:relative;top:0;left:0;right:0;padding:26px 22px 4px;z-index:6}
+.speechBubble{position:relative;background:transparent;border:none;padding:0;font-size:23px;line-height:1.42;color:var(--ink);font-weight:900;font-family:var(--disp);text-align:center;max-width:100%}
+.speechBubble::before{display:none}
+.speechBubble .said{color:var(--ink)}
+.speechBubble .unsaid{color:#c9c9c9}
+.speechBubble.final{text-align:center;padding-top:10px}
+.speechBubble.final::before{display:none}
+.speechBubble.final .quoteLine{font-size:21px;color:var(--ink);font-weight:900;line-height:1.55}
+.speechBubble.final .endQuestion{margin-top:16px;padding-top:16px;border-top:2px dashed var(--line);color:var(--ink);font-size:18px;font-weight:800;line-height:1.6;opacity:0;animation:questionRise .5s ease .2s forwards}
+@keyframes questionRise{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
+
+/* end-card response box — saves the viewer's answer as a small local file
+   via a plain <a download> (no server, no network call, no upload anywhere) */
+.responseBox{margin-top:20px;padding-top:16px;border-top:2px dashed var(--line);text-align:left;opacity:0;animation:questionRise .5s ease .4s forwards}
+.responseInput{width:100%;min-height:64px;border:2px solid var(--line);border-radius:10px;padding:10px 12px;font-family:var(--disp);font-size:14px;color:var(--ink);resize:vertical;box-sizing:border-box}
+.responseSubmit{margin-top:8px;width:100%}
+.responseNote{margin-top:8px;font-size:12px;color:var(--sub);text-align:center;min-height:16px}
+.qrBlock{margin-top:14px;padding-top:14px;border-top:1px dashed #ccc;text-align:center}
+.qrImg{width:120px;height:120px;border:2px solid var(--line);border-radius:8px;background:#fff;padding:4px}
+.qrCaption{margin-top:6px;font-size:11.5px;color:var(--sub)}
+
+/* 動態顯示大家已經送出的回應（僅雲端版；本機版 RESPONSE_API_BASE 是空字串，整段不會出現） */
+.communityBlock{margin-top:14px;padding-top:14px;border-top:1px dashed #ccc}
+.communityHead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--sub);font-weight:700;margin-bottom:8px}
+.communityRefresh{font-size:11px;color:var(--sub);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit}
+.communityEmpty{font-size:12px;color:var(--sub);text-align:center;padding:6px 0;width:100%}
+.statTitle{font-size:12px;font-weight:800;color:var(--ink);margin:12px 0 6px}
+.statRow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;margin-bottom:8px;font-size:13px;font-weight:700}
+.statTrack{grid-column:1 / -1;height:10px;border:2px solid var(--line);border-radius:999px;background:#fff;overflow:hidden}
+.statFill{height:100%;background:var(--mgr);border-radius:999px;transition:width .4s ease}
+.statRow.top .statFill{background:var(--eng)}
+.statNum{font-size:12px;color:var(--sub);font-weight:800;white-space:nowrap}
+.kwChips{display:flex;flex-wrap:wrap;gap:6px}
+.kwChip{border:2px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:800;background:#fff}
+.kwChip b{color:var(--mgr);margin-left:4px}
+.quoteList{display:flex;flex-direction:column;gap:6px}
+.quoteItem{border-left:4px solid var(--host);background:#f6f8fb;border-radius:6px;padding:7px 10px;font-size:13.5px;line-height:1.6;font-weight:500;word-break:break-word}
+
+/* 結尾「這集你最有感的是哪一點」：點一下就選好，不用打字 */
+.choiceHead{font-size:14px;font-weight:900;margin-bottom:8px;text-align:center}
+.choiceList{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.choiceBtn{width:100%;text-align:left;border-radius:12px;padding:11px 14px;font-size:14.5px;font-weight:800;line-height:1.45;background:#fff;color:var(--ink)}
+.choiceBtn:hover{background:#f2f4fb;color:var(--ink)}
+.choiceBtn.selected{background:var(--mgr);border-color:var(--mgr);color:#fff}
+.choiceBtn .num{display:inline-block;width:1.6em;font-weight:900}
+/* 情境卡（SCENARIOS 有內容時，結尾畫面改成情境選擇遊戲） */
+.scnBox{margin-top:16px;padding-top:16px;border-top:2px dashed var(--line);text-align:left}
+.scnHead{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:800;color:var(--sub);margin-bottom:8px}
+.scnLegend{font-size:12.5px;font-weight:700;color:var(--sub);background:#fff;border:1.5px dashed #bbb;border-radius:10px;padding:6px 10px;margin-bottom:10px;line-height:1.6}
+.scnSituation{font-size:16px;font-weight:800;line-height:1.65;color:var(--ink);margin-bottom:12px}
+.scnOpt{width:100%;text-align:left;border-radius:12px;padding:11px 14px;font-size:14.5px;font-weight:800;line-height:1.45;background:#fff;color:var(--ink);margin-bottom:8px;display:block}
+.scnOpt:hover:not(:disabled){background:#f2f4fb;color:var(--ink)}
+.scnOpt:disabled{cursor:default;opacity:.55}
+.scnOpt.picked{background:var(--mgr);border-color:var(--mgr);color:#fff;opacity:1}
+.scnOpt .num{display:inline-block;width:1.6em;font-weight:900}
+.scnResult{border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin:4px 0 10px;background:#fffbea;font-size:14px;font-weight:700;line-height:1.65}
+.scnResult.other{background:#fff;opacity:.85;font-size:13px}
+.scnResult .lab{font-size:12px;font-weight:900;color:var(--sub);margin-bottom:4px}
+.scnDeltas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.scnDelta{font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;border:2px solid var(--line);background:#fff}
+.scnDelta.up{background:#dcfce7;border-color:#15803d;color:#14532d}
+.scnDelta.down{background:#fee2e2;border-color:#b91c1c;color:#7f1d1d}
+.scnNav{display:flex;gap:8px;margin-top:10px}
+.scnNav button{flex:1}
+button.scnLink,.scnLink{font-size:12.5px;color:var(--sub);background:none;border:none;border-radius:0;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;font-weight:700;width:auto;box-shadow:none}
+button.scnLink:hover{background:none;color:var(--ink)}
+summary.scnLink{display:block;margin:2px 0 10px}
+.scnMetric{display:grid;grid-template-columns:7.5em 1fr 3em;gap:8px;align-items:center;font-size:14px;font-weight:800;margin-bottom:8px}
+.scnMetric .track{height:12px;border:2px solid var(--line);border-radius:999px;background:#fff;position:relative;overflow:hidden}
+.scnMetric .track i{position:absolute;top:0;bottom:0;border-radius:999px}
+.scnMetric .track .mid{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--line)}
+.scnMetric .val{text-align:right}
+.scnNote{font-size:13px;color:var(--sub);font-weight:700;line-height:1.6;margin:10px 0}
+.scnStatCard{margin-bottom:14px}
+.scnStatCard .q{font-size:13px;font-weight:800;margin-bottom:6px;line-height:1.5}
+
+.charWrap{position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;padding:10px 20px 20px;left:auto;bottom:auto;transform:none}
+.charSvg{width:180px;height:204px;display:block;filter:none;animation:charBob 2.6s ease-in-out infinite}
+@keyframes charBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+
+.roleLabel{position:absolute;bottom:16px;font-weight:800;font-size:12.5px;padding:5px 14px;color:#fff;border-radius:999px;z-index:5;left:50%;transform:translateX(-50%);right:auto;clip-path:none}
+
+.bubbleWrap{order:-1}
+.speechBubble.final{width:100%}
+.dotsRow{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.dotsRow .pdot{width:7px;height:7px;border-radius:50%;background:#c7c7c7}
+.dotsRow .pdot.active{background:var(--line);width:9px;height:9px}
+
+#count{color:var(--sub);font-size:12px;margin-top:8px;font-weight:600}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select,input[type=range]{background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:700;font-family:var(--disp)}
+button{cursor:pointer;transition:background .1s ease,color .1s ease}
+button:hover{background:var(--ink);color:#fff}
+button.ghost{background:transparent;border-style:dashed}
+button#playBtn{background:var(--ink);color:#fff}
+button#playBtn:hover{filter:brightness(1.3)}
+label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);font-weight:700}
+input[type=range]{padding:0;border:none;background:transparent;accent-color:var(--ink);border-radius:0}
+.progress{height:8px;background:#e6e6e6;border:2px solid var(--line);border-radius:999px;margin:16px 0;overflow:hidden}
+.bar{height:100%;background:var(--ink);width:0;transition:width .2s ease}
+.hint{font-size:12.5px;color:var(--sub);line-height:1.7}
+
+.panel-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.panel-head h2{margin:0;font-size:13.5px;font-weight:800;letter-spacing:.02em;color:var(--ink)}
+.panel-head .arrow{transition:transform .2s ease;color:var(--sub);font-weight:900}
+.panel-head.open .arrow{transform:rotate(180deg)}
+.panel-body{display:none;margin-top:16px}
+.panel-body.open{display:block}
+
+.castGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.castCard{position:relative;border:2px solid var(--line);background:#fff;border-radius:10px;padding:14px}
+.castCard-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.castCard-face{width:42px;height:42px;border-radius:50%;background:#fff;border:2px solid var(--line);overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
+.castCard-face svg{width:54px;height:54px;margin-top:6px}
+.castCard-name{font-weight:800;font-size:13.5px}
+.castCard-tag{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--sub);text-transform:uppercase}
+.speaker-controls{display:flex;flex-direction:column;gap:10px}
+.mini{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--sub);font-weight:600}
+.mini output{color:var(--ink);font-weight:800}
+select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px}
+.reset-line{margin-top:14px;display:flex;justify-content:flex-end}
+
+/* 頁碼小膠囊（1/7、完）固定在右上角，字幕要往下讓位，不然會蓋到字 */
+.bubbleWrap{padding-top:46px}
+
+/* 播放控制列黏在畫面底部：不用捲過整個漫畫框才按得到播放 */
+.controlsCard{position:sticky;bottom:0;z-index:20;box-shadow:0 -6px 18px rgba(0,0,0,.08)}
+
+/* 結尾畫面：整個框跟著內容長高，金句、回應欄、QR 都完整顯示，不在框裡面捲動被切掉 */
+.panelWrap.ended{min-height:0;background:radial-gradient(circle at 50% 18%,#fff3d6 0%,#ffffff 70%)}
+.panelWrap.ended .stage{display:none}
+.panelWrap.ended .bubbleWrap{position:relative;inset:auto;display:block;padding:52px 24px 26px;overflow:visible}
+
+/* QR Code 可以直接點開；手機上掃不到自己的螢幕，所以手機改顯示一顆按鈕 */
+.qrLink{display:inline-block;border-radius:10px}
+.qrLink:hover .qrImg{border-color:var(--mgr)}
+.qrOpenBtn{display:none;margin-top:4px;padding:12px 16px;border:2px solid var(--line);border-radius:999px;background:var(--ink);color:#fff;font-weight:800;font-size:15px;text-decoration:none;text-align:center}
+@media (hover:none) and (pointer:coarse), (max-width: 600px){
+  .qrLink,.qrCaption{display:none}
+  .qrOpenBtn{display:block}
+}
+
+/* 大螢幕／投影：放寬版面、放大字幕與角色，後排也看得清楚 */
+@media (min-width: 1024px){
+  .wrap{max-width:980px;padding-top:28px}
+  h1{font-size:30px}
+  .panelWrap{min-height:max(440px,calc(100vh - 430px))}
+  .controlsCard{padding:12px 18px}
+  .controlsCard .sectionLabel,.controlsCard .hint{display:none}
+  .controlsCard .progress{margin:10px 0 0}
+  .speechBubble{font-size:32px}
+  .charSvg{width:250px;height:283px}
+  .speechBubble.final .quoteLine{font-size:30px}
+  .speechBubble.final .endQuestion{font-size:23px}
+  .responseInput{font-size:16px}
+  .qrImg{width:150px;height:150px}
+}
+
+@media (max-width: 480px){
+  .wrap{padding:12px 10px 20px}
+  .masthead{padding:14px 14px 12px}
+  h1{font-size:20px;padding-right:58px}
+  .cast{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;margin-top:10px}
+  .chip{flex:none}
+  .panelWrap{min-height:440px}
+  .charSvg{width:140px;height:158px}
+  .speechBubble{font-size:20px}
+  .speechBubble.final .quoteLine{font-size:20px}
+  .speechBubble.final .endQuestion{font-size:16px}
+  .panelWrap.ended .bubbleWrap{padding:48px 16px 20px}
+  .castGrid{grid-template-columns:1fr}
+  .controlsCard{padding:10px 10px 8px;border-radius:12px 12px 0 0;margin-bottom:0}
+  .controlsCard .sectionLabel,.controlsCard .hint{display:none}
+  .controls{display:grid;grid-template-columns:1fr 1.3fr 1fr 1fr;gap:6px}
+  .controls button{padding:10px 4px;font-size:12.5px;white-space:nowrap}
+  .controls label{grid-column:1 / -1;justify-content:center}
+  .progress{margin:8px 0 2px}
+}
+</style>
+</head>
+
+<body>
+<!-- 外部瀏覽器：在 LINE／FB／IG 等 App 內建瀏覽器開啟時，改用手機預設瀏覽器（iOS Safari／Android Chrome 等）。
+     App 內建瀏覽器常常不支援語音朗讀，所以要跳出去。 -->
+<style>
+  #inAppBar{display:none;position:sticky;top:0;z-index:9999;background:#1f2937;color:#fff;
+    padding:12px 16px;font-size:15px;line-height:1.55;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+  #inAppBar.show{display:block}
+  #inAppBar b{color:#fde68a}
+  #inAppBar .iabRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  #inAppBar .iabBtn{appearance:none;border:0;border-radius:999px;padding:8px 14px;font-size:14px;
+    font-weight:700;cursor:pointer;text-decoration:none;background:#fde68a;color:#1f2937}
+  #inAppBar .iabBtn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
+</style>
+<div id="inAppBar" role="alert">
+  <div id="iabMsg"></div>
+  <div class="iabRow">
+    <a id="iabOpen" class="iabBtn" href="#" style="display:none">用瀏覽器開啟</a>
+    <button id="iabCopy" class="iabBtn" type="button">複製網址</button>
+    <button class="iabBtn ghost" type="button" onclick="document.getElementById('inAppBar').classList.remove('show')">先在這裡看</button>
+  </div>
+</div>
+<script>
+  (function(){
+    var ua = navigator.userAgent || "";
+    var isAndroid = /Android/i.test(ua);
+    var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isLine = /\bLine\//i.test(ua);
+    var inApp = isLine ||
+      /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Threads|Barcelona|MicroMessenger|KAKAOTALK|Messenger|LinkedInApp|Snapchat|TikTok|musical_ly|Bytedance|Twitter/i.test(ua) ||
+      (isAndroid && /; wv\)/.test(ua));
+    if(!inApp || !(isAndroid || isIOS)) return;
+
+    var here = new URL(location.href);
+    // LINE：網址加上 openExternalBrowser=1，LINE 會自動改用預設瀏覽器開啟（iOS、Android 都適用）
+    if(isLine && here.searchParams.get("openExternalBrowser") !== "1"){
+      here.searchParams.set("openExternalBrowser", "1");
+      window.__goingExternal = true;
+      location.replace(here.href);
+      return;
+    }
+
+    var clean = new URL(location.href);
+    clean.searchParams.delete("openExternalBrowser");
+    var link = clean.href;
+
+    var bar = document.getElementById("inAppBar");
+    var msg = document.getElementById("iabMsg");
+    var openBtn = document.getElementById("iabOpen");
+    if(isAndroid){
+      // Android：intent 網址交給系統，用預設瀏覽器打開同一頁
+      openBtn.href = "intent://" + clean.host + clean.pathname + clean.search +
+        "#Intent;scheme=" + clean.protocol.replace(":", "") + ";action=android.intent.action.VIEW;" +
+        "category=android.intent.category.BROWSABLE;end";
+      openBtn.style.display = "";
+      msg.innerHTML = "目前在 App 內建瀏覽器，<b>語音可能不會播</b>。請按「用瀏覽器開啟」，或點右上角 <b>⋮</b> →「在瀏覽器中開啟」。";
+    } else {
+      msg.innerHTML = "目前在 App 內建瀏覽器，<b>語音可能不會播</b>。請點右上角或右下角的 <b>⋯</b> 或 <b>分享</b> 圖示 →「<b>在 Safari 中開啟</b>」，或複製網址貼到 Safari。";
+    }
+    document.getElementById("iabCopy").onclick = function(){
+      var btn = this;
+      function done(){ btn.textContent = "已複製 ✓"; }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(link).then(done, function(){ window.prompt("長按複製這個網址：", link); });
+      } else {
+        window.prompt("長按複製這個網址：", link);
+      }
+    };
+    bar.classList.add("show");
+  })();
+</script>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="idplate">AI04</div>
+    <div class="kicker"><span class="led"></span>《AI 素養 × 工程師》第四堂月例會宣導</div>
+    <h1>AI 寫的，簽名的是你</h1>
+    <div class="sub">出事的時候，沒有人會說是 AI 的錯　·　對談約 4～5 分鐘＋情境卡</div>
+    <div class="cast">
+      <div class="chip"><span class="dot host">主</span>主持人 · 快、直接、有梗</div>
+      <div class="chip"><span class="dot eng">凱</span>阿凱 · 自嘲型工程師</div>
+      <div class="chip"><span class="dot mgr">管</span>主管 · 一句話戳重點</div>
+      <div class="chip"><span class="dot ai">AI</span>AI 助理 · 很有自信、從不說不知道</div>
+      <div class="chip"><span class="dot cli">客</span>客戶 · 短、直接、不留情</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sectionLabel">分格漫畫播放</div>
+    <div class="panelWrap" id="panelWrap">
+      <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+      <div class="shutter" id="shutter"></div>
+      <div class="bubbleWrap"><div class="speechBubble" id="speechBubble"></div></div>
+      <div class="stage">
+        <div class="bgLayer" id="bgLayer"></div>
+        <div class="halftone"></div>
+        <svg class="speedlines" id="speedlines" viewBox="0 0 400 250" preserveAspectRatio="none">
+          <g stroke="#4fd8e0" stroke-width="2" opacity="0.6">
+            <line x1="200" y1="125" x2="0" y2="10"/><line x1="200" y1="125" x2="0" y2="60"/><line x1="200" y1="125" x2="0" y2="125"/>
+            <line x1="200" y1="125" x2="0" y2="190"/><line x1="200" y1="125" x2="0" y2="240"/>
+            <line x1="200" y1="125" x2="400" y2="10"/><line x1="200" y1="125" x2="400" y2="60"/><line x1="200" y1="125" x2="400" y2="125"/>
+            <line x1="200" y1="125" x2="400" y2="190"/><line x1="200" y1="125" x2="400" y2="240"/>
+          </g>
+        </svg>
+        <div class="impact" id="impact">
+          <svg width="140" height="140" viewBox="0 0 100 100" style="position:absolute">
+            <polygon points="50,2 61,35 95,35 68,55 78,90 50,68 22,90 32,55 5,35 39,35" fill="#ff5252" stroke="#ffb020" stroke-width="3"/>
+          </svg>
+          <div class="sfx" id="sfxText"></div>
+        </div>
+        <div class="sparkWrap" id="sparkWrap">
+          <svg width="60" viewBox="0 0 60 60" style="position:absolute;top:8%;left:52%">
+            <path d="M15 0 L18 12 L30 15 L18 18 L15 30 L12 18 L0 15 L12 12 Z" fill="#ffb020" stroke="#4fd8e0" stroke-width="2"/>
+          </svg>
+          <svg width="30" viewBox="0 0 60 60" style="position:absolute;top:20%;left:60%">
+            <path d="M15 0 L18 12 L30 15 L18 18 L15 30 L12 18 L0 15 L12 12 Z" fill="#ffb020" stroke="#4fd8e0" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="iconRow left" id="iconRowLeft"></div>
+        <div class="iconRow right" id="iconRowRight"></div>
+        <div class="charWrap center" id="charWrap">
+          <svg id="charSvg" class="charSvg" viewBox="0 0 150 170"></svg>
+        </div>
+        <div class="reactionMark" id="reactionMark"></div>
+        <div class="roleLabel center" id="roleLabel"></div>
+      </div>
+      <div class="panelCount" id="panelCount">1/12</div>
+    </div>
+    <div class="dotsRow" id="dotsRow"></div>
+    <div id="count"></div>
+  </div>
+
+  <div class="card controlsCard">
+    <div class="sectionLabel">播放控制</div>
+    <div class="controls">
+      <button onclick="prev()">◀◀ 上一段</button>
+      <button id="playBtn" onclick="play()">▶ 執行播放</button>
+      <button onclick="pause()">‖ 暫停</button>
+      <button onclick="next()">下一段 ▶▶</button>
+      <label>RATE <input id="rate" type="range" min=".75" max="1.5" step=".05" value="1"><span id="rv">1.00x</span></label>
+    </div>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div class="hint">按「執行播放」會自動一段接一段唸完整集，字幕跟著唸到的地方變色。四個角色各有自己的聲音、音調與語速，可以在下面的「配音設定」逐一調整；RATE 是整體語速（0.75×～1.5×）。播完會停在今日金句，再按一次播放就從頭重播。</div>
+  </div>
+
+  <div class="card">
+    <div id="panelHead" class="panel-head" onclick="togglePanel()">
+      <h2>配音設定</h2>
+      <span class="arrow">▾</span>
+    </div>
+    <div id="panelBody" class="panel-body">
+      <div id="speakerRows" class="castGrid"></div>
+      <div class="reset-line"><button class="ghost" onclick="resetDefaults()">還原預設分配</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div id="prepHead" class="panel-head" onclick="togglePrep()">
+      <h2>主管備課筆記（不會播出）</h2>
+      <span class="arrow">▾</span>
+    </div>
+    <div id="prepBody" class="panel-body">
+      <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:13.5px;color:var(--sub);font-weight:500">
+      <li>架構依據：UNESCO《學生 AI 能力框架》（2024）的「以人為本的心態」（人要為 AI 輔助的決定負責），以及歐盟執委會與 OECD AI 素養框架（2025）中的「管理 AI」與「用 AI 創作」。</li>
+      <li>伺服器、超商收銀機、金融端末的情境都是虛構的示意，不對應任何真實系統或客戶。腳本刻意不寫出實際指令內容，避免同仁照抄。</li>
+      <li>「遮、問、查、改、簽」是四堂課的總整理：遮（第三堂）、問（第二堂）、查（第一堂）、改與簽（第四堂）。可以印成小卡或貼在辦公室。</li>
+      <li>帶討論提醒：重點不是「不要用 AI」，而是「用了要負責」。可以請同仁分享一次「AI 幫我省時間，但我有先檢查」的經驗。</li>
+      <li>這堂結尾預告了「現場工程師的一天」模擬遊戲（四堂課的總複習），之後做好會放在入口網站的 AI 素養區。</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const ROLES = {
+  "主持人": {key:"host", color:"#8ecae6", basePitch:1.00, baseRate:1.05, avatar:"主", side:"center", voicePref:"曉臻"},
+  "阿凱工程師": {key:"eng", color:"#c8961e", basePitch:0.85, baseRate:1.10, avatar:"凱", side:"left", voicePref:"雲哲"},
+  "主管": {key:"mgr", color:"#3949ab", basePitch:1.06, baseRate:0.98, avatar:"管", side:"right", voicePref:"曉雨"},
+  "AI助理": {key:"ai", color:"#10b981", basePitch:1.25, baseRate:1.15, avatar:"AI", side:"right", voicePref:"曉臻"},
+  "客戶": {key:"cli", color:"#ec6fa0", basePitch:1.38, baseRate:1.20, avatar:"客", side:"right", voicePref:"曉雨"}
+};
+const ROLE_ORDER = ["主持人", "阿凱工程師", "主管", "AI助理", "客戶"];
+const DEFAULT_EXPR = {"主持人": "calm", "阿凱工程師": "neutral", "主管": "stern", "AI助理": "confident", "客戶": "angry"};
+
+const SCRIPT = [
+{bg:"studio", tag:"開場：簽名欄", icon:"question", lines:[
+  ["主持人", "AI 可以幫你寫報告、寫信、寫指令。", {expr:"calm"}],
+  ["主持人", "但出事的時候，沒有人會說：「這是 AI 的錯。」", {expr:"confident"}],
+  ["主持人", "簽名欄上寫的，還是你的名字。", {expr:"stern", effect:"impact", sfx:"！"}]
+]},
+{bg:"workshop", tag:"故事：半夜的一行指令", icon:"wrench", lines:[
+  ["阿凱工程師", "上個月，客戶機房的伺服器磁碟快滿了。", {expr:"neutral"}],
+  ["阿凱工程師", "我請 AI 寫一行指令，把三十天以前的舊紀錄檔清掉。", {expr:"neutral"}],
+  ["AI助理", "可以使用以下指令，刪除指定資料夾中超過三十天的檔案，直接執行即可。", {expr:"confident"}],
+  ["阿凱工程師", "其中有一段我看不太懂。但它說直接執行即可，我就貼上，按了 Enter。", {expr:"sheepish"}],
+  ["阿凱工程師", "結果路徑多了一層，連應用程式的設定檔一起刪掉。服務停了三個小時。", {expr:"shocked", effect:"impact", sfx:"！"}]
+]},
+{bg:"office", tag:"按 Enter 的是你", icon:"team", lines:[
+  ["主管", "客戶問的第一句話是：「誰執行的？」", {expr:"stern"}],
+  ["阿凱工程師", "可是指令是 AI 寫的……", {expr:"sheepish", effect:"sweat"}],
+  ["主管", "指令是 AI 寫的，但按下 Enter 的是你。", {expr:"stern"}],
+  ["阿凱工程師", "我以為 AI 給的指令，應該都測試過了。", {expr:"sheepish"}],
+  ["主持人", "AI 沒有你客戶的機器，它沒辦法替你測。它只是寫出一行「看起來對」的指令。", {expr:"calm"}],
+  ["主管", "第一堂的情境卡有個選項：「反正可以賴給 AI，跟我沒關係。」現在你知道了，賴不掉。", {expr:"stern"}],
+  ["主管", "客戶不會去找 AI，他只會找簽名的那個人。", {expr:"calm"}]
+]},
+{bg:"phone", tag:"客戶的信", icon:"phoneAlert", lines:[
+  ["客戶", "你們寄來的道歉信，是機器人寫的吧？", {expr:"angry"}],
+  ["客戶", "店名寫錯，還說要補償我們一個月的維護費。你們真的會給嗎？", {expr:"angry", effect:"impact"}],
+  ["阿凱工程師", "……那封信是 AI 寫的，我沒仔細看就寄了。", {expr:"shocked"}],
+  ["主管", "AI 可以幫你整理經過，但「對不起」要是你說的。答應客戶的每一句話，都要是公司做得到的。", {expr:"stern"}]
+]},
+{bg:"studio", tag:"三件事，你自己拍板", icon:"layers", lines:[
+  ["主持人", "所以有三件事，AI 只能當參考，一定要你自己拍板。", {expr:"confident"}],
+  ["主持人", "第一，按下去收不回來的操作：刪除、斷電、改設定。看不懂的指令，就不要執行。", {expr:"stern"}],
+  ["主持人", "第二，需要現場判斷的事。AI 沒有看到現場，你有。", {expr:"confident"}],
+  ["主持人", "第三，需要真心的話。道歉、安慰、承諾，要用你自己的話說。", {expr:"calm"}],
+  ["阿凱工程師", "那平常寫報告、整理資料呢？還能用嗎？", {expr:"neutral"}],
+  ["主持人", "照樣用，AI 很適合。只是交出去之前，你要是第一個從頭讀到尾的人。", {expr:"confident"}]
+]},
+{bg:"studio", tag:"四堂課串起來", icon:"checkCircle", lines:[
+  ["主持人", "四堂課串起來，就是一套用 AI 的五個步驟：遮、問、查、改、簽。", {expr:"confident"}],
+  ["主持人", "遮：先把紅燈資料刪、換、留。問：用四格把問題問清楚。", {expr:"calm"}],
+  ["主持人", "查：數字、代碼、規格，對原廠手冊。改：改成你自己的話，拿掉你不確定的東西。", {expr:"calm"}],
+  ["主持人", "簽：每一句都看懂、都做得到，才簽上你的名字。", {expr:"stern"}]
+]},
+{bg:"workshop", tag:"阿凱現在的做法", icon:"wrench", lines:[
+  ["阿凱工程師", "現在 AI 寫的指令，我會先請它一行一行解釋給我聽。", {expr:"neutral"}],
+  ["阿凱工程師", "看懂了，先在測試環境跑一次，沒問題才在客戶的機器上執行。", {expr:"confident"}],
+  ["阿凱工程師", "道歉信也是。AI 幫我整理經過，我自己改成我會說的話，再打電話跟店長說一次。", {expr:"confident"}],
+  ["主管", "這樣 AI 就不是讓你偷懶的工具，是讓你更專業的工具。", {expr:"calm"}]
+]},
+{bg:"spotlight", tag:"結尾", icon:"upgrade", lines:[
+  ["主持人", "AI 可以幫你寫，但不能幫你負責。", {expr:"confident"}],
+  ["主持人", "四堂課到這裡。下一次，我們把這四堂串成現場的一天，看看你會怎麼選。", {expr:"spark", effect:"spark"}]
+]}
+];
+
+const GOLDEN_QUOTE = "AI 可以幫你寫，<br>但簽名的是你。";
+const MANAGER_QUESTION = "你最近一次用 AI 做出來的東西，有完全看懂才交出去嗎？<br>遮、問、查、改、簽，你最常跳過哪一步？";
+const EPISODE_LABEL = "AI04_AI 寫的，簽名的是你";
+const TAKEAWAYS = ["收不回來的操作，看懂才執行", "道歉和承諾用自己的話", "遮、問、查、改、簽"];
+const KEYWORDS = ["簽名", "負責", "看懂", "測試", "自己的話"];
+const SCENARIOS = [{"situation": "客戶的伺服器磁碟快滿了。AI 給你一行清理指令，說「直接執行即可」，但其中有一段你看不太懂。", "options": [{"text": "AI 說可以，就直接在客戶的伺服器上執行", "score": {"效率": 1, "正確性": -3, "資料安全": 0, "客戶信任": -3}, "result": "指令把應用程式的設定檔一起刪了，服務停了三小時。客戶問是誰執行的——是你。"}, {"text": "請 AI 逐行解釋，看懂後先在測試環境跑一次", "score": {"效率": -1, "正確性": 3, "資料安全": 0, "客戶信任": 2}, "result": "多花二十分鐘，發現路徑多寫了一層。改好再執行，一次成功。"}, {"text": "不用 AI，上網找別人寫的指令照抄", "score": {"效率": 0, "正確性": -2, "資料安全": 0, "客戶信任": -1}, "result": "網路上的指令一樣是別人寫的，你一樣沒看懂。問題不在誰寫的，在你懂不懂。"}]}, {"situation": "收銀機當機，店家停業了一小時，店長很生氣。主管要你寫一份道歉說明給店家。", "options": [{"text": "請 AI 寫好，直接寄出", "score": {"效率": 2, "正確性": -2, "資料安全": 0, "客戶信任": -3}, "result": "信裡店名寫錯，還答應了公司沒有的補償。客戶一眼就看出是機器寫的。"}, {"text": "請 AI 整理事件經過，你改成自己的話，確認每一句做得到再寄", "score": {"效率": 1, "正確性": 2, "資料安全": 0, "客戶信任": 2}, "result": "內容正確、語氣真誠，答應的事都做得到。AI 幫你省了整理的時間，誠意是你的。"}, {"text": "先打電話親自道歉，再補一份你確認過的書面說明", "score": {"效率": 0, "正確性": 2, "資料安全": 0, "客戶信任": 3}, "result": "多花一點時間，但店長聽到的是你的聲音。書面說明可以請 AI 幫忙整理，道歉要自己說。"}]}, {"situation": "你用 AI 整理了一份農漁會端末的維修報告，主管要你今天下班前交。你只看了開頭幾行。", "options": [{"text": "看起來沒問題，直接簽名送出", "score": {"效率": 2, "正確性": -3, "資料安全": 0, "客戶信任": -2}, "result": "報告寫「已更換主機板」，你實際換的是電源供應器。農漁會稽核時對不上，簽名的是你。"}, {"text": "逐項對照自己的工作紀錄，改掉不對的地方再簽", "score": {"效率": 0, "正確性": 3, "資料安全": 0, "客戶信任": 2}, "result": "抓到兩處跟實際不符。報告上的每一個字，現在都是你可以負責的。"}, {"text": "跟主管說還沒核對完，晚一小時再交", "score": {"效率": -1, "正確性": 2, "資料安全": 0, "客戶信任": 1}, "result": "晚了一點，但交出去的東西是對的。來不及核對，就說來不及，不要先簽再說。"}]}];
+const SCENARIO_METRICS = [{"name": "效率", "icon": "⏱", "desc": "把事情真正解決，總共花了多少時間（包含後果）"}, {"name": "正確性", "icon": "✅"}, {"name": "資料安全", "icon": "🔒"}, {"name": "客戶信任", "icon": "🤝"}];
+
+// flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
+const d = [];
+const PANELS = [];
+const ICONS = [];
+SCRIPT.forEach((scene, sceneIdx) => {
+  scene.lines.forEach(line => {
+    const [role, text, meta] = line;
+    d.push([role, text]);
+    const expr = (meta && meta.expr) || DEFAULT_EXPR[role] || "neutral";
+    PANELS.push({bg: scene.bg, icon: scene.icon, expr, effect: (meta && meta.effect) || null, sfx: (meta && meta.sfx) || "", tag: scene.tag, sceneIdx});
+    ICONS.push({left: ROLES[role].side==="left" ? [] : [scene.icon], right: ROLES[role].side==="left" ? [scene.icon] : []});
+  });
+});
+
+// ==== icon library (simple line icons) ====
+const ICONLIB = {
+  clock:      `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
+  wrench:     `<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2z"/>`,
+  clipboard:  `<rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3" rx="1"/><path d="M9 11h6M9 15h6"/>`,
+  repeat:     `<path d="M4 9a8 8 0 0 1 14-4l2 2M20 15a8 8 0 0 1-14 4l-2-2"/><path d="M18 3v4h-4M6 21v-4h4"/>`,
+  question:   `<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.2 1-1.2 2"/><circle cx="12" cy="17" r=".8" fill="var(--inkline)"/>`,
+  team:       `<circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2 20c0-3 2.5-5 6-5s6 2 6 5M10 20c0-3 2.5-5 6-5s6 2 6 5"/>`,
+  phoneAlert: `<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2C9.5 21 3 14.5 3 6a2 2 0 0 1 2-2z"/><path d="M18 2l1 4M20 2l-2 4"/>`,
+  layers:     `<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17l9 5 9-5"/>`,
+  checkCircle:`<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>`,
+  star:       `<path d="M12 2l3 7 7 .6-5.5 4.6L18 22l-6-4-6 4 1.5-7.8L2 9.6 9 9z"/>`,
+  upgrade:    `<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/><path d="M5 21h14"/>`
+};
+function iconSVG(name){
+  return `<svg viewBox="0 0 24 24">${ICONLIB[name]||""}</svg>`;
+}
+
+// ==== manga-style reaction marks (beside the head, not part of the face itself) ====
+const MARKLIB = {
+  sweat:    `<path d="M12 2c4.2 5.4 6.2 8.6 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.6 7.8 7.4 12 2z" fill="#bfe4ff" stroke="#5fb0ff" stroke-width="1.4"/>`,
+  surprise: `<circle cx="12" cy="12" r="10.5" fill="#fff" stroke="#1a1a1a" stroke-width="1.6"/><text x="12" y="17" font-size="13" font-weight="900" text-anchor="middle" fill="#1a1a1a">!?</text>`,
+  anger:    `<g stroke="#d31f1f" stroke-width="2.3" stroke-linecap="round"><path d="M4 7l4.5 3"/><path d="M8.5 3.5l1 5.5"/><path d="M14.5 3.5l-1 5.5"/><path d="M20 7l-4.5 3"/><path d="M5 17l5-2.5"/><path d="M19 17l-5-2.5"/></g>`,
+  idea:     `<path d="M12 2.5a6.3 6.3 0 0 0-3.2 11.7v2.3h6.4v-2.3A6.3 6.3 0 0 0 12 2.5z" fill="#ffe58a" stroke="#d99a00" stroke-width="1.3"/><path d="M9.5 19h5M10 21.3h4" stroke="#1a1a1a" stroke-width="1.4" stroke-linecap="round"/>`
+};
+const EXPR_MARK = {sheepish:"sweat", shocked:"surprise", angry:"anger", spark:"idea"};
+function markSVG(name){
+  const inner = MARKLIB[name];
+  return inner ? `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${inner}</svg>` : "";
+}
+
+// ==== face SVG builder (simple manga-style bust) ====
+function faceSVG(role, expr){
+  const meta = ROLES[role];
+  const hair = meta.color;
+  if(meta.key === "ai") return robotSVG(expr, hair);
+  const glasses = "";
+  let brows = `<line x1="45" y1="55" x2="65" y2="55" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/><line x1="85" y1="55" x2="105" y2="55" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>`;
+  let eyes  = `<circle cx="55" cy="66" r="5" fill="#1a1a1a"/><circle cx="95" cy="66" r="5" fill="#1a1a1a"/>`;
+  let mouth = `<path d="M60 90 Q75 96 90 90" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  let extra = "";
+  if(expr==="confident"){
+    brows = `<line x1="45" y1="52" x2="65" y2="48" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/><line x1="85" y1="48" x2="105" y2="52" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>`;
+    mouth = `<path d="M58 88 Q75 100 96 84" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  } else if(expr==="sheepish"){
+    brows = `<path d="M45 58 Q55 50 65 56" stroke="#1a1a1a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M85 56 Q95 50 105 58" stroke="#1a1a1a" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    mouth = `<path d="M62 92 Q75 88 88 92" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    extra = `<path d="M112 48 q6 8 0 16" stroke="#5fb0ff" stroke-width="3" fill="#bfe4ff"/>`;
+  } else if(expr==="calm"){
+    mouth = `<path d="M62 89 Q75 94 88 89" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  } else if(expr==="angry"){
+    brows = `<line x1="45" y1="50" x2="65" y2="58" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/><line x1="85" y1="58" x2="105" y2="50" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>`;
+    mouth = `<ellipse cx="75" cy="93" rx="14" ry="10" fill="#7a1414" stroke="#1a1a1a" stroke-width="3"/>`;
+    extra = `<path d="M108 40 l7 6 M106 48 l9 2" stroke="#d31f1f" stroke-width="3" stroke-linecap="round"/>`;
+  } else if(expr==="shocked"){
+    eyes = `<circle cx="55" cy="66" r="7" fill="#fff" stroke="#1a1a1a" stroke-width="2"/><circle cx="95" cy="66" r="7" fill="#fff" stroke="#1a1a1a" stroke-width="2"/><circle cx="55" cy="66" r="2.5" fill="#1a1a1a"/><circle cx="95" cy="66" r="2.5" fill="#1a1a1a"/>`;
+    brows = `<line x1="45" y1="46" x2="65" y2="50" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/><line x1="85" y1="50" x2="105" y2="46" stroke="#1a1a1a" stroke-width="4" stroke-linecap="round"/>`;
+    mouth = `<ellipse cx="75" cy="92" rx="8" ry="10" fill="#fff" stroke="#1a1a1a" stroke-width="3"/>`;
+    extra = `<path d="M112 48 q6 8 0 16" stroke="#5fb0ff" stroke-width="3" fill="#bfe4ff"/>`;
+  } else if(expr==="stern"){
+    brows = `<line x1="45" y1="52" x2="65" y2="54" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/><line x1="85" y1="54" x2="105" y2="52" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>`;
+    mouth = `<line x1="62" y1="91" x2="88" y2="91" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round"/>`;
+  } else if(expr==="spark"){
+    mouth = `<path d="M62 90 Q75 96 88 90" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    extra = `<path d="M70 30 L74 40 L84 43 L74 46 L70 56 L66 46 L56 43 L66 40 Z" fill="#ffb020" stroke="#4fd8e0" stroke-width="2"/>`;
+  }
+  const arms = armsSVG(expr, hair);
+  return faceSVGInner(brows, eyes, mouth, glasses, extra, hair, arms);
+}
+// AI 角色畫成機器人：方頭、天線、螢幕臉，表情用螢幕上的發光眼睛／嘴巴表現
+function robotSVG(expr, color){
+  const glow = "#5ef0c0";
+  let eyes = `<rect x="56" y="60" width="11" height="15" rx="4" fill="${glow}"/><rect x="83" y="60" width="11" height="15" rx="4" fill="${glow}"/>`;
+  let mouth = `<path d="M62 86 Q75 93 88 86" stroke="${glow}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+  if(expr==="confident" || expr==="spark"){
+    eyes = `<path d="M55 72 Q61 60 67 72" stroke="${glow}" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M83 72 Q89 60 95 72" stroke="${glow}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    mouth = `<path d="M58 84 Q75 98 92 84" stroke="${glow}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+  } else if(expr==="calm"){
+    eyes = `<line x1="55" y1="68" x2="67" y2="68" stroke="${glow}" stroke-width="4" stroke-linecap="round"/><line x1="83" y1="68" x2="95" y2="68" stroke="${glow}" stroke-width="4" stroke-linecap="round"/>`;
+  } else if(expr==="shocked" || expr==="sheepish"){
+    eyes = `<circle cx="61" cy="67" r="7" fill="none" stroke="${glow}" stroke-width="3.5"/><circle cx="89" cy="67" r="7" fill="none" stroke="${glow}" stroke-width="3.5"/>`;
+    mouth = `<line x1="66" y1="89" x2="84" y2="89" stroke="${glow}" stroke-width="3.5" stroke-linecap="round"/>`;
+  }
+  return `
+    <ellipse cx="75" cy="150" rx="55" ry="26" fill="${color}" opacity="0.9"/>
+    <line x1="75" y1="12" x2="75" y2="30" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="75" cy="10" r="6" fill="#ffb020" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="21" y="60" width="11" height="26" rx="4" fill="${color}" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="118" y="60" width="11" height="26" rx="4" fill="${color}" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="30" y="28" width="90" height="94" rx="24" fill="#e9eef2" stroke="#1a1a1a" stroke-width="3"/>
+    <rect x="41" y="44" width="68" height="60" rx="14" fill="#13212b"/>
+    ${eyes}${mouth}
+    <circle cx="48" cy="113" r="3" fill="#9aa5ad"/><circle cx="102" cy="113" r="3" fill="#9aa5ad"/>
+    ${armsSVG(expr, color)}
+  `;
+}
+// 手臂姿勢：讓角色不只是一顆頭，隨表情擺出對應的簡單動作
+// 手臂顏色跟身體同色，緊貼身體輪廓時會整個融在一起看不出來，
+// 所以每條手臂都先描一層深色外框（跟臉部五官同一套線稿風格）再疊上手臂色，
+// 這樣不管姿勢貼不貼著身體，輪廓都看得出來。
+function limb(d, hair){
+  return `<path d="${d}" stroke="#1a1a1a" stroke-width="18.5" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${hair}" stroke-width="14" fill="none" stroke-linecap="round"/>`;
+}
+function hand(cx, cy, hair){
+  return `<circle cx="${cx}" cy="${cy}" r="10.5" fill="#1a1a1a"/><circle cx="${cx}" cy="${cy}" r="9" fill="${hair}"/>`;
+}
+function armsSVG(expr, hair){
+  const down = (cx, sway) => limb(`M${cx} 138 Q${cx+sway} 158 ${cx+sway*0.6} 168`, hair);
+  const leftDown = down(38, -10), rightDown = down(112, 10);
+  if(expr==="confident"){
+    return leftDown + limb("M112 138 Q132 112 120 92", hair) + hand(120, 90, hair);
+  }
+  if(expr==="sheepish"){
+    return leftDown + limb("M112 138 Q136 118 102 100", hair) + hand(101, 99, hair);
+  }
+  if(expr==="shocked"){
+    return limb("M38 138 Q26 112 52 92", hair) + hand(53, 90, hair)
+      + limb("M112 138 Q124 112 98 92", hair) + hand(97, 90, hair);
+  }
+  if(expr==="angry" || expr==="stern"){
+    // 雙手叉腰：手肘往外撐出身體輪廓，靠外框線區隔身體/手臂，不會融成一團
+    return limb("M38 135 Q10 145 32 162", hair) + limb("M112 135 Q140 145 118 162", hair);
+  }
+  if(expr==="spark"){
+    return leftDown + limb("M112 138 Q118 100 110 68", hair) + hand(110, 64, hair);
+  }
+  return leftDown + rightDown;
+}
+function faceSVGInner(brows, eyes, mouth, glasses, extra, hair, arms){
+  return `
+    <ellipse cx="75" cy="150" rx="55" ry="26" fill="${hair}" opacity="0.9"/>
+    <path d="M28 60 Q30 8 75 8 Q120 8 122 60 L122 78 Q122 108 75 112 Q28 108 28 78 Z" fill="${hair}"/>
+    <ellipse cx="75" cy="82" rx="42" ry="46" fill="#ffe0c2" stroke="#1a1a1a" stroke-width="3"/>
+    ${brows}${eyes}${mouth}${glasses}${extra}${arms || ""}
+  `;
+}
+function faceSVGWrapped(role, expr){
+  return `<svg viewBox="0 0 150 170" width="150" height="170" xmlns="http://www.w3.org/2000/svg">${faceSVG(role, expr)}</svg>`;
+}
+
+// ==== Cloudflare Worker 設定（回應收集用）====
+// 部署好 Worker 後，把這兩個值換成你的，然後重新跑一次 產生網頁.py 讓全部集數套用。
+// RESPONSE_API_BASE 留空（""）的話，送出回應會直接退回本機下載，不會嘗試連網。
+const RESPONSE_API_BASE = ""; // 例如 "https://weekly-briefing-responses.xxx.workers.dev"
+const RESPONSE_SITE_KEY = ""; // 部署時用 `npx wrangler secret put SITE_KEY` 設定的同一組值
+// 這兩個由 產生網頁.py --cloud 用 Python 的 qrcode 套件預先產生好填入，不是在瀏覽器裡即時產生
+const RESPONSE_QR_IMG = ""; // base64 PNG data URI，掃了會連到 Worker 的 /respond 頁面
+const RESPONSE_QR_URL = ""; // 同一個網址的純文字版，QR Code 掃不出來時的備用
+
+let i=0, auto=false;
+let onEndCard=false;
+let actionSeq=0; // bumped by every next()/prev()/playFrom() step so a stale, already-
+                  // scheduled flashRender/showEndCard timer can tell it's been superseded
+let communityPollTimer=null; // polls /responses while the end card is showing; cleared in render()
+let zhVoices=[];
+let cfg = {};
+
+const who=document.getElementById("count"),
+      bar=document.getElementById("bar"), rate=document.getElementById("rate"), rv=document.getElementById("rv"),
+      speakerRows=document.getElementById("speakerRows"), panelHead=document.getElementById("panelHead"),
+      panelBody=document.getElementById("panelBody"),
+      bgLayer=document.getElementById("bgLayer"), charSvg=document.getElementById("charSvg"),
+      charWrap=document.getElementById("charWrap"), roleLabel=document.getElementById("roleLabel"),
+      speechBubble=document.getElementById("speechBubble"),
+      panelCount=document.getElementById("panelCount"), speedlines=document.getElementById("speedlines"),
+      impact=document.getElementById("impact"), sfxText=document.getElementById("sfxText"), sparkWrap=document.getElementById("sparkWrap"),
+      iconRowLeft=document.getElementById("iconRowLeft"), iconRowRight=document.getElementById("iconRowRight"),
+      reactionMark=document.getElementById("reactionMark"),
+      shutter=document.getElementById("shutter"), dotsRow=document.getElementById("dotsRow");
+
+function render(){
+  onEndCard = false;
+  document.getElementById("panelWrap").classList.remove("ended");
+  if(communityPollTimer){ clearInterval(communityPollTimer); communityPollTimer = null; }
+  const role = d[i][0], meta = ROLES[role], p = PANELS[i];
+
+  bgLayer.className = "bgLayer bg-" + p.bg;
+  bgLayer.innerHTML = iconSVG(p.icon);
+  panelCount.textContent = `${p.sceneIdx+1}/${SCRIPT.length}`;
+  dotsRow.innerHTML = SCRIPT.map((s,idx) => `<span class="pdot${idx===p.sceneIdx?" active":""}"></span>`).join("");
+
+  charSvg.innerHTML = faceSVG(role, p.expr);
+  reactionMark.innerHTML = markSVG(EXPR_MARK[p.expr]);
+
+  const side = meta.side;
+  charWrap.className = "charWrap " + side;
+  roleLabel.className = "roleLabel " + side;
+  roleLabel.textContent = role;
+  roleLabel.style.background = meta.color;
+  roleLabel.style.color = (role==="主持人") ? "#0d3049" : "#fff";
+
+  speechBubble.innerHTML = `<span class="unsaid">${d[i][1]}</span>`;
+  speechBubble.className = "speechBubble" + (side==="left" ? " tail-left" : side==="right" ? " tail-right" : "");
+
+  speedlines.classList.toggle("on", p.effect==="speed");
+  impact.classList.toggle("on", p.effect==="impact");
+  sfxText.textContent = p.sfx || "";
+  sparkWrap.classList.toggle("on", p.effect==="spark");
+
+  const ic = ICONS[i] || {left:[],right:[]};
+  iconRowLeft.innerHTML = ic.left.map(name => `<div class="iconBadge">${iconSVG(name)}</div>`).join("");
+  iconRowRight.innerHTML = ic.right.map(name => `<div class="iconBadge">${iconSVG(name)}</div>`).join("");
+
+  who.textContent = `第 ${i+1} / ${d.length} 段 — ${role}`;
+  bar.style.background = meta.color;
+  bar.style.width = ((i+1)/d.length*100)+"%";
+}
+
+function loadVoices(){
+  zhVoices = speechSynthesis.getVoices().filter(v => /zh|TW|HK|CN/i.test(v.lang+" "+v.name));
+  if(Object.keys(cfg).length===0) buildDefaultConfig();
+  buildPanel();
+  if(!onEndCard) render(); // 語音清單可能晚到才觸發這裡，不要把停在結尾畫面的人踢回第一段
+}
+
+function buildDefaultConfig(){
+  ROLE_ORDER.forEach((role, idx) => {
+    const meta = ROLES[role];
+    let voiceIdx = zhVoices.length ? (idx % zhVoices.length) : -1;
+    if(meta.voicePref){
+      const found = zhVoices.findIndex(v => v.name.toLowerCase().includes(meta.voicePref));
+      if(found >= 0) voiceIdx = found;
+    }
+    cfg[role] = { voiceIdx, pitch: meta.basePitch, rateMul: meta.baseRate };
+  });
+}
+
+function resetDefaults(){ buildDefaultConfig(); buildPanel(); }
+
+function buildPanel(){
+  speakerRows.innerHTML = "";
+  ROLE_ORDER.forEach(role => {
+    const meta = ROLES[role], c = cfg[role];
+    const row = document.createElement("div");
+    row.className = "castCard";
+
+    const head = document.createElement("div");
+    head.className = "castCard-head";
+    head.innerHTML = `<div class="castCard-face">${faceSVGWrapped(role, DEFAULT_EXPR[role] || "neutral")}</div>
+      <div><div class="castCard-name">${role}</div><div class="castCard-tag">ROLE — ${meta.key.toUpperCase()}</div></div>`;
+
+    const controls = document.createElement("div");
+    controls.className = "speaker-controls";
+
+    const voiceWrap = document.createElement("div");
+    voiceWrap.className = "mini";
+    voiceWrap.innerHTML = `<span>指定聲音</span>`;
+    const sel = document.createElement("select");
+    sel.className = "voice-select";
+    const autoOpt = document.createElement("option");
+    autoOpt.value = "-1";
+    autoOpt.textContent = zhVoices.length ? "自動分配" : "（無中文語音，使用系統預設）";
+    sel.appendChild(autoOpt);
+    zhVoices.forEach((v, n) => {
+      const o = document.createElement("option");
+      o.value = n;
+      o.textContent = v.name + " · " + v.lang;
+      sel.appendChild(o);
+    });
+    sel.value = String(c.voiceIdx);
+    sel.onchange = () => { cfg[role].voiceIdx = parseInt(sel.value, 10); };
+    voiceWrap.appendChild(sel);
+
+    const pitchWrap = document.createElement("div");
+    pitchWrap.className = "mini";
+    pitchWrap.innerHTML = `<span>音調 <output id="pv-${meta.key}">${c.pitch.toFixed(2)}</output></span>`;
+    const pitchInput = document.createElement("input");
+    pitchInput.type = "range"; pitchInput.min = "0.6"; pitchInput.max = "1.6"; pitchInput.step = "0.02";
+    pitchInput.value = c.pitch;
+    pitchInput.oninput = () => { cfg[role].pitch = parseFloat(pitchInput.value); document.getElementById(`pv-${meta.key}`).textContent = cfg[role].pitch.toFixed(2); };
+    pitchWrap.appendChild(pitchInput);
+
+    const rateWrap = document.createElement("div");
+    rateWrap.className = "mini";
+    rateWrap.innerHTML = `<span>語速倍率 <output id="rv-${meta.key}">${c.rateMul.toFixed(2)}</output></span>`;
+    const rateInput = document.createElement("input");
+    rateInput.type = "range"; rateInput.min = "0.7"; rateInput.max = "1.4"; rateInput.step = "0.02";
+    rateInput.value = c.rateMul;
+    rateInput.oninput = () => { cfg[role].rateMul = parseFloat(rateInput.value); document.getElementById(`rv-${meta.key}`).textContent = cfg[role].rateMul.toFixed(2); };
+    rateWrap.appendChild(rateInput);
+
+    controls.appendChild(voiceWrap);
+    controls.appendChild(pitchWrap);
+    controls.appendChild(rateWrap);
+
+    row.appendChild(head);
+    row.appendChild(controls);
+    speakerRows.appendChild(row);
+  });
+}
+
+function togglePrep(){
+  document.getElementById("prepHead").classList.toggle("open");
+  document.getElementById("prepBody").classList.toggle("open");
+}
+
+function togglePanel(){
+  panelHead.classList.toggle("open");
+  panelBody.classList.toggle("open");
+}
+
+function speechText(text){
+  // spell "SOP" letter-by-letter for TTS, run together with no pause between letters
+  // 「AI」也要一個字母一個字母唸（A I），不然中文語音會連成一個音；前後是英文字母的（例如 MAIL）不動
+  return text.replace(/SOP/g, "S O P").replace(/(^|[^A-Za-z])AI(?![A-Za-z])/g, "$1A I");
+}
+
+function speakCurrent(onend){
+  speechSynthesis.cancel();
+  const role = d[i][0], c = cfg[role];
+  const displayText = d[i][1];
+  const spokenText = speechText(displayText);
+  const u = new SpeechSynthesisUtterance(spokenText);
+  u.lang = "zh-TW";
+  u.pitch = c.pitch;
+  u.rate = Math.min(2, Math.max(0.4, (+rate.value) * c.rateMul));
+  if(c.voiceIdx >= 0 && zhVoices[c.voiceIdx]) u.voice = zhVoices[c.voiceIdx];
+  u.onboundary = (e) => {
+    const ratio = Math.min(1, e.charIndex / Math.max(1, spokenText.length));
+    const cut = Math.round(ratio * displayText.length);
+    speechBubble.innerHTML = `<span class="said">${displayText.slice(0,cut)}</span><span class="unsaid">${displayText.slice(cut)}</span>`;
+  };
+  u.onend = () => { speechBubble.innerHTML = `<span class="said">${displayText}</span>`; onend(); };
+  speechSynthesis.speak(u);
+}
+
+// quick "scene cut" shutter flash before swapping the panel — gives a theatre-style transition between beats
+function flashRender(cb){
+  const seq = ++actionSeq;
+  shutter.classList.add("on");
+  setTimeout(() => { if(seq===actionSeq){ render(); } shutter.classList.remove("on"); if(cb) cb(); }, 110);
+}
+
+// speak the closing golden quote (the manager's discussion question is meant to be
+// posed live in the room, so it stays silent — only the quote gets narration)
+function speakGoldenQuote(){
+  speechSynthesis.cancel();
+  const role = ROLES["主持人"] ? "主持人" : d[d.length-1][0];
+  const c = cfg[role] || {pitch:1, rateMul:1, voiceIdx:-1};
+  const spoken = speechText(
+    GOLDEN_QUOTE
+      .replace(/<br\s*\/?>/gi, " ")   // plain space — the source text already carries its own punctuation
+      .replace(/<[^>]+>/g, "")
+      .replace(/([，。！？])\s+/g, "$1") // don't leave a pause-inducing gap right after punctuation
+  );
+  const u = new SpeechSynthesisUtterance(spoken);
+  u.lang = "zh-TW";
+  u.pitch = c.pitch;
+  u.rate = Math.min(2, Math.max(0.4, (+rate.value) * c.rateMul));
+  if(c.voiceIdx >= 0 && zhVoices[c.voiceIdx]) u.voice = zhVoices[c.voiceIdx];
+  speechSynthesis.speak(u);
+}
+
+// end-card response box: saves the viewer's answer as a small local file via
+// a plain <a download> — no fetch(), no server, no upload anywhere. Whoever
+// wants these collected can point the browser's default download folder at
+// a shared drive (e.g. a mapped NAS folder); this function never has to know.
+function downloadResponseLocally(payload){
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-`
+    + `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}-`
+    + String(Math.floor(1000 + Math.random()*9000));
+  const a = document.createElement("a");
+  a.href = url;
+  const safeLabel = EPISODE_LABEL.replace(/[\\/:*?"<>|]/g, "_"); // titles carry punctuation; Windows forbids these in filenames
+  a.download = `回應_${safeLabel}_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+let selectedChoice = null;
+function pickChoice(idx){
+  selectedChoice = (selectedChoice === idx) ? null : idx;
+  document.querySelectorAll(".choiceBtn").forEach((b, k) => b.classList.toggle("selected", k === selectedChoice));
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+async function submitResponse(){
+  const inputEl = document.getElementById("responseInput");
+  const note = document.getElementById("responseNote");
+  const text = inputEl.value.trim();
+  const choice = selectedChoice === null ? "" : TAKEAWAYS[selectedChoice];
+  if(!text && !choice){
+    note.textContent = TAKEAWAYS.length ? "先選一個最有感的重點，或打幾個字再送出喔" : "打點字再送出喔";
+    return;
+  }
+
+  const plainQuestion = MANAGER_QUESTION.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "");
+  const payload = {
+    episode: EPISODE_LABEL,
+    question: plainQuestion,
+    choice: choice,
+    response: text,
+    submittedAt: new Date().toISOString()
+  };
+  const resetForm = () => {
+    inputEl.value = "";
+    selectedChoice = null;
+    document.querySelectorAll(".choiceBtn").forEach(b => b.classList.remove("selected"));
+  };
+
+  if(RESPONSE_API_BASE){
+    try{
+      const res = await fetch(RESPONSE_API_BASE + "/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      resetForm();
+      note.textContent = "已送出，感謝分享！（已同步到雲端）";
+      loadCommunityResponses(); // 馬上刷新一次，讓自己的回應立刻反映在下面的統計裡
+      return;
+    } catch(e){
+      // 連不上（離線、被擋、Worker 掛了……）就退回本機下載，不讓回應憑空消失
+      downloadResponseLocally(payload);
+      resetForm();
+      note.textContent = "雲端連不上，改存成本機檔案了，感謝分享！";
+      return;
+    }
+  }
+
+  downloadResponseLocally(payload);
+  resetForm();
+  note.textContent = "已送出，感謝分享！（檔案存到瀏覽器的下載資料夾）";
+}
+
+// 大家的回應：①「最有感的一點」各選項的人數長條圖 ②本集關鍵字在打字回應裡被提到幾次
+// ③最新幾則打字回應原文。全部只做計數，不做斷詞、不送去任何 AI 服務。
+function renderCommunityStats(rows){
+  const parts = [];
+  const choiceRows = rows.filter(r => r.choice);
+  if(TAKEAWAYS.length){
+    const counts = TAKEAWAYS.map(t => choiceRows.filter(r => r.choice === t).length);
+    const max = Math.max(...counts);
+    parts.push(`<div class="statTitle">最有感的一點（${choiceRows.length} 人選）</div>`);
+    parts.push(TAKEAWAYS.map((t, k) => {
+      const pct = choiceRows.length ? Math.round(counts[k] / choiceRows.length * 100) : 0;
+      const top = max > 0 && counts[k] === max ? " top" : "";
+      return `<div class="statRow${top}"><span>${"①②③④⑤"[k] || ""} ${escapeHtml(t)}</span>`
+        + `<span class="statNum">${counts[k]} 人・${pct}%</span>`
+        + `<div class="statTrack"><div class="statFill" style="width:${pct}%"></div></div></div>`;
+    }).join(""));
+  }
+  const textRows = rows.filter(r => r.response);
+  if(KEYWORDS.length && textRows.length){
+    const kw = KEYWORDS
+      .map(k => [k, textRows.filter(r => r.response.toLowerCase().includes(k.toLowerCase())).length])
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1]);
+    if(kw.length){
+      parts.push(`<div class="statTitle">回應裡提到的關鍵字</div><div class="kwChips">`
+        + kw.map(([k, n]) => `<span class="kwChip">${escapeHtml(k)}<b>×${n}</b></span>`).join("")
+        + `</div>`);
+    }
+  }
+  if(textRows.length){
+    parts.push(`<div class="statTitle">最新回應</div><div class="quoteList">`
+      + textRows.slice(0, 3).map(r => `<div class="quoteItem">${escapeHtml(r.response)}</div>`).join("")
+      + `</div>`);
+  }
+  return parts.join("");
+}
+
+async function loadCommunityResponses(){
+  const countEl = document.getElementById("communityCount");
+  const statsEl = document.getElementById("communityStats");
+  if(!countEl || !statsEl) return; // 使用者已經離開結尾畫面
+  countEl.textContent = "大家的回應載入中…";
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), {
+      headers: { "X-Site-Key": RESPONSE_SITE_KEY }
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const rows = (data.responses || []).filter(r => r.response || r.choice);
+    if(!onEndCard) return; // 抓資料的這段時間使用者已經離開結尾畫面，不要再更新畫面
+    countEl.textContent = `目前 ${rows.length} 則回應`;
+    statsEl.innerHTML = rows.length
+      ? renderCommunityStats(rows)
+      : `<div class="communityEmpty">還沒有人回應，當第一個吧！</div>`;
+  } catch(e){
+    if(!onEndCard) return;
+    countEl.textContent = "連不上雲端，晚點再試試看";
+    statsEl.innerHTML = "";
+  }
+}
+
+// ==== 情境卡（SCENARIOS 有內容時，結尾畫面改成情境三選一遊戲）====
+// 每張卡選一個選項 → 馬上看到後果與各指標加減分 → 下一張 → 最後看自己的取捨總結。
+// 雲端版：每張卡的選擇送一筆到 Worker（question=「情境N」、choice=A/B/C，同一台裝置每張只送一次），
+// 卡片下方即時顯示全場各選項人數；主持人可以按「只看全場統計」投影出來帶討論。
+const SCN_LETTERS = "ABCDE";
+let scnIdx = 0, scnPicks = [], scnView = "play", scnRows = null, scnStatsError = false, scnRespondMode = false;
+
+function scnStorageKey(k){ return `scn:${EPISODE_LABEL}:${k}`; }
+function scnAlreadySent(k){ try{ return localStorage.getItem(scnStorageKey(k)) === "1"; }catch(e){ return false; } }
+function scnMarkSent(k){ try{ localStorage.setItem(scnStorageKey(k), "1"); }catch(e){} }
+
+async function scnSubmit(k, idx){
+  if(!RESPONSE_API_BASE || scnAlreadySent(k)) return;
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY },
+      body: JSON.stringify({ episode: EPISODE_LABEL, question: `情境${k+1}`, choice: SCN_LETTERS[idx],
+                             response: "", submittedAt: new Date().toISOString() })
+    });
+    if(res.ok){ scnMarkSent(k); loadScenarioStats(); }
+  } catch(e){ /* 連不上就算了：自己的結果照樣看得到，只是不列入全場統計 */ }
+}
+
+function scnPick(idx){
+  if(scnPicks[scnIdx] !== undefined) return;
+  scnPicks[scnIdx] = idx;
+  scnSubmit(scnIdx, idx);
+  renderScenario();
+}
+function scnGo(delta){
+  scnIdx = Math.max(0, Math.min(SCENARIOS.length, scnIdx + delta));
+  renderScenario();
+  const box = document.getElementById("scnBox");
+  if(box) box.scrollIntoView({block: "start", behavior: "smooth"});
+}
+function scnRestart(){ scnIdx = 0; scnPicks = []; scnView = "play"; renderScenario(); }
+function scnShowStats(on){ scnView = on ? "stats" : "play"; renderScenario(); }
+
+function scnDeltaHtml(score){
+  return SCENARIO_METRICS.map(m => {
+    const v = (score && score[m.name]) || 0;
+    if(!v) return "";
+    return `<span class="scnDelta ${v > 0 ? "up" : "down"}">${m.icon} ${escapeHtml(m.name)} ${v > 0 ? "+" : ""}${v}</span>`;
+  }).join("");
+}
+
+// 第一張卡上方說明指標的意思（腳本 scenario_metrics 有寫 desc 的才列），避免大家各自解讀
+function scnLegendHtml(){
+  const items = SCENARIO_METRICS.filter(m => m.desc);
+  if(!items.length) return "";
+  return `<div class="scnLegend">` + items.map(m => `${m.icon} ${escapeHtml(m.name)}＝${escapeHtml(m.desc)}`).join("<br>") + `</div>`;
+}
+function scnDistInner(k){
+  if(scnRows === null) return scnStatsError
+    ? `<div class="communityEmpty">連不上雲端，晚點再試試看</div>`
+    : `<div class="communityEmpty">全場統計載入中…</div>`;
+  const rows = scnRows.filter(r => r.question === `情境${k+1}`);
+  const opts = SCENARIOS[k].options;
+  const counts = opts.map((o, j) => rows.filter(r => r.choice === SCN_LETTERS[j]).length);
+  const total = counts.reduce((a, b) => a + b, 0);
+  const max = Math.max(...counts);
+  return `<div class="statTitle">全場 ${total} 人作答</div>` + opts.map((o, j) => {
+    const pct = total ? Math.round(counts[j] / total * 100) : 0;
+    const top = max > 0 && counts[j] === max ? " top" : "";
+    return `<div class="statRow${top}"><span>${SCN_LETTERS[j]}. ${escapeHtml(o.text)}</span>`
+      + `<span class="statNum">${counts[j]} 人・${pct}%</span>`
+      + `<div class="statTrack"><div class="statFill" style="width:${pct}%"></div></div></div>`;
+  }).join("");
+}
+function scnDistBlock(k){
+  return RESPONSE_API_BASE ? `<div class="communityBlock" data-scn-dist="${k}">${scnDistInner(k)}</div>` : "";
+}
+function scnUpdateDists(){
+  document.querySelectorAll("[data-scn-dist]").forEach(el => { el.innerHTML = scnDistInner(+el.dataset.scnDist); });
+}
+
+async function loadScenarioStats(){
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), {
+      headers: { "X-Site-Key": RESPONSE_SITE_KEY }
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    scnRows = (data.responses || []).filter(r => /^情境\d+$/.test(r.question || "") && r.choice);
+    scnStatsError = false;
+  } catch(e){
+    scnStatsError = true;
+  }
+  if(onEndCard) scnUpdateDists(); // 只換統計那幾塊，不重畫整張卡（展開中的「其他選項」不會被收起來）
+}
+
+function renderScenario(){
+  const box = document.getElementById("scnBox");
+  if(!box) return;
+  const N = SCENARIOS.length;
+
+  if(scnView === "stats"){
+    box.innerHTML = `<div class="scnHead"><span>全場統計（只看，不會送出作答）</span>`
+      + `<button type="button" class="scnLink" onclick="scnShowStats(false)">回到作答</button></div>`
+      + SCENARIOS.map((sc, k) => `<div class="scnStatCard"><div class="q">情境 ${k+1}｜${escapeHtml(sc.situation)}</div>${scnDistBlock(k)}</div>`).join("");
+    return;
+  }
+
+  if(scnIdx >= N){
+    // 這組情境卡完全沒用到的指標（例如還沒教到的「資料安全」）不列出來，免得大家以為漏算
+    const metrics = SCENARIO_METRICS.filter(m => SCENARIOS.some(sc => sc.options.some(o => (o.score || {})[m.name])));
+    const totals = {};
+    metrics.forEach(m => { totals[m.name] = 0; });
+    scnPicks.forEach((j, k) => {
+      const sc = (SCENARIOS[k].options[j] || {}).score || {};
+      Object.keys(totals).forEach(name => { totals[name] += sc[name] || 0; });
+    });
+    // 長條的滿格 = 這組情境卡裡該指標理論上拿得到的最大絕對值，讓不同指標的長條可以互相比較
+    const reach = Math.max(1, ...metrics.map(m =>
+      SCENARIOS.reduce((acc, sc) => acc + Math.max(...sc.options.map(o => Math.abs((o.score || {})[m.name] || 0))), 0)));
+    const rows = metrics.map(m => {
+      const v = totals[m.name], w = Math.min(50, Math.abs(v) / reach * 50);
+      const bar = v >= 0
+        ? `<i style="left:50%;width:${w}%;background:#16a34a"></i>`
+        : `<i style="right:50%;width:${w}%;background:#dc2626"></i>`;
+      return `<div class="scnMetric"><span>${m.icon} ${escapeHtml(m.name)}</span>`
+        + `<span class="track">${bar}<span class="mid"></span></span><span class="val">${v > 0 ? "+" : ""}${v}</span></div>`;
+    }).join("");
+    const sorted = metrics.map(m => [m.name, totals[m.name]]).sort((a, b) => b[1] - a[1]);
+    const best = sorted[0], worst = sorted[sorted.length - 1];
+    let note = `這一輪你最顧到的是「${escapeHtml(best[0])}」。`;
+    if(worst[1] < 0) note += `被犧牲最多的是「${escapeHtml(worst[0])}」——想想看，下次怎麼兩邊都顧到？`;
+    box.innerHTML = `<div class="scnHead"><span>你的取捨總結</span>`
+      + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
+      + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
+      + `<div class="endQuestion">${MANAGER_QUESTION}</div>`
+      + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
+      + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`;
+    return;
+  }
+
+  const k = scnIdx, sc = SCENARIOS[k], picked = scnPicks[k];
+  const optsHtml = sc.options.map((o, j) =>
+    `<button type="button" class="scnOpt${picked === j ? " picked" : ""}" onclick="scnPick(${j})"${picked !== undefined ? " disabled" : ""}>`
+    + `<span class="num">${SCN_LETTERS[j]}.</span>${escapeHtml(o.text)}</button>`).join("");
+  let after = "";
+  if(picked !== undefined){
+    const o = sc.options[picked];
+    const others = sc.options.map((x, j) => j === picked ? "" :
+      `<div class="scnResult other"><div class="lab">${SCN_LETTERS[j]}. ${escapeHtml(x.text)}</div>${escapeHtml(x.result)}`
+      + `<div class="scnDeltas">${scnDeltaHtml(x.score)}</div></div>`).join("");
+    after = `<div class="scnResult"><div class="lab">你選了 ${SCN_LETTERS[picked]}，結果……</div>${escapeHtml(o.result)}`
+      + `<div class="scnDeltas">${scnDeltaHtml(o.score)}</div></div>`
+      + `<details><summary class="scnLink">看看其他選項會怎樣</summary>${others}</details>`
+      + scnDistBlock(k);
+  }
+  const nav = `<div class="scnNav">`
+    + (k > 0 ? `<button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>` : "")
+    + (picked !== undefined ? `<button type="button" onclick="scnGo(1)">${k === N - 1 ? "看我的取捨總結 →" : "下一張 →"}</button>` : "")
+    + `</div>`;
+  box.innerHTML = `<div class="scnHead"><span>情境卡 ${k+1} / ${N}</span>`
+    + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
+    + `</div>${k === 0 ? scnLegendHtml() : ""}<div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
+}
+
+function showEndCard(opts = {}){
+  onEndCard = true;
+  selectedChoice = null;
+  bgLayer.className = "bgLayer bg-spotlight";
+  bgLayer.innerHTML = "";
+  panelCount.textContent = "完";
+  dotsRow.innerHTML = SCRIPT.map((s,idx) => `<span class="pdot active"></span>`).join("");
+  reactionMark.innerHTML = "";
+  iconRowLeft.innerHTML = ""; iconRowRight.innerHTML = "";
+  roleLabel.textContent = ""; roleLabel.style.background = "transparent";
+  speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.remove("on");
+  document.getElementById("panelWrap").classList.add("ended");
+  speechBubble.className = "speechBubble final";
+  const isScn = SCENARIOS.length > 0;
+  const qrWhat = isScn ? "情境卡" : "回饋表單";
+  const qrBlock = (RESPONSE_QR_IMG && !opts.respond) // 已經是掃 QR 進來的人，不用再給一次連結
+    ? `<div class="qrBlock"><a class="qrLink" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">`
+      + `<img src="${RESPONSE_QR_IMG}" alt="開啟${qrWhat}" class="qrImg"></a>`
+      + `<div class="qrCaption">${isScn ? "用手機掃描，大家一起玩情境卡（或直接點 QR Code）" : "用手機掃描，或直接點 QR Code 開啟回饋表單"}</div>`
+      + `<a class="qrOpenBtn" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">開啟${qrWhat} ↗</a></div>`
+    : "";
+  if(isScn){
+    scnIdx = 0; scnPicks = []; scnView = "play"; scnRows = null; scnStatsError = false;
+    scnRespondMode = !!opts.respond;
+    speechBubble.innerHTML = `<div class="quoteLine">${GOLDEN_QUOTE}</div>${qrBlock}<div class="scnBox" id="scnBox"></div>`;
+    renderScenario();
+    who.textContent = "播放完畢 — 一起玩情境卡（再按一次執行播放可從頭重播）";
+    bar.style.width = "100%";
+    if(!opts.silent) speakGoldenQuote();
+    if(RESPONSE_API_BASE){
+      loadScenarioStats();
+      communityPollTimer = setInterval(loadScenarioStats, 5000); // 現場大家同時作答，5 秒更新一次
+    }
+    return;
+  }
+  const communityBlock = RESPONSE_API_BASE
+    ? `<div class="communityBlock" id="communityBlock">`
+      + `<div class="communityHead"><span id="communityCount">大家的回應載入中…</span>`
+      + `<button type="button" class="communityRefresh" onclick="loadCommunityResponses()">重新整理</button></div>`
+      + `<div id="communityStats"></div></div>`
+    : "";
+  const choiceBlock = TAKEAWAYS.length
+    ? `<div class="choiceHead">這集你最有感的是哪一點？</div><div class="choiceList">`
+      + TAKEAWAYS.map((t, k) => `<button type="button" class="choiceBtn" onclick="pickChoice(${k})">`
+        + `<span class="num">${"①②③④⑤"[k] || ""}</span>${escapeHtml(t)}</button>`).join("")
+      + `</div>`
+    : "";
+  const placeholder = TAKEAWAYS.length ? "想多說一點也可以（選填）……" : "打幾個字，說說你的想法……";
+  speechBubble.innerHTML = `<div class="quoteLine">${GOLDEN_QUOTE}</div><div class="endQuestion">${MANAGER_QUESTION}</div>`
+    + `<div class="responseBox">${choiceBlock}<textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
+    + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
+    + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
+  who.textContent = "播放完畢 — 今日金句與主管互動問題（再按一次執行播放可從頭重播）";
+  bar.style.width = "100%";
+  if(!opts.silent) speakGoldenQuote();
+  if(RESPONSE_API_BASE){
+    loadCommunityResponses();
+    communityPollTimer = setInterval(loadCommunityResponses, 20000); // 每 20 秒自動更新一次
+  }
+}
+
+function playFrom(){
+  if(i >= d.length - 1 && !auto){ i = 0; } // replay from the start once the end card is showing
+  auto = true;
+  render();
+  const step = () => {
+    if(auto && i < d.length-1){
+      i++;
+      flashRender(() => speakCurrent(step));
+    } else if(!onEndCard){
+      auto = false;
+      onEndCard = true; // set immediately, not just inside showEndCard() — otherwise a
+                         // second call landing in this same 110ms window double-fires it
+      const seq = ++actionSeq;
+      shutter.classList.add("on");
+      setTimeout(() => { if(seq===actionSeq && onEndCard){ showEndCard(); } shutter.classList.remove("on"); }, 110);
+    }
+  };
+  speakCurrent(step);
+}
+window.play = playFrom;
+
+function pause(){ auto=false; speechSynthesis.pause(); render(); }
+function next(){
+  speechSynthesis.cancel(); auto=false;
+  if(onEndCard) return;
+  if(i<d.length-1){ i++; flashRender(); }
+  else {
+    onEndCard = true; // set immediately — a second "next" click inside this same
+                       // 110ms window must see onEndCard already true and no-op above
+    const seq = ++actionSeq;
+    shutter.classList.add("on");
+    setTimeout(() => { if(seq===actionSeq && onEndCard){ showEndCard(); } shutter.classList.remove("on"); }, 110);
+  }
+}
+function prev(){
+  speechSynthesis.cancel(); auto=false;
+  if(onEndCard){ onEndCard=false; flashRender(); return; }
+  if(i>0) i--;
+  flashRender();
+}
+
+
+rate.oninput = () => rv.textContent = (+rate.value).toFixed(2)+"x";
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+// 從 QR Code／入口網站 ?r= 轉進來的人：直接打開結尾回饋畫面（不唸金句、不自動播放）
+if(new URLSearchParams(location.search).get("respond") === "1"){
+  i = d.length - 1;
+  showEndCard({silent: true, respond: true});
+  document.getElementById("panelWrap").scrollIntoView({block: "start"});
+}
+</script>
+</body></html>
