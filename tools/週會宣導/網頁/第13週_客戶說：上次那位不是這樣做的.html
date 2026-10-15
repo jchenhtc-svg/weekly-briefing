@@ -340,7 +340,7 @@ select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px
     <div class="idplate">EP 13</div>
     <div class="kicker"><span class="led"></span>《工程師的價值》第十三篇晨會宣導</div>
     <h1>客戶說：上次那位不是這樣做的</h1>
-    <div class="sub">一致的標準，才是客戶記得的品牌　·　約 2～3 分鐘</div>
+    <div class="sub">一致的標準，才是客戶記得的品牌　·　約 2～3 分鐘＋情境卡</div>
     <div class="cast">
       <div class="chip"><span class="dot host">主</span>主持人 · 快、直接、有梗</div>
       <div class="chip"><span class="dot eng">凱</span>阿凱 · 自嘲型工程師</div>
@@ -484,8 +484,8 @@ const MANAGER_QUESTION = "你有哪一個做法，值得變成團隊標準？<br
 const EPISODE_LABEL = "13_客戶說：上次那位不是這樣做的";
 const TAKEAWAYS = ["好做法變團隊標準", "不搞個人版本", "不合理就提出來改"];
 const KEYWORDS = ["標準", "清單", "一致", "團隊", "提出"];
-const SCENARIOS = [];
-const SCENARIO_METRICS = [];
+const SCENARIOS = [{"situation": "你接手同事負責的農漁會。交機時你照習慣請客戶簽確認單，客戶說：「上次那位都不用簽啊？」", "options": [{"text": "「那就不用簽了。」", "score": {"效率": 1, "品質": -2, "客戶信任": -1, "團隊信任": 0}, "result": "省了一分鐘。三個月後客戶說當時沒測試完，雙方各說各話，沒有任何紀錄。"}, {"text": "照你的方式請客戶簽，回公司提議把交機確認變成團隊標準", "score": {"效率": 0, "品質": 2, "客戶信任": 1, "團隊信任": 2}, "result": "之後誰去都一樣要簽，客戶也不會再覺得奇怪。好做法不藏私，才會變成公司的樣子。"}, {"text": "跟客戶說：「上次那位做錯了。」", "score": {"效率": 0, "品質": 0, "客戶信任": -2, "團隊信任": -3}, "result": "客戶聽到的是：你們公司每個人都不一樣，還互相拆台。"}]}, {"situation": "公司的伺服器巡檢標準裡，有一項你覺得根本多餘。", "options": [{"text": "自己偷偷跳過那一項", "score": {"效率": 1, "品質": -2, "客戶信任": 0, "團隊信任": -1}, "result": "你可能是對的，但別人不知道你跳過了。哪天出問題，誰也說不清楚到底有沒有檢查。"}, {"text": "照做，同時在例會提出修改建議，說明理由", "score": {"效率": 0, "品質": 1, "客戶信任": 0, "團隊信任": 2}, "result": "大家討論後真的把那一項拿掉了。覺得不合理，就提出來改，不要自己偷改。"}, {"text": "照做，但每次做都抱怨一次", "score": {"效率": 0, "品質": 0, "客戶信任": 0, "團隊信任": -1}, "result": "標準沒變，你也不開心，旁邊的人聽久了也累。"}]}, {"situation": "你自己整理了一份很好用的收銀機故障排查小抄。", "options": [{"text": "自己用就好，這是我的本事", "score": {"效率": 0, "品質": 0, "客戶信任": 0, "團隊信任": -2}, "result": "你修得很快，但別人去還是一樣慢。客戶會發現：只有某個人來才可靠。"}, {"text": "分享給團隊，請大家一起補充，變成共用版本", "score": {"效率": 1, "品質": 2, "客戶信任": 1, "團隊信任": 3}, "result": "大家補上自己的經驗，小抄越來越完整，誰去都一樣快。客戶記得的是公司，不只是你。"}, {"text": "只給比較熟的同事", "score": {"效率": 0, "品質": 1, "客戶信任": 0, "團隊信任": -1}, "result": "有拿到的人變快了，沒拿到的人覺得被排擠。"}]}];
+const SCENARIO_METRICS = [{"name": "效率", "icon": "⏱", "desc": "把事情真正解決，總共花了多少時間（包含後果）"}, {"name": "品質", "icon": "🛠", "desc": "事情有沒有做對、做完整"}, {"name": "客戶信任", "icon": "🤝"}, {"name": "團隊信任", "icon": "👥"}];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
