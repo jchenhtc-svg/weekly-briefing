@@ -31,6 +31,7 @@ EXTRA_SCRIPT_DIRS = [HERE / "腳本-AI素養"]
 OUT_DIR = HERE / "網頁"
 CLOUD_OUT_DIR = HERE / "網頁-雲端版"  # .gitignore 排除，絕不進版控
 CLOUD_CONFIG = HERE / "cloudflare" / "local-config.json"  # 同樣排除在外
+DASHBOARD = HERE / "結果總覽.html"  # 主辦人看全部回應的頁面；只有雲端版填得進資料
 
 # 範本裡「資料區」的頭尾，中間整段會被換掉；引擎與樣式維持原樣。
 DATA_START = "const ROLES = {"
@@ -257,6 +258,33 @@ def out_name(ep):
     return f'第{ep_num(ep)}週_{ep["title"]}.html'
 
 
+def all_script_paths():
+    return [p for d in [SCRIPT_DIR, *EXTRA_SCRIPT_DIRS] if d.exists() for p in sorted(d.glob("*.json"))]
+
+
+def build_dashboard(cloud_config):
+    """結果總覽：填入雲端設定和所有集數的標題／選項（資料庫只存 A/B/C，要靠這份對回選項文字）。"""
+    eps = []
+    for path in all_script_paths():
+        ep = json.loads(path.read_text(encoding="utf-8"))
+        eps.append({
+            "label": episode_label(ep),
+            "series": "ai" if ep.get("id") else "52",
+            "tag": ep["id"][:2] + " " + ep["id"][2:] if ep.get("id") else "EP " + ep_num(ep),
+            "title": ep["title"],
+            "takeaways": ep.get("takeaways", []),
+            "scenarios": [
+                {"situation": c["situation"], "options": [o["text"] for o in c["options"]]}
+                for c in ep.get("scenario_cards", [])
+            ],
+        })
+    html = DASHBOARD.read_text(encoding="utf-8")
+    for name, value in (("API_BASE", cloud_config["apiBase"]), ("SITE_KEY", cloud_config["siteKey"])):
+        html = re.sub(rf'const {name} = ".*?";', lambda _: f"const {name} = {js(value)};", html, count=1)
+    html = html.replace("const EPISODES = [];", f"const EPISODES = {js(eps)};", 1)
+    return html
+
+
 def main(argv):
     if not TEMPLATE.exists():
         sys.exit(f"找不到播放器範本：{TEMPLATE}\n請確認技能 ai-dialogue-podcast-builder 已在 .claude/skills/ 底下。")
@@ -264,9 +292,7 @@ def main(argv):
     cloud_mode = "--cloud" in argv
     argv = [a for a in argv if a != "--cloud"]
 
-    targets = [Path(a) for a in argv] or [
-        p for d in [SCRIPT_DIR, *EXTRA_SCRIPT_DIRS] if d.exists() for p in sorted(d.glob("*.json"))
-    ]
+    targets = [Path(a) for a in argv] or all_script_paths()
     if not targets:
         sys.exit(f"{SCRIPT_DIR} 底下沒有腳本 JSON。")
 
@@ -296,6 +322,9 @@ def main(argv):
             dest = CLOUD_OUT_DIR / out_name(ep)
             dest.write_text(render(ep, template, cloud_config), encoding="utf-8")
             print(f"☁️  {path.name} → {CLOUD_OUT_DIR.name}/{dest.name}")
+        if DASHBOARD.exists():
+            (CLOUD_OUT_DIR / DASHBOARD.name).write_text(build_dashboard(cloud_config), encoding="utf-8")
+            print(f"📊 結果總覽 → {CLOUD_OUT_DIR.name}/{DASHBOARD.name}（不放在入口網站上，網址只給主辦人）")
 
 
 if __name__ == "__main__":

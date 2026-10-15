@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>回應結果總覽</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --ink:#15181e; --sub:#5d6573; --muted:#8a93a2; --line:#dfe3ea;
+    --bar:#3b6fd8; --track:#eef1f6; --top:#1f4fb8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1115; --card:#171a21; --ink:#eef1f6; --sub:#a9b1bf; --muted:#7c8594; --line:#2a2f3a;
+      --bar:#6f9cf0; --track:#232833; --top:#9dbcf7; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.55}
+  .wrap{max-width:980px;margin:0 auto;padding:24px 16px 60px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--sub);font-size:13px;margin:0 0 18px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px}
+  .controls label{font-size:13px;color:var(--sub);display:flex;align-items:center;gap:6px}
+  select,input[type=date],button{font:inherit;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  button{cursor:pointer;font-weight:700}
+  button:hover{border-color:var(--bar)}
+  .status{font-size:12px;color:var(--muted);margin-left:auto}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .tile .k{font-size:12px;color:var(--sub)}
+  .tile .v{font-size:26px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+  .tile .v small{font-size:13px;color:var(--sub);font-weight:600}
+  .ep{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .epHead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}
+  .epTag{font-size:11.5px;font-weight:800;color:var(--sub);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+  .epTitle{font-size:16px;font-weight:800}
+  .epCount{margin-left:auto;font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+  .empty{color:var(--muted);font-size:13px;margin-top:6px}
+  .block{margin-top:12px}
+  .blockTitle{font-size:12.5px;font-weight:800;color:var(--sub);margin-bottom:6px}
+  .q{font-size:13px;font-weight:700;margin:8px 0 6px}
+  .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;margin-bottom:7px;font-size:13px}
+  .row .lab{overflow-wrap:anywhere}
+  .row .num{font-size:12.5px;color:var(--sub);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .track{grid-column:1 / -1;height:8px;background:var(--track);border-radius:999px;overflow:hidden}
+  .fill{height:100%;background:var(--bar);border-radius:0 4px 4px 0}
+  .row.top .lab{font-weight:800}
+  details{margin-top:10px}
+  summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--sub)}
+  .texts{margin:8px 0 0;padding:0;list-style:none}
+  .texts li{font-size:13.5px;padding:8px 10px;border-left:3px solid var(--line);margin-bottom:6px;background:var(--track);border-radius:0 8px 8px 0}
+  .texts time{display:block;font-size:11.5px;color:var(--muted)}
+  .note{font-size:12px;color:var(--muted);margin-top:24px}
+  @media (max-width:480px){ .status{margin-left:0;width:100%} .epCount{margin-left:0;width:100%} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>回應結果總覽</h1>
+  <p class="sub">《工程師的價值》52 週系列＋《AI 素養 × 工程師》月例會的所有回應。這一頁沒有放在入口網站上，網址請不要外流。</p>
+
+  <div class="controls">
+    <label>系列
+      <select id="series">
+        <option value="all">全部</option>
+        <option value="52">工程師的價值（52 週）</option>
+        <option value="ai">AI 素養 × 工程師</option>
+      </select>
+    </label>
+    <label>從這天起算 <input type="date" id="since"></label>
+    <label><input type="checkbox" id="hideEmpty" checked> 隱藏沒有回應的集數</label>
+    <button type="button" id="reload">重新整理</button>
+    <button type="button" id="csv">下載 CSV</button>
+    <span class="status" id="status">載入中…</span>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+  <div id="list"></div>
+
+  <p class="note">「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。</p>
+</div>
+
+<script>
+// 由 產生網頁.py --cloud 填入；本機版留空，這一頁只在雲端版有資料
+const API_BASE = "";
+const SITE_KEY = "";
+// 每一集的標籤、標題、選項文字（產生網頁.py 從腳本整理），用來把資料庫裡的 A/B/C 對回選項
+const EPISODES = [];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LETTERS = "ABCDE";
+let allRows = [];
+
+function sinceTime(){
+  const v = $("since").value;
+  return v ? new Date(v + "T00:00:00").getTime() : 0;
+}
+function filteredRows(){
+  const t = sinceTime();
+  return allRows.filter(r => !t || new Date(r.submitted_at).getTime() >= t);
+}
+
+function barsHtml(items){
+  // items: [{label, n}]；單一數列，數字直接標在旁邊，不需要圖例
+  const total = items.reduce((a, b) => a + b.n, 0);
+  const max = Math.max(0, ...items.map(x => x.n));
+  return items.map(x => {
+    const pct = total ? Math.round(x.n / total * 100) : 0;
+    const top = max > 0 && x.n === max ? " top" : "";
+    return `<div class="row${top}" title="${esc(x.label)}：${x.n} 人（${pct}%）"><span class="lab">${esc(x.label)}</span>`
+      + `<span class="num">${x.n} 人・${pct}%</span>`
+      + `<div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+  }).join("");
+}
+
+function render(){
+  const rows = filteredRows();
+  const series = $("series").value;
+  const eps = EPISODES.filter(e => series === "all" || e.series === series);
+  const byLabel = {};
+  rows.forEach(r => { (byLabel[r.episode] = byLabel[r.episode] || []).push(r); });
+
+  let html = "", shownRows = 0, epsWithData = 0;
+  eps.forEach(ep => {
+    const rs = byLabel[ep.label] || [];
+    if(!rs.length && $("hideEmpty").checked) return;
+    if(rs.length) epsWithData++;
+    shownRows += rs.length;
+    const scnRows = rs.filter(r => /^情境\d+$/.test(r.question || ""));
+    const otherRows = rs.filter(r => !/^情境\d+$/.test(r.question || ""));
+    const people = ep.scenarios.length
+      ? Math.max(0, ...ep.scenarios.map((_, k) => scnRows.filter(r => r.question === `情境${k+1}`).length))
+      : otherRows.length;
+    let body = "";
+    if(!rs.length) body = `<div class="empty">還沒有回應</div>`;
+    if(ep.scenarios.length && scnRows.length){
+      body += `<div class="block"><div class="blockTitle">情境卡</div>` + ep.scenarios.map((sc, k) => {
+        const qr = scnRows.filter(r => r.question === `情境${k+1}`);
+        return `<div class="q">情境 ${k+1}｜${esc(sc.situation)}</div>`
+          + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})));
+      }).join("") + `</div>`;
+    }
+    const choiceRows = otherRows.filter(r => r.choice);
+    if(ep.takeaways.length && choiceRows.length){
+      body += `<div class="block"><div class="blockTitle">最有感的一點（${choiceRows.length} 人選）</div>`
+        + barsHtml(ep.takeaways.map(t => ({label: t, n: choiceRows.filter(r => r.choice === t).length}))) + `</div>`;
+    }
+    const texts = otherRows.filter(r => r.response);
+    if(texts.length){
+      body += `<details><summary>打字回應 ${texts.length} 則</summary><ul class="texts">`
+        + texts.map(r => `<li><time>${esc(new Date(r.submitted_at).toLocaleString("zh-TW"))}</time>${esc(r.response)}</li>`).join("")
+        + `</ul></details>`;
+    }
+    html += `<section class="ep"><div class="epHead"><span class="epTag">${esc(ep.tag)}</span>`
+      + `<span class="epTitle">${esc(ep.title)}</span><span class="epCount">${people} 人作答・${rs.length} 筆</span></div>${body}</section>`;
+  });
+
+  // 資料庫裡有、但對不上目前任何一集的（例如改過標題的舊集數）
+  const known = new Set(EPISODES.map(e => e.label));
+  const orphan = rows.filter(r => !known.has(r.episode));
+  if(orphan.length && series === "all"){
+    html += `<section class="ep"><div class="epHead"><span class="epTag">其他</span><span class="epTitle">對不上目前集數的回應</span>`
+      + `<span class="epCount">${orphan.length} 筆</span></div><details><summary>展開</summary><ul class="texts">`
+      + orphan.map(r => `<li><time>${esc(r.episode)}・${esc(new Date(r.submitted_at).toLocaleString("zh-TW"))}</time>`
+        + `${esc([r.question, r.choice, r.response].filter(Boolean).join("｜"))}</li>`).join("")
+      + `</ul></details></section>`;
+  }
+
+  $("list").innerHTML = html || `<div class="ep empty">這個條件下沒有資料</div>`;
+  const last = rows.reduce((a, r) => (r.submitted_at > a ? r.submitted_at : a), "");
+  $("tiles").innerHTML =
+    `<div class="tile"><div class="k">回應筆數</div><div class="v">${shownRows}</div></div>`
+    + `<div class="tile"><div class="k">有回應的集數</div><div class="v">${epsWithData}<small> / ${eps.length}</small></div></div>`
+    + `<div class="tile"><div class="k">最近一筆</div><div class="v" style="font-size:16px">${last ? esc(new Date(last).toLocaleString("zh-TW")) : "—"}</div></div>`;
+}
+
+async function load(){
+  if(!API_BASE){
+    $("status").textContent = "這是本機版，沒有連到雲端，看不到資料。請開網站上的結果總覽。";
+    render();
+    return;
+  }
+  $("status").textContent = "載入中…";
+  try{
+    const res = await fetch(API_BASE + "/responses", { headers: { "X-Site-Key": SITE_KEY } });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    allRows = data.responses || [];
+    $("status").textContent = "更新時間 " + new Date().toLocaleTimeString("zh-TW");
+  } catch(e){
+    $("status").textContent = "連不上雲端，晚點再試試看";
+  }
+  render();
+}
+
+function downloadCsv(){
+  const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const titleOf = Object.fromEntries(EPISODES.map(e => [e.label, `${e.tag} ${e.title}`]));
+  const lines = [["集數", "題目", "選擇", "打字回應", "時間"].map(cell).join(",")]
+    .concat(filteredRows().map(r => [titleOf[r.episode] || r.episode, r.question, r.choice, r.response,
+      new Date(r.submitted_at).toLocaleString("zh-TW")].map(cell).join(",")));
+  const blob = new Blob(["﻿" + lines.join("\r\n")], {type: "text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `回應結果_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
+["series", "since", "hideEmpty"].forEach(id => $(id).addEventListener("change", render));
+$("reload").onclick = load;
+$("csv").onclick = downloadCsv;
+load();
+setInterval(load, 60000); // 開著放在投影幕上時，每分鐘自動更新
+</script>
+</body>
+</html>
