@@ -90,7 +90,8 @@ def build_data_block(ep):
         + "const TAKEAWAYS = " + js(ep.get("takeaways", [])) + ";\n"
         + "const KEYWORDS = " + js(ep.get("keywords", [])) + ";\n"
         + "const SCENARIOS = " + js(ep.get("scenario_cards", [])) + ";\n"
-        + "const SCENARIO_METRICS = " + js(ep.get("scenario_metrics", [])) + ";\n\n"
+        + "const SCENARIO_METRICS = " + js(ep.get("scenario_metrics", [])) + ";\n"
+        + "const CHAPTERS = " + js(ep.get("chapters", [])) + ";\n\n"
     )
 
 
