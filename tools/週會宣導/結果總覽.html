@@ -51,6 +51,13 @@
   .texts li{font-size:13.5px;padding:8px 10px;border-left:3px solid var(--line);margin-bottom:6px;background:var(--track);border-radius:0 8px 8px 0}
   .texts time{display:block;font-size:11.5px;color:var(--muted)}
   .note{font-size:12px;color:var(--muted);margin-top:24px}
+  input[type=password]{font:inherit;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:9em}
+  .adminOn{font-size:12px;font-weight:800;color:#15803d}
+  table.names{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  table.names th,table.names td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  table.names th{font-size:12px;color:var(--sub)}
+  .pass{color:#15803d;font-weight:800}
+  .fail{color:#b91c1c;font-weight:800}
   @media (max-width:480px){ .status{margin-left:0;width:100%} .epCount{margin-left:0;width:100%} }
 </style>
 </head>
@@ -72,13 +79,16 @@
     <label><input type="checkbox" id="hideEmpty" checked> 隱藏沒有回應的集數</label>
     <button type="button" id="reload">重新整理</button>
     <button type="button" id="csv">下載 CSV</button>
+    <span id="adminBox"><label>管理密碼 <input type="password" id="adminKey" autocomplete="off" placeholder="看名單用"></label>
+      <button type="button" id="adminGo">解鎖名單</button></span>
     <span class="status" id="status">載入中…</span>
   </div>
 
   <div class="tiles" id="tiles"></div>
   <div id="list"></div>
 
-  <p class="note">「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。</p>
+  <p class="note">「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。<br>
+    具名作答（USB 第 7 章必答題、結訓測驗）的名字只有輸入管理密碼後才看得到；密碼只存在這個分頁，關掉分頁就要重新輸入。</p>
 </div>
 
 <script>
@@ -92,6 +102,17 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const LETTERS = "ABCDE";
 let allRows = [];
+let adminMode = false; // 用管理密碼讀到含名字的資料
+const EXAM_Q = "結訓測驗";
+const isScn = (r) => /^(第\d+章)?情境\d+$/.test(r.question || "");
+const adminKey = () => { try { return sessionStorage.getItem("admin-key") || ""; } catch(e){ return ""; } };
+function setAdminKey(v){ try { v ? sessionStorage.setItem("admin-key", v) : sessionStorage.removeItem("admin-key"); } catch(e){} }
+const timeStr = (t) => new Date(t).toLocaleString("zh-TW");
+// 每個名字只留最後一次（資料已經是新到舊）
+function latestByName(rs){
+  const seen = new Set();
+  return rs.filter(r => r.name && !seen.has(r.name) && seen.add(r.name));
+}
 
 function sinceTime(){
   const v = $("since").value;
@@ -128,9 +149,10 @@ function render(){
     if(!rs.length && $("hideEmpty").checked) return;
     if(rs.length) epsWithData++;
     shownRows += rs.length;
-    const scnRows = rs.filter(r => /^(第\d+章)?情境\d+$/.test(r.question || ""));
-    const otherRows = rs.filter(r => !/^(第\d+章)?情境\d+$/.test(r.question || ""));
-    const people = ep.scenarios.length
+    const scnRows = rs.filter(isScn);
+    const examRows = rs.filter(r => r.question === EXAM_Q);
+    const otherRows = rs.filter(r => !isScn(r) && r.question !== EXAM_Q);
+    const people = examRows.length && !scnRows.length ? examRows.length : ep.scenarios.length
       ? Math.max(0, ...ep.scenarios.map((sc, k) => scnRows.filter(r => r.question === (sc.q || `情境${k+1}`)).length))
       : otherRows.length;
     let body = "";
@@ -138,9 +160,27 @@ function render(){
     if(ep.scenarios.length && scnRows.length){
       body += `<div class="block"><div class="blockTitle">情境卡</div>` + ep.scenarios.map((sc, k) => {
         const qr = scnRows.filter(r => r.question === (sc.q || `情境${k+1}`));
+        const named = latestByName(qr);
         return `<div class="q">${sc.q ? "" : `情境 ${k+1}｜`}${esc(sc.situation)}</div>`
-          + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})));
+          + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})))
+          + (named.length ? `<details><summary>具名作答 ${named.length} 人</summary><table class="names"><tr><th>名字＋社編</th><th>選擇</th><th>時間</th></tr>`
+              + named.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.choice)}. ${esc(sc.options[LETTERS.indexOf(r.choice)] || "")}</td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
+              + `</table></details>`
+            : (sc.require_name && qr.length && !adminMode ? `<div class="empty">具名名單：輸入管理密碼後才看得到</div>` : ""));
       }).join("") + `</div>`;
+    }
+    if(examRows.length){
+      // choice 是「88分・通過」或「72分・未通過・必答題答錯」
+      const passed = examRows.filter(r => /・通過/.test(r.choice || "")).length;
+      const named = latestByName(examRows);
+      body += `<div class="block"><div class="blockTitle">結訓測驗：交卷 ${examRows.length} 次・通過 ${passed} 次</div>`
+        + barsHtml([{label: "通過", n: passed}, {label: "未通過", n: examRows.length - passed}])
+        + (named.length
+          ? `<details open><summary>成績名單 ${named.length} 人（同一人交卷多次，只列最後一次）</summary><table class="names"><tr><th>名字＋社編</th><th>成績</th><th>時間</th></tr>`
+            + named.map(r => `<tr><td>${esc(r.name)}</td><td class="${/・通過/.test(r.choice) ? "pass" : "fail"}">${esc(r.choice)}</td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
+            + `</table></details>`
+          : (!adminMode ? `<div class="empty">成績名單：輸入管理密碼後才看得到</div>` : ""))
+        + `</div>`;
     }
     const choiceRows = otherRows.filter(r => r.choice);
     if(ep.takeaways.length && choiceRows.length){
@@ -183,24 +223,56 @@ async function load(){
     return;
   }
   $("status").textContent = "載入中…";
+  let note = "";
   try{
-    const res = await fetch(API_BASE + "/responses", { headers: { "X-Site-Key": SITE_KEY } });
-    if(!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    allRows = data.responses || [];
-    $("status").textContent = "更新時間 " + new Date().toLocaleTimeString("zh-TW");
+    adminMode = false;
+    if(adminKey()){
+      // 有管理密碼：讀含名字的資料；密碼錯就清掉，退回一般資料
+      const res = await fetch(API_BASE + "/admin/responses", { headers: { "X-Admin-Key": adminKey() } });
+      if(res.ok){
+        allRows = (await res.json()).responses || [];
+        adminMode = true;
+      } else {
+        note = res.status === 401 ? "管理密碼不對（或雲端還沒設定 ADMIN_KEY），先顯示不含名字的資料。"
+          : res.status === 503 ? "雲端資料庫還沒加 name 欄（migrations/002_add_name.sql），先顯示不含名字的資料。"
+          : "名單讀取失敗（HTTP " + res.status + "），先顯示不含名字的資料。";
+        if(res.status === 401) setAdminKey("");
+      }
+    }
+    if(!adminMode){
+      const res = await fetch(API_BASE + "/responses", { headers: { "X-Site-Key": SITE_KEY } });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      allRows = (await res.json()).responses || [];
+    }
+    $("status").textContent = note || ("更新時間 " + new Date().toLocaleTimeString("zh-TW"));
   } catch(e){
     $("status").textContent = "連不上雲端，晚點再試試看";
   }
+  renderAdminBox();
   render();
+}
+
+function renderAdminBox(){
+  $("adminBox").innerHTML = adminMode
+    ? `<span class="adminOn">🔓 名單已解鎖</span> <button type="button" id="adminOut">鎖上</button>`
+    : `<label>管理密碼 <input type="password" id="adminKey" autocomplete="off" placeholder="看名單用"></label> <button type="button" id="adminGo">解鎖名單</button>`;
+  if(adminMode){
+    $("adminOut").onclick = () => { setAdminKey(""); load(); };
+  } else {
+    const go = () => { const v = $("adminKey").value.trim(); if(v){ setAdminKey(v); load(); } };
+    $("adminGo").onclick = go;
+    $("adminKey").addEventListener("keydown", (e) => { if(e.key === "Enter") go(); });
+  }
 }
 
 function downloadCsv(){
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const titleOf = Object.fromEntries(EPISODES.map(e => [e.label, `${e.tag} ${e.title}`]));
-  const lines = [["集數", "題目", "選擇", "打字回應", "時間"].map(cell).join(",")]
-    .concat(filteredRows().map(r => [titleOf[r.episode] || r.episode, r.question, r.choice, r.response,
-      new Date(r.submitted_at).toLocaleString("zh-TW")].map(cell).join(",")));
+  // 解鎖名單時才多一欄「名字＋社編」
+  const head = ["集數", "題目", "選擇", "打字回應"].concat(adminMode ? ["名字＋社編"] : [], ["時間"]);
+  const lines = [head.map(cell).join(",")]
+    .concat(filteredRows().map(r => [titleOf[r.episode] || r.episode, r.question, r.choice, r.response]
+      .concat(adminMode ? [r.name] : [], [timeStr(r.submitted_at)]).map(cell).join(",")));
   const blob = new Blob(["﻿" + lines.join("\r\n")], {type: "text/csv;charset=utf-8"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);

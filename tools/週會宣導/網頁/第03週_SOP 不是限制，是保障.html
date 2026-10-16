@@ -169,6 +169,35 @@ summary.scnLink{display:block;margin:2px 0 10px}
 button.chNext{flex:1;background:var(--ink);color:#fff;border-color:var(--ink);padding:12px 16px;font-size:15px}
 button.chNext:hover{filter:brightness(1.3)}
 .chFinish{text-align:center;font-size:15px;color:var(--ink)}
+.chChip.exam{border-color:#b91c1c}
+.chChip.exam.cur{background:#b91c1c;border-color:#b91c1c}
+/* 具名欄、必答標籤 */
+.nameBox{border:2px solid #b91c1c;border-radius:12px;padding:10px 12px;margin:0 0 12px;background:#fff5f5}
+.nameBox label{display:block;font-size:13px;font-weight:900;color:#7f1d1d;margin-bottom:6px}
+.nameInput{width:100%;border:2px solid var(--line);border-radius:10px;padding:9px 12px;font-family:var(--disp);font-size:16px;font-weight:700;box-sizing:border-box}
+.nameHint{font-size:12.5px;color:#b91c1c;font-weight:700;min-height:0;margin-top:4px}
+.nameDone{font-size:13px;font-weight:800;color:#14532d;margin:0 0 10px}
+.mustTag{display:inline-block;font-size:12px;font-weight:900;background:#b91c1c;color:#fff;border-radius:6px;padding:2px 10px;margin-bottom:8px}
+.mustTag.inline{margin:0 0 0 6px;padding:0 6px;font-size:11px;vertical-align:2px}
+/* 結訓測驗 */
+.exQ{border-bottom:1px dashed #ccc;padding:12px 0}
+.exQ .qt{font-size:15px;font-weight:800;line-height:1.6;margin-bottom:8px}
+.exQ .qn{display:inline-block;font-size:12px;font-weight:900;color:var(--mgr);margin-right:6px}
+.exOpt{width:100%;text-align:left;border-radius:10px;padding:9px 12px;font-size:14.5px;font-weight:700;line-height:1.45;background:#fff;color:var(--ink);margin-bottom:6px;display:block}
+.exOpt:hover:not(:disabled){background:#f2f4fb;color:var(--ink)}
+.exOpt.picked{background:var(--mgr);border-color:var(--mgr);color:#fff}
+.exOpt .num{display:inline-block;width:1.6em;font-weight:900}
+.exOpt:disabled{cursor:default}
+.exQ.right .exOpt.ans,.exQ.wrong .exOpt.ans{outline:3px solid #15803d;outline-offset:-3px}
+.exQ.wrong .exOpt.picked:not(.ans){background:#fee2e2;border-color:#b91c1c;color:#7f1d1d}
+.exExp{font-size:13.5px;line-height:1.6;color:var(--sub)}
+.exExp b{color:var(--ink)}
+.exQ.wrong .exExp b{color:#b91c1c}
+.exScore{border-radius:14px;padding:16px;text-align:center;margin-top:14px;font-weight:800}
+.exScore .big{font-size:40px;font-weight:900;line-height:1.2}
+.exScore .sub{font-size:13px;color:var(--sub);margin-top:4px}
+.exScore.pass{background:#dcfce7;color:#14532d}
+.exScore.fail{background:#fee2e2;color:#7f1d1d}
 .scnStatCard .q{font-size:13px;font-weight:800;margin-bottom:6px;line-height:1.5}
 
 .charWrap{position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;padding:10px 20px 20px;left:auto;bottom:auto;transform:none}
@@ -509,6 +538,7 @@ const KEYWORDS = ["SOP", "確認", "紀錄", "流程", "改善"];
 const SCENARIOS = [];
 const SCENARIO_METRICS = [];
 const CHAPTERS = [];
+const EXAM = null;
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -696,6 +726,7 @@ const who=document.getElementById("count"),
 
 function render(){
   onEndCard = false;
+  examView = false;
   document.getElementById("panelWrap").classList.remove("ended");
   if(communityPollTimer){ clearInterval(communityPollTimer); communityPollTimer = null; }
   const role = d[i][0], meta = ROLES[role], p = PANELS[i];
@@ -1042,21 +1073,54 @@ function scnStorageKey(k){ return `scn:${EPISODE_LABEL}:${ACT.chapter >= 0 ? "c"
 function scnAlreadySent(k){ try{ return localStorage.getItem(scnStorageKey(k)) === "1"; }catch(e){ return false; } }
 function scnMarkSent(k){ try{ localStorage.setItem(scnStorageKey(k), "1"); }catch(e){} }
 
+// ==== 具名作答（情境卡 require_name、結訓測驗）：名字＋社編去掉最後一碼，例如「王小明1234」 ====
+// 只送到雲端的 name 欄，公開的 /responses 不回傳；只有主辦人用管理密碼才看得到。
+const NAME_RE = /^[\u4e00-\u9fffA-Za-z·．.]{1,20}\d{2,12}$/;
+let scnNames = [];
+function savedName(){ try{ return localStorage.getItem("trainee-name") || ""; }catch(e){ return ""; } }
+function nameBoxHtml(id){
+  return `<div class="nameBox"><label for="${id}">具名作答（必填）：名字＋社編去掉最後一碼</label>`
+    + `<input id="${id}" class="nameInput" maxlength="30" placeholder="例：王小明1234" value="${escapeHtml(savedName())}" autocomplete="off">`
+    + `<div class="nameHint" id="${id}Hint"></div></div>`;
+}
+function readName(id){
+  const el = document.getElementById(id);
+  const v = (el ? el.value : "").replace(/\s+/g, "");
+  const ok = NAME_RE.test(v);
+  const hint = document.getElementById(id + "Hint");
+  if(hint) hint.textContent = ok ? "" : "請先填寫：名字＋社編去掉最後一碼，例如 王小明1234";
+  if(ok){ try{ localStorage.setItem("trainee-name", v); }catch(e){} }
+  else if(el){ el.focus(); }
+  return ok ? v : null;
+}
+function setNote(id, text){ const el = document.getElementById(id); if(el) el.textContent = text; }
+
 async function scnSubmit(k, idx){
-  if(!RESPONSE_API_BASE || scnAlreadySent(k)) return;
+  const name = scnNames[k] || "";
+  if(!RESPONSE_API_BASE){ if(name) setNote("scnNote" + k, "本機版不會送出，作答只留在這台電腦上"); return; }
+  if(!name && scnAlreadySent(k)) return; // 具名作答每次都送（主辦人以最後一筆為準）
   try{
     const res = await fetch(RESPONSE_API_BASE + "/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY },
-      body: JSON.stringify({ episode: EPISODE_LABEL, question: scnQKey(k), choice: SCN_LETTERS[idx],
-                             response: "", submittedAt: new Date().toISOString() })
+      body: JSON.stringify(Object.assign({ episode: EPISODE_LABEL, question: scnQKey(k), choice: SCN_LETTERS[idx],
+                             response: "", submittedAt: new Date().toISOString() }, name ? {name} : {}))
     });
-    if(res.ok){ scnMarkSent(k); loadScenarioStats(); }
-  } catch(e){ /* 連不上就算了：自己的結果照樣看得到，只是不列入全場統計 */ }
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    scnMarkSent(k); loadScenarioStats();
+    if(name) setNote("scnNote" + k, `已具名送出：${name} ✓`);
+  } catch(e){ // 連不上就算了：自己的結果照樣看得到，只是不列入全場統計
+    if(name) setNote("scnNote" + k, "具名作答沒有送出成功（雲端還沒準備好或網路不通），請告訴主辦人");
+  }
 }
 
 function scnPick(idx){
   if(scnPicks[scnIdx] !== undefined) return;
+  if(ACT.scenarios[scnIdx].require_name){
+    const name = readName("scnName");
+    if(!name) return;
+    scnNames[scnIdx] = name;
+  }
   scnPicks[scnIdx] = idx;
   scnSubmit(scnIdx, idx);
   renderScenario();
@@ -1183,15 +1247,20 @@ function renderScenario(){
     after = `<div class="scnResult"><div class="lab">你選了 ${SCN_LETTERS[picked]}，結果……</div>${escapeHtml(o.result)}`
       + `<div class="scnDeltas">${scnDeltaHtml(o.score)}</div></div>`
       + `<details><summary class="scnLink">看看其他選項會怎樣</summary>${others}</details>`
+      + (sc.require_name ? `<div class="scnNote" id="scnNote${k}">送出中…</div>` : "")
       + scnDistBlock(k);
   }
+  const nameBlock = sc.require_name
+    ? (picked === undefined ? nameBoxHtml("scnName") : `<div class="nameDone">具名作答：${escapeHtml(scnNames[k] || "")}</div>`)
+    : "";
   const nav = `<div class="scnNav">`
     + (k > 0 ? `<button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>` : "")
     + (picked !== undefined ? `<button type="button" onclick="scnGo(1)">${k === N - 1 ? "看我的取捨總結 →" : "下一張 →"}</button>` : "")
     + `</div>`;
   box.innerHTML = `<div class="scnHead"><span>情境卡 ${k+1} / ${N}</span>`
     + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
-    + `</div>${k === 0 ? scnLegendHtml() : ""}<div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
+    + `</div>${k === 0 ? scnLegendHtml() : ""}${sc.must ? `<div class="mustTag">必答題</div>` : ""}`
+    + `<div class="scnSituation">${escapeHtml(sc.situation)}</div>${nameBlock}${optsHtml}${after}${nav}`;
 }
 
 // ==== 課程模式：章節 ====
@@ -1216,7 +1285,8 @@ function chapterNextHtml(){
   if(ACT.chapter < 0) return "";
   const nxt = CHAPTERS[ACT.chapter + 1];
   if(nxt) return `<div class="scnNav"><button type="button" class="chNext" onclick="goChapter(${ACT.chapter + 1}, true)">下一章：${escapeHtml(nxt.title)} ▶</button></div>`;
-  return `<div class="scnNote chFinish">🎉 全部 ${CHAPTERS.length} 章完成！</div>`;
+  return `<div class="scnNote chFinish">🎉 全部 ${CHAPTERS.length} 章完成！</div>`
+    + (EXAM ? `<div class="scnNav"><button type="button" class="chNext" onclick="showExam()">📝 進入結訓測驗 ▶</button></div>` : "");
 }
 function goChapter(c, autoplay){
   speechSynthesis.cancel(); auto = false; ++actionSeq;
@@ -1235,12 +1305,116 @@ function renderChapterStrip(){
     const mh = document.querySelector(".masthead");
     mh.parentNode.insertBefore(el, mh.nextSibling);
   }
-  const cur = onEndCard ? ACT.chapter : chapterOf(i);
+  const cur = examView ? -1 : onEndCard ? ACT.chapter : chapterOf(i);
   el.innerHTML = CHAPTERS.map((ch, c) =>
     `<button type="button" class="chChip${c === cur ? " cur" : ""}${chDone.has(c) ? " done" : ""}" onclick="goChapter(${c})">`
-    + `<span class="n">第 ${c + 1} 章${chDone.has(c) ? " ✓" : ""}</span><span class="t">${escapeHtml(ch.short || ch.title)}</span></button>`).join("");
+    + `<span class="n">第 ${c + 1} 章${chDone.has(c) ? " ✓" : ""}</span><span class="t">${escapeHtml(ch.short || ch.title)}</span></button>`).join("")
+    + (EXAM ? `<button type="button" class="chChip exam${examView ? " cur" : ""}" onclick="showExam()"><span class="n">最後</span><span class="t">📝 結訓測驗</span></button>` : "");
   const curEl = el.querySelector(".chChip.cur");
   if(curEl) el.scrollLeft = Math.max(0, curEl.offsetLeft - el.clientWidth / 2 + curEl.clientWidth / 2);
+}
+
+// ==== 結訓測驗（課程模式，最後一章之後）====
+let examView = false, examPicks = [], examDone = false;
+function showExam(){
+  if(!EXAM) return;
+  const last = CHAPTERS.length - 1;
+  const respond = new URLSearchParams(location.search).get("respond") === "1";
+  speechSynthesis.cancel(); auto = false; ++actionSeq;
+  if(!onEndCard || ACT.chapter !== last){ i = CHAPTERS[last].end; showEndCard({silent: true, chapter: last, respond}); }
+  examView = true; examPicks = EXAM.questions.map(() => []); examDone = false;
+  // 測驗有自己的 QR Code：大家掃了直接進測驗
+  if(EXAM.qrImg){
+    document.querySelectorAll(".qrImg").forEach(img => { img.src = EXAM.qrImg; });
+    document.querySelectorAll(".qrLink, .qrOpenBtn").forEach(a => { a.href = EXAM.qrUrl; });
+  }
+  try{ history.replaceState(null, "", location.search + "#exam"); }catch(e){}
+  who.textContent = "結訓測驗 — 作答完按「交卷」，馬上看到分數";
+  renderExam();
+  renderChapterStrip();
+  const box = document.getElementById("scnBox");
+  if(box) box.scrollIntoView({block: "start", behavior: "smooth"});
+}
+function examPick(qi, oi){
+  if(examDone) return;
+  const q = EXAM.questions[qi], cur = examPicks[qi];
+  examPicks[qi] = q.multi ? (cur.includes(oi) ? cur.filter(x => x !== oi) : cur.concat(oi)) : [oi];
+  document.querySelectorAll(`.exOpt[data-q="${qi}"]`).forEach(b => b.classList.toggle("picked", examPicks[qi].includes(+b.dataset.o)));
+}
+function examIsRight(qi){
+  const ans = EXAM.questions[qi].answer, got = examPicks[qi];
+  return got.length === ans.length && got.every(x => ans.includes(x));
+}
+function renderExam(){
+  const box = document.getElementById("scnBox");
+  if(!box) return;
+  const scored = EXAM.questions.filter(q => !q.must).length;
+  box.innerHTML = `<div class="scnHead"><span>📝 結訓測驗：計分 ${scored} 題＋必答 ${EXAM.questions.length - scored} 題｜${EXAM.pass_score} 分以上且必答題答對才算通過</span></div>`
+    + nameBoxHtml("examName")
+    + EXAM.questions.map((q, qi) => `<div class="exQ" id="exQ${qi}"><div class="qt"><span class="qn">${q.must ? "必答" : "第 " + (qi + 1) + " 題"}</span>`
+      + `${escapeHtml(q.q)}${q.multi ? "（複選）" : ""}${q.must ? `<span class="mustTag inline">必答</span>` : ""}</div>`
+      + q.options.map((o, oi) => `<button type="button" class="exOpt" data-q="${qi}" data-o="${oi}" onclick="examPick(${qi},${oi})">`
+        + `<span class="num">${SCN_LETTERS[oi] || oi + 1}.</span>${escapeHtml(o)}</button>`).join("")
+      + `<div class="exExp" id="exExp${qi}"></div></div>`).join("")
+    + `<div class="scnNav"><button type="button" class="chNext" id="examSubmitBtn" onclick="examSubmit()">交卷</button></div>`
+    + `<div class="exResult" id="examResult"></div>`;
+}
+async function examSubmit(){
+  if(examDone) return;
+  const name = readName("examName");
+  if(!name) return;
+  const blank = EXAM.questions.map((q, qi) => examPicks[qi].length ? -1 : qi).filter(x => x >= 0);
+  const out = document.getElementById("examResult");
+  if(blank.length){
+    out.innerHTML = `<div class="scnNote">還有 ${blank.length} 題沒作答（第 ${blank.map(x => x + 1).join("、")} 題）</div>`;
+    document.getElementById("exQ" + blank[0]).scrollIntoView({block: "center", behavior: "smooth"});
+    return;
+  }
+  examDone = true;
+  const scoredIdx = EXAM.questions.map((q, qi) => q.must ? -1 : qi).filter(x => x >= 0);
+  const correct = scoredIdx.filter(examIsRight).length;
+  const score = Math.round(correct / scoredIdx.length * 100);
+  const mustIdx = EXAM.questions.map((q, qi) => q.must ? qi : -1).filter(x => x >= 0);
+  const mustOk = mustIdx.every(examIsRight);
+  const pass = score >= EXAM.pass_score && mustOk;
+  EXAM.questions.forEach((q, qi) => {
+    const right = examIsRight(qi);
+    document.getElementById("exQ" + qi).classList.add(right ? "right" : "wrong");
+    document.querySelectorAll(`.exOpt[data-q="${qi}"]`).forEach(b => {
+      b.disabled = true;
+      if(q.answer.includes(+b.dataset.o)) b.classList.add("ans");
+    });
+    document.getElementById("exExp" + qi).innerHTML = `<b>${right ? "✓ 答對" : "✗ 答錯"}，答案：${q.answer.map(a => SCN_LETTERS[a]).join("、")}。</b>${escapeHtml(q.explain || "")}`;
+  });
+  document.getElementById("examSubmitBtn").disabled = true;
+  const summary = `${score}分・${pass ? "通過" : "未通過"}${mustOk ? "" : "・必答題答錯"}`;
+  const payload = { episode: EPISODE_LABEL, question: "結訓測驗", choice: summary, name,
+    response: EXAM.questions.map((q, qi) => `${q.must ? "必答" : qi + 1}:${examPicks[qi].map(x => SCN_LETTERS[x]).join("")}`).join(" "),
+    submittedAt: new Date().toISOString() };
+  out.innerHTML = `<div class="exScore ${pass ? "pass" : "fail"}"><div class="big">${score} 分</div>`
+    + `<div>${pass ? "🎉 通過結訓" : "未通過"}${mustOk ? "" : "（必答題答錯，必答題答錯就不算通過）"}</div>`
+    + `<div class="sub">${escapeHtml(name)}・答對 ${correct} / ${scoredIdx.length} 題・必答題 ${mustOk ? "✓" : "✗"}</div></div>`
+    + `<div class="scnNote" id="examNote">${RESPONSE_API_BASE ? "成績送出中…" : ""}</div>`
+    + `<div class="scnNav"><button type="button" class="ghost" onclick="renderExam(); examPicks = EXAM.questions.map(() => []); examDone = false;">重新作答</button>`
+    + (RESPONSE_API_BASE ? "" : `<button type="button" id="examDl">下載成績檔</button>`) + `</div>`;
+  out.scrollIntoView({block: "center", behavior: "smooth"});
+  if(!RESPONSE_API_BASE){
+    document.getElementById("examDl").onclick = () => downloadResponseLocally(payload);
+    setNote("examNote", "本機版不會上傳；需要留存的話按「下載成績檔」交給主辦人。");
+    return;
+  }
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    setNote("examNote", `成績已送出（${name}）✓`);
+  } catch(e){
+    downloadResponseLocally(payload);
+    setNote("examNote", "成績沒有送出成功（雲端還沒準備好或網路不通），已改存成本機檔案，請交給主辦人。");
+  }
 }
 
 function showEndCard(opts = {}){
@@ -1276,7 +1450,7 @@ function showEndCard(opts = {}){
       + `<a class="qrOpenBtn" href="${ACT.qrUrl}" target="_blank" rel="noopener">開啟${qrWhat} ↗</a></div>`
     : "";
   if(isScn){
-    scnIdx = 0; scnPicks = []; scnView = "play"; scnRows = null; scnStatsError = false;
+    scnIdx = 0; scnPicks = []; scnNames = []; scnView = "play"; scnRows = null; scnStatsError = false; examView = false;
     scnRespondMode = !!opts.respond;
     speechBubble.innerHTML = `<div class="quoteLine">${ACT.quote}</div>${qrBlock}<div class="scnBox" id="scnBox"></div>`;
     renderScenario();
@@ -1362,9 +1536,12 @@ function prev(){
 
 
 rate.oninput = () => rv.textContent = (+rate.value).toFixed(2)+"x";
-if(CHAPTERS.length){ // 課程模式：網址 #ch3 直接跳到第 3 章
+if(CHAPTERS.length){ // 課程模式：網址 #ch3 直接跳到第 3 章；#exam 直接進結訓測驗
   const m = location.hash.match(/^#ch(\d+)$/);
   if(m && CHAPTERS[+m[1] - 1]) i = CHAPTERS[+m[1] - 1].start;
+  if(EXAM && location.hash === "#exam" && new URLSearchParams(location.search).get("respond") !== "1"){
+    setTimeout(showExam, 0); // 等下面 loadVoices() 第一次 render 完再打開
+  }
 }
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
@@ -1376,6 +1553,7 @@ if(new URLSearchParams(location.search).get("respond") === "1"){
   const c = cm && CHAPTERS[+cm[1] - 1] ? +cm[1] - 1 : (CHAPTERS.length ? CHAPTERS.length - 1 : -1);
   i = c >= 0 ? CHAPTERS[c].end : d.length - 1;
   showEndCard(c >= 0 ? {silent: true, respond: true, chapter: c} : {silent: true, respond: true});
+  if(EXAM && location.hash === "#exam") showExam();
   document.getElementById("panelWrap").scrollIntoView({block: "start"});
 }
 </script>

@@ -110,6 +110,9 @@
   .unit .must{font-size:10.5px;background:#f07c74;color:#fff;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
   .startBtn{display:block;text-align:center;background:#8e9cff;color:var(--bg);font-weight:900;font-size:17px;border-radius:16px;
     padding:16px;text-decoration:none;margin:0 0 22px}
+  .examBtn{display:block;text-align:center;background:#f07c74;color:#fff;font-weight:900;font-size:17px;border-radius:16px;
+    padding:16px;text-decoration:none;margin:22px 0 0}
+  .examBtn small{display:block;font-size:12.5px;font-weight:700;opacity:.9;margin-top:4px}
   .flow{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;align-items:center;font-size:13px;color:var(--sub);margin-top:16px}
   .flow span{border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--ink)}
 </style>
@@ -213,16 +216,18 @@
       <a class="unit" href="../網頁/USB資安宣導_完整課程.html#ch9"><span class="n">第 9 章</span><span class="t">維護單位 USB 管理守則</span></a>
       <a class="unit" href="../網頁/USB資安宣導_完整課程.html#ch10"><span class="n">第 10 章</span><span class="t">三原則與結訓</span></a>
     </div>
+    <a class="examBtn" href="../網頁/USB資安宣導_完整課程.html#exam">📝 結訓測驗<small>18 題・80 分以上且必答題答對才通過・需填名字＋社編</small></a>
   </main>
 
 <script>
-  // QR Code 短網址：?r=usb03 → 打開課程並直接進第 3 章的情境卡（?r=usb 則從第 1 章開始）
+  // QR Code 短網址：?r=usb03 → 打開課程並直接進第 3 章的情境卡（?r=usb 則從第 1 章開始；?r=usbexam 直接進結訓測驗）
   (function(){
     var r = new URLSearchParams(location.search).get("r") || "";
     if(window.__goingExternal) return;
-    var m = r.match(/^usb(\d+)?$/i);
+    var m = r.match(/^usb(exam|\d+)?$/i);
     if(!m) return;
-    location.replace("../網頁/USB資安宣導_完整課程.html" + (m[1] ? "?respond=1#ch" + parseInt(m[1], 10) : ""));
+    var to = !m[1] ? "" : /exam/i.test(m[1]) ? "?respond=1#exam" : "?respond=1#ch" + parseInt(m[1], 10);
+    location.replace("../網頁/USB資安宣導_完整課程.html" + to);
   })();
 </script>
   <footer>

@@ -1,9 +1,13 @@
 /**
  * 週會宣導 — 回應收集用的 Cloudflare Worker
  *
- * 三個端點：
- *   POST /submit     寫入一則回應到 D1（response 打字回應、choice「最有感的一點」，至少要有一個）
- *   GET  /responses  讀出回應（可用 ?episode=xxx 篩選單一篇集）
+ * 端點：
+ *   POST /submit     寫入一則回應到 D1（response 打字回應、choice 選項，至少要有一個；
+ *                    name 具名欄＝名字＋社編去掉最後一碼，只有 USB 必答題與結訓測驗會帶）
+ *   GET  /responses  讀出回應（可用 ?episode=xxx 篩選單一篇集）——刻意不回傳 name，
+ *                    因為 SITE_KEY 寫在公開網頁裡，誰都拿得到
+ *   GET  /admin/responses  連 name 一起讀出；要帶 X-Admin-Key，值是只有主辦人知道的
+ *                    ADMIN_KEY（`npx wrangler secret put ADMIN_KEY` 設定，不寫在任何網頁或 repo 裡）
  *   GET  /respond    手機掃 QR Code 進來看到的簡易回應頁面
  *                    （?ep=<episode>&q=<question> 帶入要回答的問題）
  *
@@ -71,7 +75,7 @@ async function submitIt(){
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*", // 播放器是 file:// 開啟，Origin 會是 "null"，用 * 才會過
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Site-Key",
+  "Access-Control-Allow-Headers": "Content-Type, X-Site-Key, X-Admin-Key",
 };
 
 function json(data, status = 200) {
@@ -103,9 +107,23 @@ export default {
       const question = String(body.question || "").slice(0, 500);
       const response = String(body.response || "").trim().slice(0, 1000);
       const choice = String(body.choice || "").trim().slice(0, 100);
+      const name = String(body.name || "").trim().slice(0, 40);
       const submittedAt = new Date().toISOString();
       if (!episode || (!response && !choice)) {
         return json({ error: "episode and a response or choice are required" }, 400);
+      }
+      if (name) {
+        // 具名的回應一定要存到 name 欄；還沒跑 migrations/002_add_name.sql 就回 503，
+        // 讓播放器提示「雲端還沒準備好」，而不是默默把名字丟掉
+        try {
+          await env.DB.prepare(
+            "INSERT INTO responses (episode, question, response, choice, name, submitted_at) VALUES (?, ?, ?, ?, ?, ?)"
+          ).bind(episode, question, response, choice || null, name, submittedAt).run();
+        } catch (e) {
+          if (!String(e).includes("name")) throw e;
+          return json({ error: "name column missing; run migration 002" }, 503);
+        }
+        return json({ ok: true, named: true });
       }
       try {
         await env.DB.prepare(
@@ -141,6 +159,25 @@ export default {
         ({ results } = await query("episode, question, response, submitted_at"));
       }
       return json({ responses: results });
+    }
+
+    if (url.pathname === "/admin/responses" && request.method === "GET") {
+      // 沒設定 ADMIN_KEY 時一律拒絕，避免忘了設密碼就把具名資料公開出去
+      if (!env.ADMIN_KEY || request.headers.get("X-Admin-Key") !== env.ADMIN_KEY) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      const episode = url.searchParams.get("episode");
+      const where = episode ? " WHERE episode = ?" : "";
+      const stmt = env.DB.prepare(
+        `SELECT episode, question, response, choice, name, submitted_at FROM responses${where} ORDER BY id DESC`
+      );
+      try {
+        const { results } = await (episode ? stmt.bind(episode) : stmt).all();
+        return json({ responses: results });
+      } catch (e) {
+        if (!String(e).includes("name")) throw e;
+        return json({ error: "name column missing; run migration 002" }, 503);
+      }
     }
 
     if (url.pathname === "/respond" && request.method === "GET") {

@@ -91,7 +91,8 @@ def build_data_block(ep):
         + "const KEYWORDS = " + js(ep.get("keywords", [])) + ";\n"
         + "const SCENARIOS = " + js(ep.get("scenario_cards", [])) + ";\n"
         + "const SCENARIO_METRICS = " + js(ep.get("scenario_metrics", [])) + ";\n"
-        + "const CHAPTERS = " + js(ep.get("chapters", [])) + ";\n\n"
+        + "const CHAPTERS = " + js(ep.get("chapters", [])) + ";\n"
+        + "const EXAM = " + js(ep.get("exam")) + ";\n\n"
     )
 
 
@@ -176,6 +177,9 @@ def render(ep, template, cloud_config=None):
                  qrImg=make_qr_data_uri(url))
             for n, ch in enumerate(ep["chapters"])
         ])
+        if ep.get("exam"):  # 結訓測驗也有自己的 QR（?r=usbexam），統計不跟第 10 章混在一起
+            url = cloud_config["pagesBase"].rstrip("/") + f"/?r={ep_key(ep)}exam"
+            ep = dict(ep, exam=dict(ep["exam"], qrUrl=url, qrImg=make_qr_data_uri(url)))
     start = template.index(DATA_START)
     end = template.index(DATA_END)
     html = template[:start] + build_data_block(ep) + template[end:]
@@ -289,7 +293,7 @@ def build_dashboard(cloud_config):
             ] + [
                 # 課程模式：各章的情境卡攤平，題目代號跟播放器送出的一樣（第3章情境1）
                 {"situation": f"第{n + 1}章｜{c['situation']}", "options": [o["text"] for o in c["options"]],
-                 "q": f"第{n + 1}章情境{k + 1}"}
+                 "q": f"第{n + 1}章情境{k + 1}", **({"require_name": True} if c.get("require_name") else {})}
                 for n, ch in enumerate(ep.get("chapters", [])) for k, c in enumerate(ch.get("scenarios", []))
             ],
         })

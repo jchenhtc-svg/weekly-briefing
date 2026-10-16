@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS responses (
   question TEXT NOT NULL,
   response TEXT NOT NULL,
   choice TEXT,                 -- 「這集你最有感的是哪一點」選的選項文字（可空）
+  name TEXT,                   -- 具名欄（USB 必答題／結訓測驗）：名字＋社編去掉最後一碼；只有 /admin/responses 讀得到
   submitted_at TEXT NOT NULL
 );
 
