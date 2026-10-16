@@ -80,6 +80,9 @@
   footer{max-width:760px;margin:0 auto;padding:0 20px 60px;color:var(--sub);
     font-size:12px;line-height:1.9;text-align:center}
   footer a{color:var(--accent2)}
+  .adminLink{display:block;width:max-content;margin:0 auto 22px;padding:8px 18px;border:1px solid var(--line);border-radius:999px;
+    color:var(--sub);font-size:13px;font-weight:700;text-decoration:none}
+  .adminLink:hover{color:var(--ink);border-color:var(--sub)}
   .topnav{max-width:760px;margin:0 auto;padding:14px 20px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
   .topnav a{font-size:13px;font-weight:800;text-decoration:none;color:var(--ink);border:1px solid var(--line);
     background:var(--card);border-radius:999px;padding:7px 14px}
@@ -209,6 +212,8 @@
     </a>
   </div>
 
+  <!-- 後台管理：主辦人看所有回應與結訓名單，進去要輸入管理密碼 -->
+  <a class="adminLink" href="網頁/結果總覽.html">🔒 後台管理</a>
   <footer>
     這是一個雙擊即用的靜態網頁，不需要安裝任何東西、不需要伺服器。<br>
     播放引擎共用同一套技能（<code>ai-dialogue-podcast-builder</code>），

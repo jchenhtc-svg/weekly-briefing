@@ -2320,6 +2320,7 @@
   ],
   "exam": {
     "pass_score": 80,
+    "require_all_chapters": true,
     "questions": [
       {
         "q": "個人 USB 是否可接入客戶設備？",

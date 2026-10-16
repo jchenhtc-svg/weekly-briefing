@@ -57,14 +57,32 @@
   table.names th,table.names td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
   table.names th{font-size:12px;color:var(--sub)}
   .pass{color:#15803d;font-weight:800}
+  .gate{max-width:360px;margin:12vh auto 0;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 22px;text-align:center}
+  .gate h1{margin-bottom:6px}
+  .gate p{color:var(--sub);font-size:13.5px;margin:0 0 16px}
+  .gate input[type=password]{width:100%;font-size:16px;padding:10px 12px;margin-bottom:10px}
+  .gate button{width:100%;font-size:15px;padding:10px;background:var(--ink);color:var(--card);border-color:var(--ink)}
+  .gateMsg{color:#b91c1c;font-size:13px;font-weight:700;min-height:1.4em;margin-top:8px}
+  .gate .back{display:inline-block;margin-top:12px;font-size:13px;color:var(--sub)}
+  body.hideNames .nameList{display:none}
   .fail{color:#b91c1c;font-weight:800}
   @media (max-width:480px){ .status{margin-left:0;width:100%} .epCount{margin-left:0;width:100%} }
 </style>
 </head>
 <body>
-<div class="wrap">
+<!-- 後台管理：從首頁「🔒 後台管理」進來，先輸入管理密碼（Worker 的 ADMIN_KEY）才看得到資料 -->
+<form class="gate" id="gate" hidden onsubmit="return false">
+  <h1>🔒 後台管理</h1>
+  <p>回應結果總覽（含具名名單），請輸入管理密碼</p>
+  <input type="password" id="gateKey" autocomplete="current-password" placeholder="管理密碼">
+  <button type="submit" id="gateGo">登入</button>
+  <div class="gateMsg" id="gateMsg"></div>
+  <a class="back" href="../index.html">← 回首頁</a>
+</form>
+
+<div class="wrap" id="main" hidden>
   <h1>回應結果總覽</h1>
-  <p class="sub">《工程師的價值》52 週系列、《AI 素養 × 工程師》月例會、USB 資安宣導的所有回應。這一頁沒有放在入口網站上，網址請不要外流。</p>
+  <p class="sub">《工程師的價值》52 週系列、《AI 素養 × 工程師》月例會、USB 資安宣導的所有回應。入口在首頁最下方「🔒 後台管理」，要管理密碼才進得來。</p>
 
   <div class="controls">
     <label>系列
@@ -79,8 +97,7 @@
     <label><input type="checkbox" id="hideEmpty" checked> 隱藏沒有回應的集數</label>
     <button type="button" id="reload">重新整理</button>
     <button type="button" id="csv">下載 CSV</button>
-    <span id="adminBox"><label>管理密碼 <input type="password" id="adminKey" autocomplete="off" placeholder="看名單用"></label>
-      <button type="button" id="adminGo">解鎖名單</button></span>
+    <span id="adminBox"></span>
     <span class="status" id="status">載入中…</span>
   </div>
 
@@ -88,7 +105,7 @@
   <div id="list"></div>
 
   <p class="note">「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。<br>
-    具名作答（USB 第 7 章必答題、結訓測驗）的名字只有輸入管理密碼後才看得到；密碼只存在這個分頁，關掉分頁就要重新輸入。</p>
+    具名作答（USB 第 7 章必答題、結訓測驗）的名字只在這個後台看得到；要投影統計給大家看時，勾「隱藏名字（投影用）」。登入只記在這個分頁，關掉分頁或按「登出」就要重新輸入密碼。</p>
 </div>
 
 <script>
@@ -163,24 +180,45 @@ function render(){
         const named = latestByName(qr);
         return `<div class="q">${sc.q ? "" : `情境 ${k+1}｜`}${esc(sc.situation)}</div>`
           + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})))
-          + (named.length ? `<details><summary>具名作答 ${named.length} 人</summary><table class="names"><tr><th>名字＋社編</th><th>選擇</th><th>時間</th></tr>`
+          + (named.length ? `<details class="nameList"><summary>具名作答 ${named.length} 人</summary><table class="names"><tr><th>名字＋社編</th><th>選擇</th><th>時間</th></tr>`
               + named.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.choice)}. ${esc(sc.options[LETTERS.indexOf(r.choice)] || "")}</td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
               + `</table></details>`
             : (sc.require_name && qr.length && !adminMode ? `<div class="empty">具名名單：輸入管理密碼後才看得到</div>` : ""));
       }).join("") + `</div>`;
     }
+    // 課程（USB）：各章的情境題代號，用來逐人核對「每個單元都做完」
+    const chapQs = {};
+    ep.scenarios.forEach(sc => { const m = (sc.q || "").match(/^第(\d+)章/); if(m) (chapQs[m[1]] = chapQs[m[1]] || []).push(sc.q); });
+    const chapNums = Object.keys(chapQs).sort((a, b) => a - b);
     if(examRows.length){
       // choice 是「88分・通過」或「72分・未通過・必答題答錯」
       const passed = examRows.filter(r => /・通過/.test(r.choice || "")).length;
-      const named = latestByName(examRows);
-      body += `<div class="block"><div class="blockTitle">結訓測驗：交卷 ${examRows.length} 次・通過 ${passed} 次</div>`
-        + barsHtml([{label: "通過", n: passed}, {label: "未通過", n: examRows.length - passed}])
-        + (named.length
-          ? `<details open><summary>成績名單 ${named.length} 人（同一人交卷多次，只列最後一次）</summary><table class="names"><tr><th>名字＋社編</th><th>成績</th><th>時間</th></tr>`
-            + named.map(r => `<tr><td>${esc(r.name)}</td><td class="${/・通過/.test(r.choice) ? "pass" : "fail"}">${esc(r.choice)}</td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
-            + `</table></details>`
-          : (!adminMode ? `<div class="empty">成績名單：輸入管理密碼後才看得到</div>` : ""))
-        + `</div>`;
+      body += `<div class="block"><div class="blockTitle">結訓測驗：交卷 ${examRows.length} 次・測驗及格 ${passed} 次</div>`
+        + barsHtml([{label: "測驗及格", n: passed}, {label: "測驗不及格", n: examRows.length - passed}]) + `</div>`;
+    }
+    const namedAll = rs.filter(r => r.name);
+    if(chapNums.length && namedAll.length){
+      // 結訓名單：每個單元的情境題都做完＋測驗 80 分以上且必答題對，才算通過
+      const people = [...new Set(namedAll.map(r => r.name))].sort((a, b) => a.localeCompare(b, "zh-Hant"));
+      const roster = people.map(name => {
+        const mine = namedAll.filter(r => r.name === name);
+        const done = chapNums.filter(n => chapQs[n].every(q => mine.some(r => r.question === q)));
+        const miss = chapNums.filter(n => !done.includes(n));
+        const exam = mine.find(r => r.question === EXAM_Q); // 資料是新到舊，第一筆就是最後一次交卷
+        const pass = !miss.length && exam && /・通過/.test(exam.choice || "");
+        return {name, done, miss, exam, pass};
+      });
+      const nPass = roster.filter(x => x.pass).length;
+      body += `<div class="block nameList"><div class="blockTitle">結訓名單：通過 ${nPass} / ${roster.length} 人`
+        + `（${chapNums.length} 個單元的情境題都做完＋測驗及格才算通過）</div>`
+        + `<table class="names"><tr><th>名字＋社編</th><th>單元完成</th><th>結訓測驗（最後一次）</th><th>結訓</th></tr>`
+        + roster.map(x => `<tr><td>${esc(x.name)}</td>`
+          + `<td>${x.done.length} / ${chapNums.length}${x.miss.length ? `<br><small class="fail">缺第 ${x.miss.join("、")} 章</small>` : ""}</td>`
+          + `<td>${x.exam ? `${esc(x.exam.choice)}<br><small>${esc(timeStr(x.exam.submitted_at))}</small>` : `<span class="fail">未交卷</span>`}</td>`
+          + `<td class="${x.pass ? "pass" : "fail"}">${x.pass ? "✅ 通過" : "未通過"}</td></tr>`).join("")
+        + `</table></div>`;
+    } else if(chapNums.length && rs.length && !adminMode){
+      body += `<div class="empty">結訓名單：要管理密碼才看得到</div>`;
     }
     const choiceRows = otherRows.filter(r => r.choice);
     if(ep.takeaways.length && choiceRows.length){
@@ -216,36 +254,43 @@ function render(){
     + `<div class="tile"><div class="k">最近一筆</div><div class="v" style="font-size:16px">${last ? esc(new Date(last).toLocaleString("zh-TW")) : "—"}</div></div>`;
 }
 
+function showGate(msg){
+  $("main").hidden = true; $("gate").hidden = false;
+  $("gateMsg").textContent = msg || "";
+  $("gateGo").disabled = false; $("gateGo").textContent = "登入";
+  $("gateKey").value = ""; $("gateKey").focus();
+}
+function showMain(){ $("gate").hidden = true; $("main").hidden = false; }
+
 async function load(){
   if(!API_BASE){
-    $("status").textContent = "這是本機版，沒有連到雲端，看不到資料。請開網站上的結果總覽。";
+    showMain();
+    $("status").textContent = "這是本機版，沒有連到雲端，看不到資料。請從網站首頁的「🔒 後台管理」進入。";
     render();
     return;
   }
-  $("status").textContent = "載入中…";
+  if(!adminKey()){ showGate(""); return; }
+  if(!$("main").hidden) $("status").textContent = "載入中…";
   let note = "";
   try{
     adminMode = false;
-    if(adminKey()){
-      // 有管理密碼：讀含名字的資料；密碼錯就清掉，退回一般資料
-      const res = await fetch(API_BASE + "/admin/responses", { headers: { "X-Admin-Key": adminKey() } });
-      if(res.ok){
-        allRows = (await res.json()).responses || [];
-        adminMode = true;
-      } else {
-        note = res.status === 401 ? "管理密碼不對（或雲端還沒設定 ADMIN_KEY），先顯示不含名字的資料。"
-          : res.status === 503 ? "雲端資料庫還沒加 name 欄（migrations/002_add_name.sql），先顯示不含名字的資料。"
-          : "名單讀取失敗（HTTP " + res.status + "），先顯示不含名字的資料。";
-        if(res.status === 401) setAdminKey("");
-      }
-    }
-    if(!adminMode){
-      const res = await fetch(API_BASE + "/responses", { headers: { "X-Site-Key": SITE_KEY } });
-      if(!res.ok) throw new Error("HTTP " + res.status);
+    const res = await fetch(API_BASE + "/admin/responses", { headers: { "X-Admin-Key": adminKey() } });
+    if(res.status === 401){ setAdminKey(""); showGate("密碼不對，請再試一次"); return; }
+    if(res.ok){
       allRows = (await res.json()).responses || [];
+      adminMode = true;
+    } else {
+      // 管理密碼對了但讀名單失敗（例如資料庫還沒加 name 欄）：先顯示不含名字的資料
+      note = res.status === 503 ? "雲端資料庫還沒加 name 欄（migrations/002_add_name.sql），先顯示不含名字的資料。"
+        : "名單讀取失敗（HTTP " + res.status + "），先顯示不含名字的資料。";
+      const pub = await fetch(API_BASE + "/responses", { headers: { "X-Site-Key": SITE_KEY } });
+      if(!pub.ok) throw new Error("HTTP " + pub.status);
+      allRows = (await pub.json()).responses || [];
     }
+    showMain();
     $("status").textContent = note || ("更新時間 " + new Date().toLocaleTimeString("zh-TW"));
   } catch(e){
+    if($("main").hidden){ showGate("連不上雲端，晚點再試試看"); return; }
     $("status").textContent = "連不上雲端，晚點再試試看";
   }
   renderAdminBox();
@@ -253,16 +298,12 @@ async function load(){
 }
 
 function renderAdminBox(){
-  $("adminBox").innerHTML = adminMode
-    ? `<span class="adminOn">🔓 名單已解鎖</span> <button type="button" id="adminOut">鎖上</button>`
-    : `<label>管理密碼 <input type="password" id="adminKey" autocomplete="off" placeholder="看名單用"></label> <button type="button" id="adminGo">解鎖名單</button>`;
-  if(adminMode){
-    $("adminOut").onclick = () => { setAdminKey(""); load(); };
-  } else {
-    const go = () => { const v = $("adminKey").value.trim(); if(v){ setAdminKey(v); load(); } };
-    $("adminGo").onclick = go;
-    $("adminKey").addEventListener("keydown", (e) => { if(e.key === "Enter") go(); });
-  }
+  const hidden = document.body.classList.contains("hideNames");
+  $("adminBox").innerHTML = `<span class="adminOn">🔓 已登入</span> `
+    + `<label><input type="checkbox" id="hideNames"${hidden ? " checked" : ""}> 隱藏名字（投影用）</label> `
+    + `<button type="button" id="adminOut">登出</button>`;
+  $("hideNames").onchange = (e) => document.body.classList.toggle("hideNames", e.target.checked);
+  $("adminOut").onclick = () => { setAdminKey(""); allRows = []; adminMode = false; showGate("已登出"); };
 }
 
 function downloadCsv(){
@@ -284,8 +325,14 @@ function downloadCsv(){
 ["series", "since", "hideEmpty"].forEach(id => $(id).addEventListener("change", render));
 $("reload").onclick = load;
 $("csv").onclick = downloadCsv;
+$("gate").addEventListener("submit", () => {
+  const v = $("gateKey").value.trim();
+  if(!v){ $("gateMsg").textContent = "請輸入管理密碼"; return; }
+  $("gateGo").disabled = true; $("gateGo").textContent = "登入中…";
+  setAdminKey(v); load();
+});
 load();
-setInterval(load, 60000); // 開著放在投影幕上時，每分鐘自動更新
+setInterval(() => { if($("gate").hidden) load(); }, 60000); // 開著放在投影幕上時，每分鐘自動更新
 </script>
 </body>
 </html>
