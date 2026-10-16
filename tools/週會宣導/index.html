@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>《工程師的價值》— 週會宣導課程</title>
+<title>工程師教育訓練入口</title>
 <style>
   :root{
     --bg:#0f1115; --card:#181b22; --line:#2a2e38; --sub:#8b93a3;
@@ -80,6 +80,38 @@
   footer{max-width:760px;margin:0 auto;padding:0 20px 60px;color:var(--sub);
     font-size:12px;line-height:1.9;text-align:center}
   footer a{color:var(--accent2)}
+  .topnav{max-width:760px;margin:0 auto;padding:14px 20px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .topnav a{font-size:13px;font-weight:800;text-decoration:none;color:var(--ink);border:1px solid var(--line);
+    background:var(--card);border-radius:999px;padding:7px 14px}
+  .topnav a.home{color:var(--sub)}
+  .topnav a.cur{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+  .topnav a:hover{border-color:var(--accent2)}
+  .topics{max-width:760px;margin:0 auto;padding:32px 20px 20px;display:grid;gap:16px}
+  .topic{display:flex;align-items:center;gap:18px;padding:22px 22px;border-radius:18px;text-decoration:none;color:inherit;
+    background:var(--card);border:2px solid var(--line);transition:transform .15s ease,border-color .15s ease}
+  .topic:hover{transform:translateY(-2px)}
+  .topic .ic{flex:0 0 auto;width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px}
+  .topic .tx{flex:1;min-width:0}
+  .topic .tt{font-size:clamp(18px,3.6vw,22px);font-weight:900;margin:0 0 4px;line-height:1.35}
+  .topic .ds{font-size:13.5px;color:var(--sub);line-height:1.7;margin:0}
+  .topic .url{display:inline-block;margin-top:6px;font-size:12px;font-family:ui-monospace,Consolas,monospace;color:var(--sub)}
+  .topic .go{font-size:14px;padding:10px 16px}
+  .topic.t1{border-color:#ffcc33} .topic.t1 .ic{background:#3a3112} .topic.t1 .go{background:#ffcc33}
+  .topic.t2{border-color:#5ef0c0} .topic.t2 .ic{background:#12352b} .topic.t2 .go{background:#5ef0c0}
+  .topic.t3{border-color:#8e9cff} .topic.t3 .ic{background:#1e2550} .topic.t3 .go{background:#8e9cff}
+  @media (max-width:520px){.topic{flex-wrap:wrap}.topic .go{width:100%;text-align:center}}
+  .units{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  @media (min-width:640px){.units{grid-template-columns:repeat(5,minmax(0,1fr))}}
+  .unit{display:flex;flex-direction:column;gap:2px;padding:12px 12px;border-radius:14px;background:var(--card);
+    border:2px solid var(--line);text-decoration:none;color:inherit;min-width:0}
+  .unit:hover{border-color:#8e9cff}
+  .unit .n{font-size:11.5px;color:var(--sub);font-weight:800}
+  .unit .t{font-size:14.5px;font-weight:900;line-height:1.35}
+  .unit .must{font-size:10.5px;background:#f07c74;color:#fff;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
+  .startBtn{display:block;text-align:center;background:#8e9cff;color:var(--bg);font-weight:900;font-size:17px;border-radius:16px;
+    padding:16px;text-decoration:none;margin:0 0 22px}
+  .flow{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;align-items:center;font-size:13px;color:var(--sub);margin-top:16px}
+  .flow span{border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -153,189 +185,29 @@
   })();
 </script>
 
-
   <div class="hero">
-    <div class="kicker"><span class="led"></span>52 週晨會故事 × 動畫教育訓練教材</div>
-    <h1>《工程師的價值》</h1>
-    <p>每週一集，5 分鐘晨會 podcast，用真實現場對話帶出一個工程師該有的判斷力。
-      點一集開始播放，播完會停在今日金句，也可以留下你的想法。</p>
-    <div class="phases">
-      <span class="phaseTag p1">① 建立使命感</span><span class="phaseTag p2">② 建立專業習慣</span>
-      <span class="phaseTag p3">③ 建立高績效思維</span><span class="phaseTag p4">④ 建立品牌文化</span>
-    </div>
-    <a class="seriesJump" href="#ai">＋ 另一個系列：AI 素養 × 工程師（月例會四堂課）↓</a>
-    <div class="progress">
-      <div class="num">10</div>
-      <div class="bar"><i style="width:19%"></i></div>
-      <div class="label">已發布 10 / 52 週</div>
-    </div>
+    <div class="kicker"><span class="led"></span>維護單位 · 教育訓練入口</div>
+    <h1>工程師教育訓練</h1>
+    <p>三個主題，各自有專屬網址。點一個開始上課；手機從 LINE 打開會自動改用預設瀏覽器。</p>
   </div>
 
-  <main>
-    <div class="section-title">課程清單 · Lessons</div>
-    <div class="track">
-
-      <a class="lesson" href="網頁/第01週_我們修的不是設備，而是客戶的一天.html" data-ep="01" data-file="網頁/第01週_我們修的不是設備，而是客戶的一天.html">
-        <div class="badge"><small>EP</small><b>01</b></div>
-        <div class="meta">
-          <p class="tt">我們修的不是設備，而是客戶的一天</p>
-          <p class="st"><span class="phaseTag p1">① 使命感</span>修好設備是技術，讓客戶安心才是專業　·　約 2～3 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第02週_現場危機溝通與降溫術.html" data-ep="02" data-file="網頁/第02週_現場危機溝通與降溫術.html">
-        <div class="badge"><small>EP</small><b>02</b></div>
-        <div class="meta">
-          <p class="tt">現場危機溝通與降溫術</p>
-          <p class="st"><span class="phaseTag p3">③ 高績效思維</span>先處理心情，事情才有機會被解決　·　約 2～3 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第03週_SOP 不是限制，是保障.html" data-ep="03" data-file="網頁/第03週_SOP 不是限制，是保障.html">
-        <div class="badge"><small>EP</small><b>03</b></div>
-        <div class="meta">
-          <p class="tt">SOP 不是限制，是保障</p>
-          <p class="st"><span class="phaseTag p2">② 專業習慣</span>經驗讓你修得快，SOP讓你不漏接　·　約 2～3 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第04週_真正的專業，是把一次經驗變成下一次的能力.html" data-ep="04" data-file="網頁/第04週_真正的專業，是把一次經驗變成下一次的能力.html">
-        <div class="badge"><small>EP</small><b>04</b></div>
-        <div class="meta">
-          <p class="tt">真正的專業，是把一次經驗變成下一次的能力</p>
-          <p class="st"><span class="phaseTag p3">③ 高績效思維</span>修好一次是能力，留下一次經驗才是專業　·　約 5～7 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第05週_一張維修紀錄，為什麼值幾十萬元？.html" data-ep="05" data-file="網頁/第05週_一張維修紀錄，為什麼值幾十萬元？.html">
-        <div class="badge"><small>EP</small><b>05</b></div>
-        <div class="meta">
-          <p class="tt">一張維修紀錄，為什麼值幾十萬元？</p>
-          <p class="st"><span class="phaseTag p2">② 專業習慣</span>沒寫下來的問題，遲早要別人重新學一次　·　約 5～7 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第06週_遲到 15 分鐘，會怎樣？.html" data-ep="06" data-file="網頁/第06週_遲到 15 分鐘，會怎樣？.html">
-        <div class="badge"><small>EP</small><b>06</b></div>
-        <div class="meta">
-          <p class="tt">遲到 15 分鐘，會怎樣？</p>
-          <p class="st"><span class="phaseTag p2">② 專業習慣</span>遲到十分鐘，客戶付出的代價不只是十分鐘　·　約 2～3 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第07週_客戶生氣的時候，你在聽什麼？.html" data-ep="07" data-file="網頁/第07週_客戶生氣的時候，你在聽什麼？.html">
-        <div class="badge"><small>EP</small><b>07</b></div>
-        <div class="meta">
-          <p class="tt">客戶生氣的時候，你在聽什麼？</p>
-          <p class="st"><span class="phaseTag p1">① 使命感</span>先處理情緒，事情才有機會被解決　·　約 2～3 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第08週_厲害的工程師，敢說「我不知道」.html" data-ep="08" data-file="網頁/第08週_厲害的工程師，敢說「我不知道」.html">
-        <div class="badge"><small>EP</small><b>08</b></div>
-        <div class="meta">
-          <p class="tt">厲害的工程師，敢說「我不知道」</p>
-          <p class="st"><span class="phaseTag p2">② 專業習慣</span>裝懂比不會更麻煩　·　約 2～3 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第09週_順口答應的代價.html" data-ep="09" data-file="網頁/第09週_順口答應的代價.html">
-        <div class="badge"><small>EP</small><b>09</b></div>
-        <div class="meta">
-          <p class="tt">順口答應的代價</p>
-          <p class="st"><span class="phaseTag p3">③ 高績效思維</span>幫忙沒有停損點，就會變成硬撐　·　約 2～3 分鐘</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <a class="lesson" href="網頁/第10週_看到了，為什麼不說？.html" data-ep="10" data-file="網頁/第10週_看到了，為什麼不說？.html">
-        <div class="badge"><small>EP</small><b>10</b></div>
-        <div class="meta">
-          <p class="tt">看到了，為什麼不說？</p>
-          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>不說，不是客氣，是讓問題繼續長大　·　約 2～3 分鐘＋情境卡</p>
-        </div>
-        <div class="go">開始收看</div>
-      </a>
-
-      <div class="lesson upcoming" data-ep="11" data-file="網頁/第11週_等零件的那三天，你在做什麼？.html">
-        <div class="badge"><small>EP</small><b>11</b></div>
-        <div class="meta">
-          <p class="tt">等零件的那三天，你在做什麼？</p>
-          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>控制不了的事放下，能做的事先做　·　尚未開放</p>
-        </div>
-        <div class="go">尚未開放</div>
-      </div>
-
-      <div class="lesson upcoming" data-ep="12" data-file="網頁/第12週_會議上點頭，會議後抱怨.html">
-        <div class="badge"><small>EP</small><b>12</b></div>
-        <div class="meta">
-          <p class="tt">會議上點頭，會議後抱怨</p>
-          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>不敢在桌上講，問題就會在桌下長　·　尚未開放</p>
-        </div>
-        <div class="go">尚未開放</div>
-      </div>
-
-      <div class="lesson upcoming" data-ep="13" data-file="網頁/第13週_客戶說：上次那位不是這樣做的.html">
-        <div class="badge"><small>EP</small><b>13</b></div>
-        <div class="meta">
-          <p class="tt">客戶說：上次那位不是這樣做的</p>
-          <p class="st"><span class="phaseTag p4">④ 品牌文化</span>一致的標準，才是客戶記得的品牌　·　尚未開放</p>
-        </div>
-        <div class="go">尚未開放</div>
-      </div>
-
-    </div>
-
-    <div class="section-title second" id="ai">AI 素養 × 工程師 · 月例會四堂課</div>
-    <p class="seriesNote">每月例會 10 分鐘：對談 5～6 分鐘，播完用手機一起玩情境卡，現場即時看全場選擇。跟 52 週系列分開。</p>
-    <div class="track">
-
-      <div class="lesson upcoming" data-ep="ai01" data-file="網頁/AI素養_第1堂_AI 不是查資料的，是很會接話的實習生.html">
-        <div class="badge"><small>AI</small><b>01</b></div>
-        <div class="meta">
-          <p class="tt">AI 不是查資料的，是很會接話的實習生</p>
-          <p class="st"><span class="phaseTag ai">10/28 月例會</span>講得越順，越要多看一眼　·　尚未開放</p>
-        </div>
-        <div class="go">尚未開放</div>
-      </div>
-
-      <div class="lesson upcoming" data-ep="ai02" data-file="網頁/AI素養_第2堂_問對問題，再查證答案.html">
-        <div class="badge"><small>AI</small><b>02</b></div>
-        <div class="meta">
-          <p class="tt">問對問題，再查證答案</p>
-          <p class="st"><span class="phaseTag ai">11/25 月例會</span>AI 的答案，不會比你的問題更好　·　尚未開放</p>
-        </div>
-        <div class="go">尚未開放</div>
-      </div>
-
-      <div class="lesson upcoming" data-ep="ai03" data-file="網頁/AI素養_第3堂_哪些東西不能貼給 AI.html">
-        <div class="badge"><small>AI</small><b>03</b></div>
-        <div class="meta">
-          <p class="tt">哪些東西不能貼給 AI</p>
-          <p class="st"><span class="phaseTag ai">12/30 月例會</span>貼出去的資料，就收不回來了　·　尚未開放</p>
-        </div>
-        <div class="go">尚未開放</div>
-      </div>
-
-      <div class="lesson upcoming" data-ep="ai04" data-file="網頁/AI素養_第4堂_AI 寫的，簽名的是你.html">
-        <div class="badge"><small>AI</small><b>04</b></div>
-        <div class="meta">
-          <p class="tt">AI 寫的，簽名的是你</p>
-          <p class="st"><span class="phaseTag ai">1/27 月例會</span>出事的時候，沒有人會說是 AI 的錯　·　尚未開放</p>
-        </div>
-        <div class="go">尚未開放</div>
-      </div>
-
-    </div>
-  </main>
+  <div class="topics">
+    <a class="topic t1" href="value/index.html">
+      <div class="ic">🛠️</div>
+      <div class="tx"><p class="tt">《工程師的價值》</p><p class="ds">52 週晨會故事 × 動畫教育訓練教材，每週一集，播完玩情境卡。</p><span class="url">/weekly-briefing/value/</span></div>
+      <div class="go">進入 ▶</div>
+    </a>
+    <a class="topic t2" href="ai/index.html">
+      <div class="ic">🤖</div>
+      <div class="tx"><p class="tt">AI 素養 × 工程師</p><p class="ds">月例會四堂課：AI 在做什麼、怎麼問、什麼不能貼、誰要負責。</p><span class="url">/weekly-briefing/ai/</span></div>
+      <div class="go">進入 ▶</div>
+    </a>
+    <a class="topic t3" href="usb/index.html">
+      <div class="ic">🔒</div>
+      <div class="tx"><p class="tt">USB 資安宣導</p><p class="ds">10 章課程：每章說明後接情境卡，一路到總複習。</p><span class="url">/weekly-briefing/usb/</span></div>
+      <div class="go">進入 ▶</div>
+    </a>
+  </div>
 
   <footer>
     這是一個雙擊即用的靜態網頁，不需要安裝任何東西、不需要伺服器。<br>
@@ -345,13 +217,16 @@
   </footer>
 
 <script>
-  // QR Code 短網址：?r=09 → 轉到第 09 集並直接打開結尾回饋畫面。
-  // 用 data-file 而不是 href，這樣尚未開放（沒有連結）的集數播完也能收回饋。
+  // 短網址相容：QR Code 的 ?r=09／?r=ai01／?r=usb03 轉到對應主題頁；舊的 #ai 書籤轉到 AI 素養
   (function(){
-    var r = new URLSearchParams(location.search).get("r");
-    if(!r || window.__goingExternal) return;
-    var card = document.querySelector('[data-ep="' + r.replace(/[^0-9a-z]/gi, "") + '"]');
-    if(card && card.getAttribute("data-file")) location.replace(card.getAttribute("data-file") + "?respond=1");
+    if(window.__goingExternal) return;
+    var r = (new URLSearchParams(location.search).get("r") || "").replace(/[^0-9a-z]/gi, "");
+    if(r){
+      var dir = /^ai/i.test(r) ? "ai" : /^usb/i.test(r) ? "usb" : "value";
+      location.replace(dir + "/index.html?r=" + encodeURIComponent(r));
+    } else if(location.hash === "#ai"){
+      location.replace("ai/index.html");
+    }
   })();
 </script>
 </body>

@@ -57,7 +57,7 @@
 <body>
 <div class="wrap">
   <h1>回應結果總覽</h1>
-  <p class="sub">《工程師的價值》52 週系列＋《AI 素養 × 工程師》月例會的所有回應。這一頁沒有放在入口網站上，網址請不要外流。</p>
+  <p class="sub">《工程師的價值》52 週系列、《AI 素養 × 工程師》月例會、USB 資安宣導的所有回應。這一頁沒有放在入口網站上，網址請不要外流。</p>
 
   <div class="controls">
     <label>系列
@@ -65,6 +65,7 @@
         <option value="all">全部</option>
         <option value="52">工程師的價值（52 週）</option>
         <option value="ai">AI 素養 × 工程師</option>
+        <option value="usb">USB 資安宣導</option>
       </select>
     </label>
     <label>從這天起算 <input type="date" id="since"></label>
@@ -127,17 +128,17 @@ function render(){
     if(!rs.length && $("hideEmpty").checked) return;
     if(rs.length) epsWithData++;
     shownRows += rs.length;
-    const scnRows = rs.filter(r => /^情境\d+$/.test(r.question || ""));
-    const otherRows = rs.filter(r => !/^情境\d+$/.test(r.question || ""));
+    const scnRows = rs.filter(r => /^(第\d+章)?情境\d+$/.test(r.question || ""));
+    const otherRows = rs.filter(r => !/^(第\d+章)?情境\d+$/.test(r.question || ""));
     const people = ep.scenarios.length
-      ? Math.max(0, ...ep.scenarios.map((_, k) => scnRows.filter(r => r.question === `情境${k+1}`).length))
+      ? Math.max(0, ...ep.scenarios.map((sc, k) => scnRows.filter(r => r.question === (sc.q || `情境${k+1}`)).length))
       : otherRows.length;
     let body = "";
     if(!rs.length) body = `<div class="empty">還沒有回應</div>`;
     if(ep.scenarios.length && scnRows.length){
       body += `<div class="block"><div class="blockTitle">情境卡</div>` + ep.scenarios.map((sc, k) => {
-        const qr = scnRows.filter(r => r.question === `情境${k+1}`);
-        return `<div class="q">情境 ${k+1}｜${esc(sc.situation)}</div>`
+        const qr = scnRows.filter(r => r.question === (sc.q || `情境${k+1}`));
+        return `<div class="q">${sc.q ? "" : `情境 ${k+1}｜`}${esc(sc.situation)}</div>`
           + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})));
       }).join("") + `</div>`;
     }

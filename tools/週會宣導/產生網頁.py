@@ -27,7 +27,7 @@ TEMPLATE = REPO / ".claude" / "skills" / "ai-dialogue-podcast-builder" / "assets
 SCRIPT_DIR = HERE / "腳本"
 # 獨立系列（例如月例會的 AI 素養四堂課）的腳本放這裡，輸出一樣進 網頁/，
 # 檔名、集數標籤由腳本裡的 id／file_prefix 決定，不會跟 52 週系列撞名。
-EXTRA_SCRIPT_DIRS = [HERE / "腳本-AI素養"]
+EXTRA_SCRIPT_DIRS = [HERE / "腳本-AI素養", HERE / "腳本-USB資安"]
 OUT_DIR = HERE / "網頁"
 CLOUD_OUT_DIR = HERE / "網頁-雲端版"  # .gitignore 排除，絕不進版控
 CLOUD_CONFIG = HERE / "cloudflare" / "local-config.json"  # 同樣排除在外
@@ -168,6 +168,14 @@ def make_qr_data_uri(url):
 
 
 def render(ep, template, cloud_config=None):
+    if cloud_config and cloud_config.get("pagesBase") and ep.get("chapters"):
+        # 課程模式：每章各自一個 QR Code（?r=usb03 → 入口網站轉到課程頁並打開第 3 章的情境卡），
+        # 現場停在哪一章，大家掃到的就是哪一章。
+        ep = dict(ep, chapters=[
+            dict(ch, qrUrl=(url := cloud_config["pagesBase"].rstrip("/") + f"/?r={ep_key(ep)}{n + 1:02d}"),
+                 qrImg=make_qr_data_uri(url))
+            for n, ch in enumerate(ep["chapters"])
+        ])
     start = template.index(DATA_START)
     end = template.index(DATA_END)
     html = template[:start] + build_data_block(ep) + template[end:]
@@ -270,13 +278,19 @@ def build_dashboard(cloud_config):
         ep = json.loads(path.read_text(encoding="utf-8"))
         eps.append({
             "label": episode_label(ep),
-            "series": "ai" if ep.get("id") else "52",
-            "tag": ep["id"][:2] + " " + ep["id"][2:] if ep.get("id") else "EP " + ep_num(ep),
+            "series": ("usb" if ep["id"].upper().startswith("USB") else "ai") if ep.get("id") else "52",
+            "tag": ("USB" if ep["id"].upper().startswith("USB") else ep["id"][:2] + " " + ep["id"][2:])
+                   if ep.get("id") else "EP " + ep_num(ep),
             "title": ep["title"],
             "takeaways": ep.get("takeaways", []),
             "scenarios": [
                 {"situation": c["situation"], "options": [o["text"] for o in c["options"]]}
                 for c in ep.get("scenario_cards", [])
+            ] + [
+                # 課程模式：各章的情境卡攤平，題目代號跟播放器送出的一樣（第3章情境1）
+                {"situation": f"第{n + 1}章｜{c['situation']}", "options": [o["text"] for o in c["options"]],
+                 "q": f"第{n + 1}章情境{k + 1}"}
+                for n, ch in enumerate(ep.get("chapters", [])) for k, c in enumerate(ch.get("scenarios", []))
             ],
         })
     html = DASHBOARD.read_text(encoding="utf-8")
