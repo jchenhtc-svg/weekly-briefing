@@ -156,8 +156,10 @@ summary.scnLink{display:block;margin:2px 0 10px}
 .scnNote{font-size:13px;color:var(--sub);font-weight:700;line-height:1.6;margin:10px 0}
 .scnStatCard{margin-bottom:14px}
 /* 課程模式：章節列＋下一章按鈕 */
-.chapterStrip{display:flex;gap:6px;overflow-x:auto;margin:0 0 14px;padding-bottom:4px;scrollbar-width:thin}
-.chChip{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:86px;text-align:left;border-radius:10px;padding:6px 10px;background:#fff;color:var(--ink)}
+.chapterStrip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:0 0 14px}
+@media (max-width:600px){.chapterStrip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.chChip{display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:0;text-align:left;border-radius:12px;padding:8px 12px;background:#fff;color:var(--ink)}
+.chChip .t{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .chChip .n{font-size:11px;color:var(--sub);font-weight:700}
 .chChip .t{font-size:13px;font-weight:800;white-space:nowrap}
 .chChip.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
@@ -1055,6 +1057,8 @@ let scnIdx = 0, scnPicks = [], scnView = "play", scnRows = null, scnStatsError =
 // 目前結尾畫面用的那一組內容：一般集數就是本集的；課程模式則換成該章的（showEndCard 會切換）
 let ACT = {scenarios: SCENARIOS, metrics: SCENARIO_METRICS, quote: GOLDEN_QUOTE, question: MANAGER_QUESTION, chapter: -1};
 
+// 送進資料庫的題目代號：一般集數是「情境1」，課程模式加上章別「第3章情境1」，各章統計才不會混在一起
+function scnQKey(k){ return (ACT.chapter >= 0 ? `第${ACT.chapter + 1}章` : "") + `情境${k+1}`; }
 function scnStorageKey(k){ return `scn:${EPISODE_LABEL}:${ACT.chapter >= 0 ? "c" + ACT.chapter + ":" : ""}${k}`; }
 function scnAlreadySent(k){ try{ return localStorage.getItem(scnStorageKey(k)) === "1"; }catch(e){ return false; } }
 function scnMarkSent(k){ try{ localStorage.setItem(scnStorageKey(k), "1"); }catch(e){} }
@@ -1065,7 +1069,7 @@ async function scnSubmit(k, idx){
     const res = await fetch(RESPONSE_API_BASE + "/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY },
-      body: JSON.stringify({ episode: EPISODE_LABEL, question: `情境${k+1}`, choice: SCN_LETTERS[idx],
+      body: JSON.stringify({ episode: EPISODE_LABEL, question: scnQKey(k), choice: SCN_LETTERS[idx],
                              response: "", submittedAt: new Date().toISOString() })
     });
     if(res.ok){ scnMarkSent(k); loadScenarioStats(); }
@@ -1105,7 +1109,7 @@ function scnDistInner(k){
   if(scnRows === null) return scnStatsError
     ? `<div class="communityEmpty">連不上雲端，晚點再試試看</div>`
     : `<div class="communityEmpty">全場統計載入中…</div>`;
-  const rows = scnRows.filter(r => r.question === `情境${k+1}`);
+  const rows = scnRows.filter(r => r.question === scnQKey(k));
   const opts = ACT.scenarios[k].options;
   const counts = opts.map((o, j) => rows.filter(r => r.choice === SCN_LETTERS[j]).length);
   const total = counts.reduce((a, b) => a + b, 0);
@@ -1132,7 +1136,7 @@ async function loadScenarioStats(){
     });
     if(!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    scnRows = (data.responses || []).filter(r => /^情境\d+$/.test(r.question || "") && r.choice);
+    scnRows = (data.responses || []).filter(r => /^(第\d+章)?情境\d+$/.test(r.question || "") && r.choice);
     scnStatsError = false;
   } catch(e){
     scnStatsError = true;
@@ -1262,6 +1266,16 @@ function renderChapterStrip(){
 
 function showEndCard(opts = {}){
   onEndCard = true;
+  // 決定這張結尾卡用哪一組內容：課程模式用該章的（含該章專屬 QR Code），一般集數用本集的
+  if(CHAPTERS.length){
+    const c = (opts.chapter ?? chapterOf(i)), ch = CHAPTERS[c];
+    ACT = {scenarios: ch.scenarios || [], metrics: ch.metrics || SCENARIO_METRICS,
+           quote: ch.quote || GOLDEN_QUOTE, question: ch.question || MANAGER_QUESTION, chapter: c,
+           qrImg: ch.qrImg || RESPONSE_QR_IMG, qrUrl: ch.qrUrl || RESPONSE_QR_URL};
+  } else {
+    ACT = {scenarios: SCENARIOS, metrics: SCENARIO_METRICS, quote: GOLDEN_QUOTE, question: MANAGER_QUESTION, chapter: -1,
+           qrImg: RESPONSE_QR_IMG, qrUrl: RESPONSE_QR_URL};
+  }
   selectedChoice = null;
   bgLayer.className = "bgLayer bg-spotlight";
   bgLayer.innerHTML = "";
@@ -1274,20 +1288,13 @@ function showEndCard(opts = {}){
   speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.remove("on");
   document.getElementById("panelWrap").classList.add("ended");
   speechBubble.className = "speechBubble final";
-  if(CHAPTERS.length){
-    const c = (opts.chapter ?? chapterOf(i)), ch = CHAPTERS[c];
-    ACT = {scenarios: ch.scenarios || [], metrics: ch.metrics || SCENARIO_METRICS,
-           quote: ch.quote || GOLDEN_QUOTE, question: ch.question || MANAGER_QUESTION, chapter: c};
-  } else {
-    ACT = {scenarios: SCENARIOS, metrics: SCENARIO_METRICS, quote: GOLDEN_QUOTE, question: MANAGER_QUESTION, chapter: -1};
-  }
   const isScn = ACT.scenarios.length > 0;
   const qrWhat = isScn ? "情境卡" : "回饋表單";
-  const qrBlock = (RESPONSE_QR_IMG && !opts.respond) // 已經是掃 QR 進來的人，不用再給一次連結
-    ? `<div class="qrBlock"><a class="qrLink" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">`
-      + `<img src="${RESPONSE_QR_IMG}" alt="開啟${qrWhat}" class="qrImg"></a>`
+  const qrBlock = (ACT.qrImg && !opts.respond) // 已經是掃 QR 進來的人，不用再給一次連結
+    ? `<div class="qrBlock"><a class="qrLink" href="${ACT.qrUrl}" target="_blank" rel="noopener">`
+      + `<img src="${ACT.qrImg}" alt="開啟${qrWhat}" class="qrImg"></a>`
       + `<div class="qrCaption">${isScn ? "用手機掃描，大家一起玩情境卡（或直接點 QR Code）" : "用手機掃描，或直接點 QR Code 開啟回饋表單"}</div>`
-      + `<a class="qrOpenBtn" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">開啟${qrWhat} ↗</a></div>`
+      + `<a class="qrOpenBtn" href="${ACT.qrUrl}" target="_blank" rel="noopener">開啟${qrWhat} ↗</a></div>`
     : "";
   if(isScn){
     scnIdx = 0; scnPicks = []; scnView = "play"; scnRows = null; scnStatsError = false;
@@ -1385,8 +1392,11 @@ loadVoices();
 
 // 從 QR Code／入口網站 ?r= 轉進來的人：直接打開結尾回饋畫面（不唸金句、不自動播放）
 if(new URLSearchParams(location.search).get("respond") === "1"){
-  i = d.length - 1;
-  showEndCard({silent: true, respond: true});
+  // 課程模式的 QR Code 會帶 #chN，直接打開那一章的情境卡；一般集數打開本集結尾
+  const cm = CHAPTERS.length && location.hash.match(/^#ch(\d+)$/);
+  const c = cm && CHAPTERS[+cm[1] - 1] ? +cm[1] - 1 : (CHAPTERS.length ? CHAPTERS.length - 1 : -1);
+  i = c >= 0 ? CHAPTERS[c].end : d.length - 1;
+  showEndCard(c >= 0 ? {silent: true, respond: true, chapter: c} : {silent: true, respond: true});
   document.getElementById("panelWrap").scrollIntoView({block: "start"});
 }
 </script>
