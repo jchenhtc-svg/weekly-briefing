@@ -155,6 +155,18 @@ summary.scnLink{display:block;margin:2px 0 10px}
 .scnMetric .val{text-align:right}
 .scnNote{font-size:13px;color:var(--sub);font-weight:700;line-height:1.6;margin:10px 0}
 .scnStatCard{margin-bottom:14px}
+/* 課程模式：章節列＋下一章按鈕 */
+.chapterStrip{display:flex;gap:6px;overflow-x:auto;margin:0 0 14px;padding-bottom:4px;scrollbar-width:thin}
+.chChip{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:86px;text-align:left;border-radius:10px;padding:6px 10px;background:#fff;color:var(--ink)}
+.chChip .n{font-size:11px;color:var(--sub);font-weight:700}
+.chChip .t{font-size:13px;font-weight:800;white-space:nowrap}
+.chChip.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chChip.cur .n{color:#cfd3da}
+.chChip.done .n{color:#15803d}
+.chChip.cur.done .n{color:#86efac}
+button.chNext{flex:1;background:var(--ink);color:#fff;border-color:var(--ink);padding:12px 16px;font-size:15px}
+button.chNext:hover{filter:brightness(1.3)}
+.chFinish{text-align:center;font-size:15px;color:var(--ink)}
 .scnStatCard .q{font-size:13px;font-weight:800;margin-bottom:6px;line-height:1.5}
 
 .charWrap{position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;padding:10px 20px 20px;left:auto;bottom:auto;transform:none}
@@ -487,6 +499,7 @@ const TAKEAWAYS = ["先看一下，設停損點", "超出能力範疇就誠實�
 const KEYWORDS = ["停損點", "範圍", "誠實", "時間", "優先"];
 const SCENARIOS = [];
 const SCENARIO_METRICS = [];
+const CHAPTERS = [];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -680,8 +693,9 @@ function render(){
 
   bgLayer.className = "bgLayer bg-" + p.bg;
   bgLayer.innerHTML = iconSVG(p.icon);
-  panelCount.textContent = `${p.sceneIdx+1}/${SCRIPT.length}`;
-  dotsRow.innerHTML = SCRIPT.map((s,idx) => `<span class="pdot${idx===p.sceneIdx?" active":""}"></span>`).join("");
+  const [s0, s1] = sceneRange(); // 課程模式只算本章的幕數，一般集數就是全部
+  panelCount.textContent = `${p.sceneIdx-s0+1}/${s1-s0+1}`;
+  dotsRow.innerHTML = SCRIPT.slice(s0, s1+1).map((s,idx) => `<span class="pdot${idx+s0===p.sceneIdx?" active":""}"></span>`).join("");
 
   charSvg.innerHTML = faceSVG(role, p.expr);
   reactionMark.innerHTML = markSVG(EXPR_MARK[p.expr]);
@@ -705,7 +719,13 @@ function render(){
   iconRowLeft.innerHTML = ic.left.map(name => `<div class="iconBadge">${iconSVG(name)}</div>`).join("");
   iconRowRight.innerHTML = ic.right.map(name => `<div class="iconBadge">${iconSVG(name)}</div>`).join("");
 
-  who.textContent = `第 ${i+1} / ${d.length} 段 — ${role}`;
+  if(CHAPTERS.length){
+    const c = chapterOf(i), ch = CHAPTERS[c];
+    who.textContent = `第 ${c+1} 章 ${ch.short || ch.title}｜第 ${i-ch.start+1} / ${ch.end-ch.start+1} 段 — ${role}`;
+    renderChapterStrip();
+  } else {
+    who.textContent = `第 ${i+1} / ${d.length} 段 — ${role}`;
+  }
   bar.style.background = meta.color;
   bar.style.width = ((i+1)/d.length*100)+"%";
 }
@@ -842,7 +862,7 @@ function speakGoldenQuote(){
   const role = ROLES["主持人"] ? "主持人" : d[d.length-1][0];
   const c = cfg[role] || {pitch:1, rateMul:1, voiceIdx:-1};
   const spoken = speechText(
-    GOLDEN_QUOTE
+    ACT.quote
       .replace(/<br\s*\/?>/gi, " ")   // plain space — the source text already carries its own punctuation
       .replace(/<[^>]+>/g, "")
       .replace(/([，。！？])\s+/g, "$1") // don't leave a pause-inducing gap right after punctuation
@@ -1004,8 +1024,10 @@ async function loadCommunityResponses(){
 // 卡片下方即時顯示全場各選項人數；主持人可以按「只看全場統計」投影出來帶討論。
 const SCN_LETTERS = "ABCDE";
 let scnIdx = 0, scnPicks = [], scnView = "play", scnRows = null, scnStatsError = false, scnRespondMode = false;
+// 目前結尾畫面用的那一組內容：一般集數就是本集的；課程模式則換成該章的（showEndCard 會切換）
+let ACT = {scenarios: SCENARIOS, metrics: SCENARIO_METRICS, quote: GOLDEN_QUOTE, question: MANAGER_QUESTION, chapter: -1};
 
-function scnStorageKey(k){ return `scn:${EPISODE_LABEL}:${k}`; }
+function scnStorageKey(k){ return `scn:${EPISODE_LABEL}:${ACT.chapter >= 0 ? "c" + ACT.chapter + ":" : ""}${k}`; }
 function scnAlreadySent(k){ try{ return localStorage.getItem(scnStorageKey(k)) === "1"; }catch(e){ return false; } }
 function scnMarkSent(k){ try{ localStorage.setItem(scnStorageKey(k), "1"); }catch(e){} }
 
@@ -1029,7 +1051,7 @@ function scnPick(idx){
   renderScenario();
 }
 function scnGo(delta){
-  scnIdx = Math.max(0, Math.min(SCENARIOS.length, scnIdx + delta));
+  scnIdx = Math.max(0, Math.min(ACT.scenarios.length, scnIdx + delta));
   renderScenario();
   const box = document.getElementById("scnBox");
   if(box) box.scrollIntoView({block: "start", behavior: "smooth"});
@@ -1038,7 +1060,7 @@ function scnRestart(){ scnIdx = 0; scnPicks = []; scnView = "play"; renderScenar
 function scnShowStats(on){ scnView = on ? "stats" : "play"; renderScenario(); }
 
 function scnDeltaHtml(score){
-  return SCENARIO_METRICS.map(m => {
+  return ACT.metrics.map(m => {
     const v = (score && score[m.name]) || 0;
     if(!v) return "";
     return `<span class="scnDelta ${v > 0 ? "up" : "down"}">${m.icon} ${escapeHtml(m.name)} ${v > 0 ? "+" : ""}${v}</span>`;
@@ -1047,7 +1069,7 @@ function scnDeltaHtml(score){
 
 // 第一張卡上方說明指標的意思（腳本 scenario_metrics 有寫 desc 的才列），避免大家各自解讀
 function scnLegendHtml(){
-  const items = SCENARIO_METRICS.filter(m => m.desc);
+  const items = ACT.metrics.filter(m => m.desc);
   if(!items.length) return "";
   return `<div class="scnLegend">` + items.map(m => `${m.icon} ${escapeHtml(m.name)}＝${escapeHtml(m.desc)}`).join("<br>") + `</div>`;
 }
@@ -1056,7 +1078,7 @@ function scnDistInner(k){
     ? `<div class="communityEmpty">連不上雲端，晚點再試試看</div>`
     : `<div class="communityEmpty">全場統計載入中…</div>`;
   const rows = scnRows.filter(r => r.question === `情境${k+1}`);
-  const opts = SCENARIOS[k].options;
+  const opts = ACT.scenarios[k].options;
   const counts = opts.map((o, j) => rows.filter(r => r.choice === SCN_LETTERS[j]).length);
   const total = counts.reduce((a, b) => a + b, 0);
   const max = Math.max(...counts);
@@ -1093,27 +1115,27 @@ async function loadScenarioStats(){
 function renderScenario(){
   const box = document.getElementById("scnBox");
   if(!box) return;
-  const N = SCENARIOS.length;
+  const N = ACT.scenarios.length;
 
   if(scnView === "stats"){
     box.innerHTML = `<div class="scnHead"><span>全場統計（只看，不會送出作答）</span>`
       + `<button type="button" class="scnLink" onclick="scnShowStats(false)">回到作答</button></div>`
-      + SCENARIOS.map((sc, k) => `<div class="scnStatCard"><div class="q">情境 ${k+1}｜${escapeHtml(sc.situation)}</div>${scnDistBlock(k)}</div>`).join("");
+      + ACT.scenarios.map((sc, k) => `<div class="scnStatCard"><div class="q">情境 ${k+1}｜${escapeHtml(sc.situation)}</div>${scnDistBlock(k)}</div>`).join("");
     return;
   }
 
   if(scnIdx >= N){
     // 這組情境卡完全沒用到的指標（例如還沒教到的「資料安全」）不列出來，免得大家以為漏算
-    const metrics = SCENARIO_METRICS.filter(m => SCENARIOS.some(sc => sc.options.some(o => (o.score || {})[m.name])));
+    const metrics = ACT.metrics.filter(m => ACT.scenarios.some(sc => sc.options.some(o => (o.score || {})[m.name])));
     const totals = {};
     metrics.forEach(m => { totals[m.name] = 0; });
     scnPicks.forEach((j, k) => {
-      const sc = (SCENARIOS[k].options[j] || {}).score || {};
+      const sc = (ACT.scenarios[k].options[j] || {}).score || {};
       Object.keys(totals).forEach(name => { totals[name] += sc[name] || 0; });
     });
     // 長條的滿格 = 這組情境卡裡該指標理論上拿得到的最大絕對值，讓不同指標的長條可以互相比較
     const reach = Math.max(1, ...metrics.map(m =>
-      SCENARIOS.reduce((acc, sc) => acc + Math.max(...sc.options.map(o => Math.abs((o.score || {})[m.name] || 0))), 0)));
+      ACT.scenarios.reduce((acc, sc) => acc + Math.max(...sc.options.map(o => Math.abs((o.score || {})[m.name] || 0))), 0)));
     const rows = metrics.map(m => {
       const v = totals[m.name], w = Math.min(50, Math.abs(v) / reach * 50);
       const bar = v >= 0
@@ -1129,13 +1151,15 @@ function renderScenario(){
     box.innerHTML = `<div class="scnHead"><span>你的取捨總結</span>`
       + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
       + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
-      + `<div class="endQuestion">${MANAGER_QUESTION}</div>`
+      + `<div class="endQuestion">${ACT.question}</div>`
       + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
-      + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`;
+      + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`
+      + chapterNextHtml();
+    if(ACT.chapter >= 0){ markChapterDone(ACT.chapter); }
     return;
   }
 
-  const k = scnIdx, sc = SCENARIOS[k], picked = scnPicks[k];
+  const k = scnIdx, sc = ACT.scenarios[k], picked = scnPicks[k];
   const optsHtml = sc.options.map((o, j) =>
     `<button type="button" class="scnOpt${picked === j ? " picked" : ""}" onclick="scnPick(${j})"${picked !== undefined ? " disabled" : ""}>`
     + `<span class="num">${SCN_LETTERS[j]}.</span>${escapeHtml(o.text)}</button>`).join("");
@@ -1159,20 +1183,77 @@ function renderScenario(){
     + `</div>${k === 0 ? scnLegendHtml() : ""}<div class="scnSituation">${escapeHtml(sc.situation)}</div>${optsHtml}${after}${nav}`;
 }
 
+// ==== 課程模式：章節 ====
+let chDone = new Set();
+try{ chDone = new Set(JSON.parse(localStorage.getItem("chdone:" + EPISODE_LABEL) || "[]")); }catch(e){}
+function chapterOf(idx){
+  for(let c = CHAPTERS.length - 1; c >= 0; c--){ if(idx >= CHAPTERS[c].start) return c; }
+  return 0;
+}
+function sceneRange(){ // 目前這一章涵蓋的幕（SCRIPT 的索引，含頭尾）；沒有章節就是整份
+  if(!CHAPTERS.length) return [0, SCRIPT.length - 1];
+  const ch = CHAPTERS[chapterOf(i)];
+  return [PANELS[ch.start].sceneIdx, PANELS[ch.end].sceneIdx];
+}
+function isChapterEnd(idx){ return CHAPTERS.some(ch => ch.end === idx); }
+function markChapterDone(c){
+  chDone.add(c);
+  try{ localStorage.setItem("chdone:" + EPISODE_LABEL, JSON.stringify([...chDone])); }catch(e){}
+  renderChapterStrip();
+}
+function chapterNextHtml(){
+  if(ACT.chapter < 0) return "";
+  const nxt = CHAPTERS[ACT.chapter + 1];
+  if(nxt) return `<div class="scnNav"><button type="button" class="chNext" onclick="goChapter(${ACT.chapter + 1}, true)">下一章：${escapeHtml(nxt.title)} ▶</button></div>`;
+  return `<div class="scnNote chFinish">🎉 全部 ${CHAPTERS.length} 章完成！</div>`;
+}
+function goChapter(c, autoplay){
+  speechSynthesis.cancel(); auto = false; ++actionSeq;
+  onEndCard = false; // 先離開結尾畫面，否則 playFrom 會以為是「重播本章」
+  i = CHAPTERS[c].start;
+  try{ history.replaceState(null, "", "#ch" + (c + 1)); }catch(e){}
+  if(autoplay){ playFrom(); } else { flashRender(); }
+  document.getElementById("panelWrap").scrollIntoView({block: "start", behavior: "smooth"});
+}
+function renderChapterStrip(){
+  if(!CHAPTERS.length) return;
+  let el = document.getElementById("chapterStrip");
+  if(!el){
+    el = document.createElement("nav");
+    el.id = "chapterStrip"; el.className = "chapterStrip"; el.setAttribute("aria-label", "章節");
+    const mh = document.querySelector(".masthead");
+    mh.parentNode.insertBefore(el, mh.nextSibling);
+  }
+  const cur = onEndCard ? ACT.chapter : chapterOf(i);
+  el.innerHTML = CHAPTERS.map((ch, c) =>
+    `<button type="button" class="chChip${c === cur ? " cur" : ""}${chDone.has(c) ? " done" : ""}" onclick="goChapter(${c})">`
+    + `<span class="n">第 ${c + 1} 章${chDone.has(c) ? " ✓" : ""}</span><span class="t">${escapeHtml(ch.short || ch.title)}</span></button>`).join("");
+  const curEl = el.querySelector(".chChip.cur");
+  if(curEl) el.scrollLeft = Math.max(0, curEl.offsetLeft - el.clientWidth / 2 + curEl.clientWidth / 2);
+}
+
 function showEndCard(opts = {}){
   onEndCard = true;
   selectedChoice = null;
   bgLayer.className = "bgLayer bg-spotlight";
   bgLayer.innerHTML = "";
   panelCount.textContent = "完";
-  dotsRow.innerHTML = SCRIPT.map((s,idx) => `<span class="pdot active"></span>`).join("");
+  const [s0, s1] = sceneRange();
+  dotsRow.innerHTML = SCRIPT.slice(s0, s1+1).map(() => `<span class="pdot active"></span>`).join("");
   reactionMark.innerHTML = "";
   iconRowLeft.innerHTML = ""; iconRowRight.innerHTML = "";
   roleLabel.textContent = ""; roleLabel.style.background = "transparent";
   speedlines.classList.remove("on"); impact.classList.remove("on"); sparkWrap.classList.remove("on");
   document.getElementById("panelWrap").classList.add("ended");
   speechBubble.className = "speechBubble final";
-  const isScn = SCENARIOS.length > 0;
+  if(CHAPTERS.length){
+    const c = (opts.chapter ?? chapterOf(i)), ch = CHAPTERS[c];
+    ACT = {scenarios: ch.scenarios || [], metrics: ch.metrics || SCENARIO_METRICS,
+           quote: ch.quote || GOLDEN_QUOTE, question: ch.question || MANAGER_QUESTION, chapter: c};
+  } else {
+    ACT = {scenarios: SCENARIOS, metrics: SCENARIO_METRICS, quote: GOLDEN_QUOTE, question: MANAGER_QUESTION, chapter: -1};
+  }
+  const isScn = ACT.scenarios.length > 0;
   const qrWhat = isScn ? "情境卡" : "回饋表單";
   const qrBlock = (RESPONSE_QR_IMG && !opts.respond) // 已經是掃 QR 進來的人，不用再給一次連結
     ? `<div class="qrBlock"><a class="qrLink" href="${RESPONSE_QR_URL}" target="_blank" rel="noopener">`
@@ -1183,9 +1264,12 @@ function showEndCard(opts = {}){
   if(isScn){
     scnIdx = 0; scnPicks = []; scnView = "play"; scnRows = null; scnStatsError = false;
     scnRespondMode = !!opts.respond;
-    speechBubble.innerHTML = `<div class="quoteLine">${GOLDEN_QUOTE}</div>${qrBlock}<div class="scnBox" id="scnBox"></div>`;
+    speechBubble.innerHTML = `<div class="quoteLine">${ACT.quote}</div>${qrBlock}<div class="scnBox" id="scnBox"></div>`;
     renderScenario();
-    who.textContent = "播放完畢 — 一起玩情境卡（再按一次執行播放可從頭重播）";
+    renderChapterStrip();
+    who.textContent = ACT.chapter >= 0
+      ? `第 ${ACT.chapter + 1} 章播完 — 玩完情境卡再進下一章（按執行播放可重播本章）`
+      : "播放完畢 — 一起玩情境卡（再按一次執行播放可從頭重播）";
     bar.style.width = "100%";
     if(!opts.silent) speakGoldenQuote();
     if(RESPONSE_API_BASE){
@@ -1207,7 +1291,7 @@ function showEndCard(opts = {}){
       + `</div>`
     : "";
   const placeholder = TAKEAWAYS.length ? "想多說一點也可以（選填）……" : "打幾個字，說說你的想法……";
-  speechBubble.innerHTML = `<div class="quoteLine">${GOLDEN_QUOTE}</div><div class="endQuestion">${MANAGER_QUESTION}</div>`
+  speechBubble.innerHTML = `<div class="quoteLine">${ACT.quote}</div><div class="endQuestion">${ACT.question}</div>`
     + `<div class="responseBox">${choiceBlock}<textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
     + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
     + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
@@ -1221,11 +1305,12 @@ function showEndCard(opts = {}){
 }
 
 function playFrom(){
-  if(i >= d.length - 1 && !auto){ i = 0; } // replay from the start once the end card is showing
+  if(CHAPTERS.length && onEndCard && ACT.chapter >= 0){ i = CHAPTERS[ACT.chapter].start; } // 課程模式：在章節結尾按播放＝重播本章
+  else if(i >= d.length - 1 && !auto){ i = 0; } // replay from the start once the end card is showing
   auto = true;
   render();
   const step = () => {
-    if(auto && i < d.length-1){
+    if(auto && i < d.length-1 && !(CHAPTERS.length && isChapterEnd(i))){ // 課程模式：每章最後一行停下來玩情境卡
       i++;
       flashRender(() => speakCurrent(step));
     } else if(!onEndCard){
@@ -1245,7 +1330,7 @@ function pause(){ auto=false; speechSynthesis.pause(); render(); }
 function next(){
   speechSynthesis.cancel(); auto=false;
   if(onEndCard) return;
-  if(i<d.length-1){ i++; flashRender(); }
+  if(i<d.length-1 && !(CHAPTERS.length && isChapterEnd(i))){ i++; flashRender(); }
   else {
     onEndCard = true; // set immediately — a second "next" click inside this same
                        // 110ms window must see onEndCard already true and no-op above
@@ -1263,6 +1348,10 @@ function prev(){
 
 
 rate.oninput = () => rv.textContent = (+rate.value).toFixed(2)+"x";
+if(CHAPTERS.length){ // 課程模式：網址 #ch3 直接跳到第 3 章
+  const m = location.hash.match(/^#ch(\d+)$/);
+  if(m && CHAPTERS[+m[1] - 1]) i = CHAPTERS[+m[1] - 1].start;
+}
 speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
 
