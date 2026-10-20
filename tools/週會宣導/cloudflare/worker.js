@@ -8,6 +8,9 @@
  *                    因為 SITE_KEY 寫在公開網頁裡，誰都拿得到
  *   GET  /admin/responses  連 name 一起讀出；要帶 X-Admin-Key，值是只有主辦人知道的
  *                    ADMIN_KEY（`npx wrangler secret put ADMIN_KEY` 設定，不寫在任何網頁或 repo 裡）
+ *   GET  /open-state       各集「開放／關閉」的手動設定（入口網站主題頁讀，公開）
+ *   POST /admin/open-state 主辦人在後台按「開放／關閉／依網頁預設」，要帶 X-Admin-Key
+ *                    （存在 D1 的 settings 表，第一次寫入時自動建表，不用另外跑 migration）
  *   GET  /respond    手機掃 QR Code 進來看到的簡易回應頁面
  *                    （?ep=<episode>&q=<question> 帶入要回答的問題）
  *
@@ -159,6 +162,41 @@ export default {
         ({ results } = await query("episode, question, response, submitted_at"));
       }
       return json({ responses: results });
+    }
+
+    if (url.pathname === "/open-state" && request.method === "GET") {
+      // 還沒建表（從沒在後台按過）就當作沒有任何手動設定
+      try {
+        const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'open_state'").first();
+        return json({ state: row ? JSON.parse(row.value) : {} });
+      } catch (e) {
+        return json({ state: {} });
+      }
+    }
+
+    if (url.pathname === "/admin/open-state" && request.method === "POST") {
+      if (!env.ADMIN_KEY || request.headers.get("X-Admin-Key") !== env.ADMIN_KEY) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "invalid json" }, 400);
+      }
+      const ep = String(body.ep || "").toLowerCase().replace(/[^0-9a-z]/g, "").slice(0, 20);
+      if (!ep || ![true, false, null].includes(body.open)) {
+        return json({ error: "ep and open (true/false/null) are required" }, 400);
+      }
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)").run();
+      const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'open_state'").first();
+      const state = row ? JSON.parse(row.value) : {};
+      if (body.open === null) delete state[ep]; // null＝回到網頁上的預設（排程開放的日期）
+      else state[ep] = body.open;
+      await env.DB.prepare(
+        "INSERT INTO settings (key, value) VALUES ('open_state', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+      ).bind(JSON.stringify(state)).run();
+      return json({ ok: true, state });
     }
 
     if (url.pathname === "/admin/responses" && request.method === "GET") {

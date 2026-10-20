@@ -240,6 +240,36 @@
 
     </div>
   </main>
+<script>
+  // 後台「開放管理」的手動設定：OPEN_API 由 產生網頁.py --cloud 填入（本機版留空＝只照網頁上的預設）。
+  // 設定成「開放」的卡片馬上變成可點；設定成「關閉」的變回「尚未開放」；沒設定的照網頁原本的樣子（排程開放）。
+  const OPEN_API = "";
+  (function(){
+    if(!OPEN_API) return;
+    function setOpen(card, open){
+      var isOpen = card.tagName === "A" && !card.classList.contains("upcoming");
+      if(open === isOpen) return;
+      var el = document.createElement(open ? "a" : "div");
+      for(var k = 0; k < card.attributes.length; k++) el.setAttribute(card.attributes[k].name, card.attributes[k].value);
+      el.innerHTML = card.innerHTML;
+      el.classList.toggle("upcoming", !open);
+      if(open) el.setAttribute("href", card.getAttribute("data-file")); else el.removeAttribute("href");
+      var go = el.querySelector(".go");
+      if(go) go.textContent = open ? "開始收看" : "尚未開放";
+      var st = el.querySelector(".st");
+      if(st) st.innerHTML = open ? st.innerHTML.replace("　·　尚未開放", "　·　已開放")
+                                 : st.innerHTML.replace(/　·　[^<]*$/, "　·　尚未開放");
+      card.parentNode.replaceChild(el, card);
+    }
+    fetch(OPEN_API + "/open-state").then(function(r){ return r.json(); }).then(function(d){
+      var state = (d && d.state) || {};
+      document.querySelectorAll(".lesson[data-ep]").forEach(function(card){
+        var ep = card.getAttribute("data-ep");
+        if(Object.prototype.hasOwnProperty.call(state, ep)) setOpen(card, state[ep] === true);
+      });
+    }).catch(function(){});
+  })();
+</script>
 
 <script>
   // QR Code 短網址：?r=09 → 轉到第 09 集並直接打開結尾回饋畫面。

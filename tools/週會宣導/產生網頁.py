@@ -306,6 +306,7 @@ def build_dashboard(cloud_config):
         eps.append({
             **timing,
             "label": episode_label(ep),
+            "key": ep_key(ep),
             "series": ("usb" if ep["id"].upper().startswith("USB") else "ai") if ep.get("id") else "52",
             "tag": ("USB" if ep["id"].upper().startswith("USB") else ep["id"][:2] + " " + ep["id"][2:])
                    if ep.get("id") else "EP " + ep_num(ep),
@@ -365,6 +366,15 @@ def main(argv):
             dest = CLOUD_OUT_DIR / out_name(ep)
             dest.write_text(render(ep, template, cloud_config), encoding="utf-8")
             print(f"☁️  {path.name} → {CLOUD_OUT_DIR.name}/{dest.name}")
+        # 主題頁的雲端版：填入 Worker 網址，讓後台「開放管理」的手動開關生效（CI 部署這一份，不是原始的主題頁）
+        for topic in ("value", "ai", "usb"):
+            src = HERE / topic / "index.html"
+            if src.exists():
+                dest = CLOUD_OUT_DIR / "主題頁" / topic / "index.html"
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(src.read_text(encoding="utf-8").replace(
+                    'const OPEN_API = "";', f"const OPEN_API = {js(cloud_config['apiBase'])};", 1), encoding="utf-8")
+        print(f"🗂  主題頁（含開放管理）→ {CLOUD_OUT_DIR.name}/主題頁/")
         if DASHBOARD.exists():
             (CLOUD_OUT_DIR / DASHBOARD.name).write_text(build_dashboard(cloud_config), encoding="utf-8")
             print(f"📊 結果總覽 → {CLOUD_OUT_DIR.name}/{DASHBOARD.name}（不放在入口網站上，網址只給主辦人）")
