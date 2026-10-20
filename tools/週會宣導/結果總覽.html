@@ -66,6 +66,13 @@
   .gate .back{display:inline-block;margin-top:12px;font-size:13px;color:var(--sub)}
   body.hideNames .nameList{display:none}
   .hint{font-size:12.5px;color:var(--sub);margin:6px 0 4px}
+  table.open td{vertical-align:middle}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{border:0;border-radius:0;padding:5px 10px;font-size:12.5px;background:var(--card)}
+  .seg button + button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--ink);color:var(--card)}
+  .st-open{color:#15803d;font-weight:800}
+  .st-closed{color:var(--sub);font-weight:700}
   table.hist td{vertical-align:top}
   table.hist summary{cursor:pointer;font-weight:800;color:var(--ink);font-size:13px}
   ul.sess{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--sub)}
@@ -107,6 +114,7 @@
   </div>
 
   <div class="tiles" id="tiles"></div>
+  <div id="openMgr"></div>
   <div id="history"></div>
   <div id="list"></div>
 
@@ -214,6 +222,66 @@ function buildHistory(rows){
     return {person, aliases, done52, doneAi, eps52, epsAi, usb, sessions, total, last: sorted[sorted.length - 1].submitted_at};
   }).sort((a, b) => a.person.localeCompare(b.person, "zh-Hant"));
 }
+// ==== 開放管理：主辦人手動開啟／關閉入口網站上的集數（覆蓋網頁上的排程預設）====
+let openState = {}, openDefaults = {}, openLoaded = false;
+async function loadOpenState(){
+  try{
+    const res = await fetch(API_BASE + "/open-state");
+    openState = (await res.json()).state || {};
+  } catch(e){ openState = {}; }
+  // 網頁上的預設：直接讀主題頁，看哪些卡片原本就是可點的（排程開放後會變）
+  for(const t of ["value", "ai"]){
+    try{
+      const html = await (await fetch(`../${t}/index.html`, {cache: "no-store"})).text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      doc.querySelectorAll(".lesson[data-ep]").forEach(c => {
+        openDefaults[c.getAttribute("data-ep")] = c.tagName === "A" && !c.classList.contains("upcoming");
+      });
+    } catch(e){}
+  }
+  openLoaded = true;
+  renderOpenMgr();
+}
+function renderOpenMgr(){
+  const box = $("openMgr");
+  if(!adminMode || !API_BASE){ box.innerHTML = ""; return; }
+  if(!openLoaded){ box.innerHTML = ""; loadOpenState(); return; }
+  const eps = EPISODES.filter(e => e.series === "52" || e.series === "ai");
+  const was = box.querySelector("details");
+  const isOpenNow = (k) => k in openState ? openState[k] === true : !!openDefaults[k];
+  box.innerHTML = `<section class="ep"><details${was && was.open ? " open" : ""}><summary><b>📂 開放管理</b>`
+    + `（手動開啟／關閉入口網站上的集數，學員重新整理就看得到）</summary>`
+    + `<p class="hint">「依排程」＝照網頁上原本的開放日期；按「開放」或「關閉」會蓋過排程，直到你改回「依排程」。</p>`
+    + `<table class="names open"><tr><th>集數</th><th>網頁預設</th><th>現在</th><th>設定</th></tr>`
+    + eps.map(e => {
+        const k = e.key, mode = k in openState ? (openState[k] ? "open" : "closed") : "auto";
+        const btn = (m, label) => `<button type="button" class="${mode === m ? "on" : ""}" onclick="setOpenState('${k}', ${m === "auto" ? "null" : m === "open"})">${label}</button>`;
+        return `<tr><td>${esc(e.tag)}　${esc(e.title)}</td>`
+          + `<td>${k in openDefaults ? (openDefaults[k] ? "已開放" : "尚未開放") : "—"}</td>`
+          + `<td class="${isOpenNow(k) ? "st-open" : "st-closed"}">${isOpenNow(k) ? "✅ 開放中" : "🔒 未開放"}</td>`
+          + `<td><span class="seg">${btn("auto", "依排程")}${btn("open", "開放")}${btn("closed", "關閉")}</span></td></tr>`;
+      }).join("")
+    + `</table><div class="hint" id="openMsg"></div></details></section>`;
+}
+async function setOpenState(ep, open){
+  const msg = $("openMsg");
+  if(msg) msg.textContent = "儲存中…";
+  try{
+    const res = await fetch(API_BASE + "/admin/open-state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey() },
+      body: JSON.stringify({ ep, open })
+    });
+    if(res.status === 404) throw new Error("雲端 Worker 還是舊版，請先部署新版 worker.js");
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    openState = (await res.json()).state || {};
+    renderOpenMgr();
+    $("openMsg").textContent = "已儲存 ✓ 學員重新整理入口網站就會看到";
+  } catch(e){
+    if($("openMsg")) $("openMsg").textContent = "儲存失敗：" + e.message;
+  }
+}
+
 function renderHistory(rows){
   const box = $("history");
   if(!adminMode){ box.innerHTML = ""; historyData = []; return; }
@@ -397,6 +465,7 @@ function render(){
   }
 
   $("list").innerHTML = html || `<div class="ep empty">這個條件下沒有資料</div>`;
+  renderOpenMgr();
   renderHistory(rows);
   const last = rows.reduce((a, r) => (r.submitted_at > a ? r.submitted_at : a), "");
   $("tiles").innerHTML =

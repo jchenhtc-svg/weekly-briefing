@@ -67,7 +67,8 @@ jobs:
           mkdir -p _site/網頁
           cp "tools/週會宣導/index.html" _site/index.html
           # 2026-10-16 起：首頁＋三個主題頁（各自有專屬網址 /value/ /ai/ /usb/）
-          cp -r "tools/週會宣導/value" "tools/週會宣導/ai" "tools/週會宣導/usb" _site/
+          # 2026-10-20 起：用 產生網頁.py --cloud 輸出的主題頁（填好 Worker 網址，後台「開放管理」的手動開關才會生效）
+          cp -r "tools/週會宣導/網頁-雲端版/主題頁/value" "tools/週會宣導/網頁-雲端版/主題頁/ai" "tools/週會宣導/網頁-雲端版/主題頁/usb" _site/
           cp tools/週會宣導/網頁-雲端版/*.html _site/網頁/
 
       - uses: actions/configure-pages@v5
