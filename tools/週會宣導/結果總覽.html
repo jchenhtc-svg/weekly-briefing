@@ -208,15 +208,31 @@ function render(){
         const pass = !miss.length && exam && /・通過/.test(exam.choice || "");
         return {name, done, miss, exam, pass};
       });
-      const nPass = roster.filter(x => x.pass).length;
-      body += `<div class="block nameList"><div class="blockTitle">結訓名單：通過 ${nPass} / ${roster.length} 人`
-        + `（${chapNums.length} 個單元的情境題都做完＋測驗及格才算通過）</div>`
-        + `<table class="names"><tr><th>名字＋社編</th><th>單元完成</th><th>結訓測驗（最後一次）</th><th>結訓</th></tr>`
-        + roster.map(x => `<tr><td>${esc(x.name)}</td>`
+      // 同名合併：社編打錯或換手機重填，同一個名字會出現好幾筆。
+      // 同名裡有人通過 → 只留通過的；都沒通過 → 只留進度最多的一筆。被收起來的列在下面，不刪資料
+      const nameOf = (x) => x.name.replace(/\d+$/, "");
+      const score = (x) => [x.pass ? 1 : 0, x.done.length, x.exam ? 1 : 0, x.exam ? x.exam.submitted_at : ""];
+      const better = (a, b) => { const sa = score(a), sb = score(b); for(let k = 0; k < sa.length; k++){ if(sa[k] !== sb[k]) return sa[k] > sb[k] ? a : b; } return a; };
+      const groups = {};
+      roster.forEach(x => (groups[nameOf(x)] = groups[nameOf(x)] || []).push(x));
+      const kept = [], merged = [];
+      Object.values(groups).forEach(g => {
+        const keep = g.some(x => x.pass) ? g.filter(x => x.pass) : [g.reduce(better)];
+        g.forEach(x => (keep.includes(x) ? kept : merged).push(x));
+      });
+      const shown = roster.filter(x => kept.includes(x)); // 維持原本的排序
+      const nPass = shown.filter(x => x.pass).length;
+      const rowHtml = (x) => `<tr><td>${esc(x.name)}</td>`
           + `<td>${x.done.length} / ${chapNums.length}${x.miss.length ? `<br><small class="fail">缺第 ${x.miss.join("、")} 章</small>` : ""}</td>`
           + `<td>${x.exam ? `${esc(x.exam.choice)}<br><small>${esc(timeStr(x.exam.submitted_at))}</small>` : `<span class="fail">未交卷</span>`}</td>`
-          + `<td class="${x.pass ? "pass" : "fail"}">${x.pass ? "✅ 通過" : "未通過"}</td></tr>`).join("")
-        + `</table></div>`;
+          + `<td class="${x.pass ? "pass" : "fail"}">${x.pass ? "✅ 通過" : "未通過"}</td></tr>`;
+      const head = `<tr><th>名字＋社編</th><th>單元完成</th><th>結訓測驗（最後一次）</th><th>結訓</th></tr>`;
+      body += `<div class="block nameList"><div class="blockTitle">結訓名單：通過 ${nPass} / ${shown.length} 人`
+        + `（${chapNums.length} 個單元的情境題都做完＋測驗及格才算通過${merged.length ? `；已合併同名重複 ${merged.length} 筆` : ""}）</div>`
+        + `<table class="names">${head}${shown.map(rowHtml).join("")}</table>`
+        + (merged.length ? `<details><summary>被合併的同名紀錄 ${merged.length} 筆（同名裡已有人完成，或只留進度最多的一筆；若其實是不同人請自行判斷）</summary>`
+            + `<table class="names">${head}${merged.map(rowHtml).join("")}</table></details>` : "")
+        + `</div>`;
     } else if(chapNums.length && rs.length && !adminMode){
       body += `<div class="empty">結訓名單：要管理密碼才看得到</div>`;
     }
