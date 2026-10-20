@@ -970,6 +970,11 @@ async function submitResponse(){
   const note = document.getElementById("responseNote");
   const text = inputEl.value.trim();
   const choice = selectedChoice === null ? "" : TAKEAWAYS[selectedChoice];
+  let name = "";
+  if(NAME_EVERYWHERE){
+    name = readName("respName");
+    if(!name){ note.textContent = "請先填寫名字＋社編去掉最後一碼"; return; }
+  }
   if(!text && !choice){
     note.textContent = TAKEAWAYS.length ? "先選一個最有感的重點，或打幾個字再送出喔" : "打點字再送出喔";
     return;
@@ -981,7 +986,8 @@ async function submitResponse(){
     question: plainQuestion,
     choice: choice,
     response: text,
-    submittedAt: new Date().toISOString()
+    submittedAt: new Date().toISOString(),
+    ...(name ? {name} : {})
   };
   const resetForm = () => {
     inputEl.value = "";
@@ -1114,7 +1120,10 @@ function readName(id){
 // 課程設了 EXAM.require_all_chapters：每張情境卡都要具名（主辦人才能逐人核對每一章都做完），
 // 而且每一章的情境卡都答完、測驗才能交卷
 const NEED_ALL = !!(EXAM && EXAM.require_all_chapters);
-function needsName(sc){ return !!(sc && (sc.require_name || NEED_ALL)); }
+// 學習歷程：雲端版（會送出作答的版本）每一集都要具名，主辦人才能逐人統計完成集數與學習時數。
+// 本機版不送出，維持原本不用填名字（USB 課程例外：NEED_ALL 照樣要名字）
+const NAME_EVERYWHERE = !!RESPONSE_API_BASE;
+function needsName(sc){ return !!(sc && (sc.require_name || NEED_ALL || NAME_EVERYWHERE)); }
 function missingChapters(){ return CHAPTERS.map((ch, c) => c).filter(c => !chDone.has(c)); }
 function setNote(id, text){ const el = document.getElementById(id); if(el) el.textContent = text; }
 
@@ -1535,7 +1544,7 @@ function showEndCard(opts = {}){
     : "";
   const placeholder = TAKEAWAYS.length ? "想多說一點也可以（選填）……" : "打幾個字，說說你的想法……";
   speechBubble.innerHTML = `<div class="quoteLine">${ACT.quote}</div><div class="endQuestion">${ACT.question}</div>`
-    + `<div class="responseBox">${choiceBlock}<textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
+    + `<div class="responseBox">${NAME_EVERYWHERE ? nameBoxHtml("respName") : ""}${choiceBlock}<textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
     + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
     + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
   who.textContent = "播放完畢 — 今日金句與主管互動問題（再按一次執行播放可從頭重播）";

@@ -65,6 +65,11 @@
   .gateMsg{color:#b91c1c;font-size:13px;font-weight:700;min-height:1.4em;margin-top:8px}
   .gate .back{display:inline-block;margin-top:12px;font-size:13px;color:var(--sub)}
   body.hideNames .nameList{display:none}
+  .hint{font-size:12.5px;color:var(--sub);margin:6px 0 4px}
+  table.hist td{vertical-align:top}
+  table.hist summary{cursor:pointer;font-weight:800;color:var(--ink);font-size:13px}
+  ul.sess{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--sub)}
+  ul.sess li{margin-bottom:4px}
   .fail{color:#b91c1c;font-weight:800}
   @media (max-width:480px){ .status{margin-left:0;width:100%} .epCount{margin-left:0;width:100%} }
 </style>
@@ -102,6 +107,7 @@
   </div>
 
   <div class="tiles" id="tiles"></div>
+  <div id="history"></div>
   <div id="list"></div>
 
   <p class="note">「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。<br>
@@ -126,6 +132,129 @@ const adminKey = () => { try { return sessionStorage.getItem("admin-key") || "";
 function setAdminKey(v){ try { v ? sessionStorage.setItem("admin-key", v) : sessionStorage.removeItem("admin-key"); } catch(e){} }
 const timeStr = (t) => new Date(t).toLocaleString("zh-TW");
 // 每個名字只留最後一次（資料已經是新到舊）
+// ==== 同一人判斷（結訓名單、學習歷程共用）====
+// ① 名字一樣（社編不同）② 社編一樣（名字打錯）③ 少打姓：一個名字是另一個去掉開頭的字（至少 2 字）
+// （不在程式裡寫死真名對照：這個網站的原始碼是公開的）
+const namePart = (n) => n.replace(/\d+$/, "");
+const idPart = (n) => (n.match(/\d+$/) || [""])[0];
+function sameName(a, b){
+  const na = namePart(a), nb = namePart(b), ia = idPart(a), ib = idPart(b);
+  if(na === nb || (ia && ia === ib)) return true;
+  const [s1, l1] = na.length <= nb.length ? [na, nb] : [nb, na];
+  return s1.length >= 2 && l1.length > s1.length && l1.endsWith(s1);
+}
+// 把一堆名字分成「同一人」的組：回傳 名字 → 代表名字（該組裡紀錄最多的那個寫法）
+function personMap(rows){
+  const cnt = {};
+  rows.forEach(r => { cnt[r.name] = (cnt[r.name] || 0) + 1; });
+  const names = Object.keys(cnt), parent = names.map((x, k) => k);
+  const root = (k) => parent[k] === k ? k : (parent[k] = root(parent[k]));
+  names.forEach((a, k) => names.forEach((b, j) => { if(j > k && sameName(a, b)) parent[root(j)] = root(k); }));
+  const best = {};
+  names.forEach((n, k) => { const g = root(k); if(!(g in best) || cnt[n] > cnt[best[g]]) best[g] = n; });
+  return Object.fromEntries(names.map((n, k) => [n, best[root(k)]]));
+}
+
+// ==== 學習歷程：每人完成哪些集數／單元＋線上學習時數 ====
+// 時數：同一人的作答依時間排序，間隔超過 30 分鐘就切成新的一段；每段取「第一筆到最後一筆的時間差」
+// 與「這段碰到的集數／單元，內容用 1.5 倍速播完的長度」較大者（現場看投影、只用手機作答的人才不會算太少）
+const SESSION_GAP_MIN = 30;
+function unitOf(r){
+  const ep = EPISODES.find(e => e.label === r.episode);
+  if(!ep) return null;
+  if(ep.chapterMins){
+    if(r.question === EXAM_Q) return {key: ep.label + "|exam", title: `${ep.tag} 結訓測驗`, mins: ep.examMins || 0};
+    const m = (r.question || "").match(/^第(\d+)章/);
+    return m ? {key: ep.label + "|ch" + m[1], title: `${ep.tag} 第 ${m[1]} 章`, mins: ep.chapterMins[m[1] - 1] || 0} : null;
+  }
+  return {key: ep.label, title: `${ep.tag} ${ep.title}`, mins: ep.mins || 0};
+}
+function fmtMins(m){ m = Math.round(m); return m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分`; }
+let historyData = [];
+function buildHistory(rows){
+  const named = rows.filter(r => r.name);
+  const pmap = personMap(named);
+  const by = {};
+  named.forEach(r => (by[pmap[r.name]] = by[pmap[r.name]] || []).push(r));
+  const eps52 = EPISODES.filter(e => e.series === "52"), epsAi = EPISODES.filter(e => e.series === "ai");
+  const course = EPISODES.find(e => e.chapterMins);
+  return Object.entries(by).map(([person, rs]) => {
+    const has = (label, q) => rs.some(r => r.episode === label && (!q || r.question === q));
+    const epDone = (e) => e.scenarios.length ? e.scenarios.every((sc, k) => has(e.label, sc.q || `情境${k+1}`)) : has(e.label);
+    const done52 = eps52.filter(epDone), doneAi = epsAi.filter(epDone);
+    let usb = null;
+    if(course){
+      const chapQs = {};
+      course.scenarios.forEach(sc => { const m = (sc.q || "").match(/^第(\d+)章/); if(m) (chapQs[m[1]] = chapQs[m[1]] || []).push(sc.q); });
+      const nums = Object.keys(chapQs).sort((a, b) => a - b);
+      const doneCh = nums.filter(n => chapQs[n].every(q => has(course.label, q)));
+      const exam = rs.filter(r => r.episode === course.label && r.question === EXAM_Q).sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))[0];
+      usb = {done: doneCh.length, total: nums.length, exam, pass: doneCh.length === nums.length && !!exam && /・通過/.test(exam.choice || "")};
+    }
+    // 學習時數
+    const sorted = rs.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+    const sessions = [];
+    sorted.forEach(r => {
+      const t = new Date(r.submitted_at).getTime(), cur = sessions[sessions.length - 1];
+      if(cur && t - cur.end <= SESSION_GAP_MIN * 60000){ cur.end = t; cur.rows.push(r); }
+      else sessions.push({start: t, end: t, rows: [r]});
+    });
+    const credited = new Set();
+    let total = 0;
+    sessions.forEach(ss => {
+      ss.span = (ss.end - ss.start) / 60000;
+      ss.units = [];
+      ss.rows.forEach(r => { const u = unitOf(r); if(u && !ss.units.some(x => x.key === u.key)) ss.units.push(u); });
+      ss.floor = ss.units.filter(u => !credited.has(u.key)).reduce((a, u) => a + u.mins, 0);
+      ss.units.forEach(u => credited.add(u.key));
+      ss.mins = Math.max(ss.span, ss.floor);
+      total += ss.mins;
+    });
+    const aliases = [...new Set(rs.map(r => r.name))].filter(n => n !== person);
+    return {person, aliases, done52, doneAi, eps52, epsAi, usb, sessions, total, last: sorted[sorted.length - 1].submitted_at};
+  }).sort((a, b) => a.person.localeCompare(b.person, "zh-Hant"));
+}
+function renderHistory(rows){
+  const box = $("history");
+  if(!adminMode){ box.innerHTML = ""; historyData = []; return; }
+  historyData = buildHistory(rows);
+  if(!historyData.length){ box.innerHTML = ""; return; }
+  const totalAll = historyData.reduce((a, x) => a + x.total, 0);
+  box.innerHTML = `<section class="ep nameList"><div class="epHead"><span class="epTag">學習歷程</span>`
+    + `<span class="epTitle">學員學習歷程：${historyData.length} 人・合計 ${fmtMins(totalAll)}</span>`
+    + `<button type="button" id="historyCsv">下載學習歷程 CSV</button></div>`
+    + `<p class="hint">線上學習時數＝每段作答（間隔超過 ${SESSION_GAP_MIN} 分鐘算新的一段）取「實際時間差」與「內容用 1.5 倍速播完的長度」較大者。同名、同社編、少打姓視為同一人。點名字看明細。</p>`
+    + `<table class="names hist"><tr><th>名字＋社編</th><th>工程師的價值</th><th>AI 素養</th><th>USB 資安</th><th>線上學習時數</th><th>最近學習</th></tr>`
+    + historyData.map((x, k) => `<tr><td><details><summary>${esc(x.person)}</summary>`
+        + (x.aliases.length ? `<small>也寫成：${x.aliases.map(esc).join("、")}</small>` : "")
+        + `<ul class="sess">` + x.sessions.map(ss => `<li><b>${esc(new Date(ss.start).toLocaleString("zh-TW"))}</b>　採計 ${fmtMins(ss.mins)}`
+          + `<small>（實際 ${fmtMins(ss.span)}／1.5 倍速內容 ${fmtMins(ss.floor)}）</small><br>`
+          + ss.units.map(u => esc(u.title)).join("、") + `</li>`).join("") + `</ul></details></td>`
+      + `<td>${x.done52.length} / ${x.eps52.length} 集</td>`
+      + `<td>${x.doneAi.length} / ${x.epsAi.length} 堂</td>`
+      + `<td>${x.usb ? `${x.usb.done} / ${x.usb.total} 單元<br><span class="${x.usb.pass ? "pass" : "fail"}">${x.usb.pass ? "✅ 結訓通過" : x.usb.exam ? "測驗 " + esc(x.usb.exam.choice) : "未交卷"}</span>` : "—"}</td>`
+      + `<td><b>${fmtMins(x.total)}</b></td>`
+      + `<td>${esc(timeStr(x.last))}</td></tr>`).join("")
+    + `</table></section>`;
+  $("historyCsv").onclick = downloadHistoryCsv;
+}
+function downloadHistoryCsv(){
+  const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["名字＋社編", "其他寫法", "工程師的價值完成集數", "完成的集數", "AI 素養完成堂數", "完成的堂數",
+    "USB 完成單元", "USB 結訓測驗", "USB 結訓", "線上學習時數（分）", "線上學習時數（小時）", "學習段數", "最近學習"].map(cell).join(",")]
+    .concat(historyData.map(x => [x.person, x.aliases.join("、"),
+      `${x.done52.length}/${x.eps52.length}`, x.done52.map(e => e.tag).join("、"),
+      `${x.doneAi.length}/${x.epsAi.length}`, x.doneAi.map(e => e.tag).join("、"),
+      x.usb ? `${x.usb.done}/${x.usb.total}` : "", x.usb && x.usb.exam ? x.usb.exam.choice : "", x.usb ? (x.usb.pass ? "通過" : "未通過") : "",
+      Math.round(x.total), (x.total / 60).toFixed(2), x.sessions.length, timeStr(x.last)].map(cell).join(",")));
+  const blob = new Blob(["\ufeff" + lines.join("\r\n")], {type: "text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `學習歷程_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
 function latestByName(rs){
   const seen = new Set();
   return rs.filter(r => r.name && !seen.has(r.name) && seen.add(r.name));
@@ -209,17 +338,10 @@ function render(){
         return {name, done, miss, exam, pass};
       });
       // 同一人合併：社編打錯、少打姓、換手機重填，同一個人會出現好幾筆。視為同一人的情況：
-      //   ① 名字一樣（社編不同）　② 社編一樣（名字打錯）　③ 少打姓：一個名字是另一個去掉開頭的字（至少 2 字，例如「晏翔」與「蔡晏翔」）
+      //   ① 名字一樣（社編不同）　② 社編一樣（名字打錯）　③ 少打姓：一個名字是另一個去掉開頭的字（至少 2 字，例如「小明」與「王小明」）
       // 同一組裡有人通過 → 只留通過的；都沒通過 → 只留進度最多的一筆。被收起來的列在下面，不刪資料。
       // （不在程式裡寫死真名對照：這個網站的原始碼是公開的）
-      const nameOf = (x) => x.name.replace(/\d+$/, "");
-      const idOf = (x) => (x.name.match(/\d+$/) || [""])[0];
-      const samePerson = (a, b) => {
-        const na = nameOf(a), nb = nameOf(b), ia = idOf(a), ib = idOf(b);
-        if(na === nb || (ia && ia === ib)) return true;
-        const [s1, l1] = na.length <= nb.length ? [na, nb] : [nb, na];
-        return s1.length >= 2 && l1.length > s1.length && l1.endsWith(s1);
-      };
+      const samePerson = (a, b) => sameName(a.name, b.name);
       const score = (x) => [x.pass ? 1 : 0, x.done.length, x.exam ? 1 : 0, x.exam ? x.exam.submitted_at : ""];
       const better = (a, b) => { const sa = score(a), sb = score(b); for(let k = 0; k < sa.length; k++){ if(sa[k] !== sb[k]) return sa[k] > sb[k] ? a : b; } return a; };
       const parent = roster.map((x, k) => k);
@@ -275,6 +397,7 @@ function render(){
   }
 
   $("list").innerHTML = html || `<div class="ep empty">這個條件下沒有資料</div>`;
+  renderHistory(rows);
   const last = rows.reduce((a, r) => (r.submitted_at > a ? r.submitted_at : a), "");
   $("tiles").innerHTML =
     `<div class="tile"><div class="k">回應筆數</div><div class="v">${shownRows}</div></div>`

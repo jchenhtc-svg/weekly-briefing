@@ -275,12 +275,36 @@ def all_script_paths():
     return [p for d in [SCRIPT_DIR, *EXTRA_SCRIPT_DIRS] if d.exists() for p in sorted(d.glob("*.json"))]
 
 
+# 學習歷程的「認列下限」：內容用 1.5 倍速播完要多久（使用者指定 1.5 倍速）。
+# 中文 TTS 1 倍速約每秒 4.5 字；每句之間約停 0.3 秒；每張情境卡讀題＋作答抓 30 秒；結訓測驗每題 30 秒
+SPEECH_CHARS_PER_SEC = 4.5
+PLAYBACK_SPEED = 1.5
+LINE_GAP_SEC = 0.3
+CARD_SEC = 30
+EXAM_Q_SEC = 30
+
+
+def talk_minutes(lines, n_cards):
+    """一段對談（lines 是 [角色, 台詞, …]）加上情境卡，用 1.5 倍速估算要幾分鐘。"""
+    chars = sum(len(re.sub(r"<[^>]+>", "", str(l[1]))) for l in lines)
+    sec = chars / (SPEECH_CHARS_PER_SEC * PLAYBACK_SPEED) + len(lines) * LINE_GAP_SEC + n_cards * CARD_SEC
+    return round(sec / 60, 1)
+
+
 def build_dashboard(cloud_config):
     """結果總覽：填入雲端設定和所有集數的標題／選項（資料庫只存 A/B/C，要靠這份對回選項文字）。"""
     eps = []
     for path in all_script_paths():
         ep = json.loads(path.read_text(encoding="utf-8"))
+        lines = [l for sc in ep["scenes"] for l in sc["lines"]]
+        timing = ({"chapterMins": [talk_minutes(lines[ch["start"]:ch["end"] + 1], len(ch.get("scenarios", [])))
+                                   for ch in ep["chapters"]]}
+                  if ep.get("chapters") else
+                  {"mins": talk_minutes(lines, len(ep.get("scenario_cards", [])) or 1)})  # 沒情境卡的集數：「最有感的一點」算一張
+        if ep.get("exam"):
+            timing["examMins"] = round(len(ep["exam"]["questions"]) * EXAM_Q_SEC / 60, 1)
         eps.append({
+            **timing,
             "label": episode_label(ep),
             "series": ("usb" if ep["id"].upper().startswith("USB") else "ai") if ep.get("id") else "52",
             "tag": ("USB" if ep["id"].upper().startswith("USB") else ep["id"][:2] + " " + ep["id"][2:])
