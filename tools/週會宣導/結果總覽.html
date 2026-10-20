@@ -78,6 +78,40 @@
   ul.sess{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--sub)}
   ul.sess li{margin-bottom:4px}
   .fail{color:#b91c1c;font-weight:800}
+  .topbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-bottom:12px}
+  .topbar h1{margin:0}
+  #adminBox{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--sub)}
+  #adminBox label{display:flex;align-items:center;gap:4px}
+  .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+  .tab{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--card);
+    color:var(--ink);text-decoration:none;min-width:0}
+  .tab:hover{border-color:var(--bar)}
+  .tab b{font-size:15px;line-height:1.3}
+  .tab small{font-size:12px;color:var(--sub);font-weight:600}
+  .tab.cur{border-color:var(--ink);background:var(--ink);color:var(--card)}
+  .tab.cur small{color:var(--track)}
+  .units{display:flex;flex-direction:column;gap:8px}
+  .unit{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;align-items:center;gap:6px 12px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;color:inherit;text-decoration:none}
+  .unit:hover{border-color:var(--bar)}
+  .unit .ut b{display:block;font-size:14.5px;line-height:1.35}
+  .unit .ut small{font-size:12px;color:var(--sub)}
+  .unit .more{font-size:12.5px;font-weight:800;color:var(--bar);white-space:nowrap}
+  .unit.dim .ut b{color:var(--sub)}
+  .chip{font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .chip.open{background:#dcfce7;color:#15803d}
+  .chip.closed{background:var(--track);color:var(--sub)}
+  .chip.manual::after{content:"・手動";font-weight:600}
+  .back{display:inline-block;margin:2px 0 10px;font-size:13.5px;font-weight:800;color:var(--bar);text-decoration:none}
+  .detailHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:4px}
+  .detailHead .epTitle{font-size:18px}
+  .sectionTitle{font-size:13px;font-weight:800;color:var(--sub);margin:16px 0 8px}
+  @media (max-width:720px){
+    .tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .unit{grid-template-columns:auto minmax(0,1fr) auto}
+    .unit .seg{grid-column:2 / -1;justify-self:start}
+    .unit .more{display:none}
+  }
   @media (max-width:480px){ .status{margin-left:0;width:100%} .epCount{margin-left:0;width:100%} }
 </style>
 </head>
@@ -93,33 +127,20 @@
 </form>
 
 <div class="wrap" id="main" hidden>
-  <h1>回應結果總覽</h1>
-  <p class="sub">《工程師的價值》52 週系列、《AI 素養 × 工程師》月例會、USB 資安宣導的所有回應。入口在首頁最下方「🔒 後台管理」，要管理密碼才進得來。</p>
-
-  <div class="controls">
-    <label>系列
-      <select id="series">
-        <option value="all">全部</option>
-        <option value="52">工程師的價值（52 週）</option>
-        <option value="ai">AI 素養 × 工程師</option>
-        <option value="usb">USB 資安宣導</option>
-      </select>
-    </label>
-    <label>從這天起算 <input type="date" id="since"></label>
-    <label><input type="checkbox" id="hideEmpty" checked> 隱藏沒有回應的集數</label>
-    <button type="button" id="reload">重新整理</button>
-    <button type="button" id="csv">下載 CSV</button>
+  <div class="topbar">
+    <h1>🔒 後台管理</h1>
     <span id="adminBox"></span>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="controls">
+    <label>從這天起算 <input type="date" id="since"></label>
+    <button type="button" id="reload">重新整理</button>
+    <button type="button" id="csv">下載全部回應 CSV</button>
     <span class="status" id="status">載入中…</span>
   </div>
-
-  <div class="tiles" id="tiles"></div>
-  <div id="openMgr"></div>
-  <div id="history"></div>
-  <div id="list"></div>
-
-  <p class="note">「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。<br>
-    具名作答（USB 第 7 章必答題、結訓測驗）的名字只在這個後台看得到；要投影統計給大家看時，勾「隱藏名字（投影用）」。登入只記在這個分頁，關掉分頁或按「登出」就要重新輸入密碼。</p>
+  <div id="view"></div>
+  <p class="note">點單元可以看回饋與成果；「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。<br>
+    名字只在這個後台看得到；要投影統計給大家看時，勾「隱藏名字（投影用）」。登入只記在這個分頁，關掉分頁或按「登出」就要重新輸入密碼。</p>
 </div>
 
 <script>
@@ -240,32 +261,21 @@ async function loadOpenState(){
     } catch(e){}
   }
   openLoaded = true;
-  renderOpenMgr();
+  render();
 }
-function renderOpenMgr(){
-  const box = $("openMgr");
-  if(!adminMode || !API_BASE){ box.innerHTML = ""; return; }
-  if(!openLoaded){ box.innerHTML = ""; loadOpenState(); return; }
-  const eps = EPISODES.filter(e => e.series === "52" || e.series === "ai");
-  const was = box.querySelector("details");
-  const isOpenNow = (k) => k in openState ? openState[k] === true : !!openDefaults[k];
-  box.innerHTML = `<section class="ep"><details${was && was.open ? " open" : ""}><summary><b>📂 開放管理</b>`
-    + `（手動開啟／關閉入口網站上的集數，學員重新整理就看得到）</summary>`
-    + `<p class="hint">「依排程」＝照網頁上原本的開放日期；按「開放」或「關閉」會蓋過排程，直到你改回「依排程」。</p>`
-    + `<table class="names open"><tr><th>集數</th><th>網頁預設</th><th>現在</th><th>設定</th></tr>`
-    + eps.map(e => {
-        const k = e.key, mode = k in openState ? (openState[k] ? "open" : "closed") : "auto";
-        const btn = (m, label) => `<button type="button" class="${mode === m ? "on" : ""}" onclick="setOpenState('${k}', ${m === "auto" ? "null" : m === "open"})">${label}</button>`;
-        return `<tr><td>${esc(e.tag)}　${esc(e.title)}</td>`
-          + `<td>${k in openDefaults ? (openDefaults[k] ? "已開放" : "尚未開放") : "—"}</td>`
-          + `<td class="${isOpenNow(k) ? "st-open" : "st-closed"}">${isOpenNow(k) ? "✅ 開放中" : "🔒 未開放"}</td>`
-          + `<td><span class="seg">${btn("auto", "依排程")}${btn("open", "開放")}${btn("closed", "關閉")}</span></td></tr>`;
-      }).join("")
-    + `</table><div class="hint" id="openMsg"></div></details></section>`;
+const isOpenNow = (k) => k in openState ? openState[k] === true : !!openDefaults[k];
+function openChip(k){
+  const manual = k in openState;
+  return isOpenNow(k) ? `<span class="chip open${manual ? " manual" : ""}">✅ 開放中</span>`
+                      : `<span class="chip closed${manual ? " manual" : ""}">🔒 未開放</span>`;
+}
+function openSeg(k){
+  const mode = k in openState ? (openState[k] ? "open" : "closed") : "auto";
+  const btn = (m, label) => `<button type="button" class="${mode === m ? "on" : ""}" onclick="event.preventDefault(); event.stopPropagation(); setOpenState('${k}', ${m === "auto" ? "null" : m === "open"})">${label}</button>`;
+  return `<span class="seg" onclick="event.preventDefault(); event.stopPropagation()" title="依排程＝照網頁上原本的開放日期；開放／關閉會蓋過排程">${btn("auto", "依排程")}${btn("open", "開放")}${btn("closed", "關閉")}</span>`;
 }
 async function setOpenState(ep, open){
-  const msg = $("openMsg");
-  if(msg) msg.textContent = "儲存中…";
+  $("status").textContent = "儲存中…";
   try{
     const res = await fetch(API_BASE + "/admin/open-state", {
       method: "POST",
@@ -275,20 +285,19 @@ async function setOpenState(ep, open){
     if(res.status === 404) throw new Error("雲端 Worker 還是舊版，請先部署新版 worker.js");
     if(!res.ok) throw new Error("HTTP " + res.status);
     openState = (await res.json()).state || {};
-    renderOpenMgr();
-    $("openMsg").textContent = "已儲存 ✓ 學員重新整理入口網站就會看到";
+    render();
+    $("status").textContent = "已儲存 ✓ 學員重新整理入口網站就會看到";
   } catch(e){
-    if($("openMsg")) $("openMsg").textContent = "儲存失敗：" + e.message;
+    $("status").textContent = "儲存失敗：" + e.message;
   }
 }
 
-function renderHistory(rows){
-  const box = $("history");
-  if(!adminMode){ box.innerHTML = ""; historyData = []; return; }
+function historyHtml(rows){
+  if(!adminMode){ historyData = []; return `<div class="ep empty">學習歷程要用管理密碼登入才看得到</div>`; }
   historyData = buildHistory(rows);
-  if(!historyData.length){ box.innerHTML = ""; return; }
+  if(!historyData.length) return `<div class="ep empty">還沒有具名的學習紀錄</div>`;
   const totalAll = historyData.reduce((a, x) => a + x.total, 0);
-  box.innerHTML = `<section class="ep nameList"><div class="epHead"><span class="epTag">學習歷程</span>`
+  return `<section class="ep nameList"><div class="epHead"><span class="epTag">學習歷程</span>`
     + `<span class="epTitle">學員學習歷程：${historyData.length} 人・合計 ${fmtMins(totalAll)}</span>`
     + `<button type="button" id="historyCsv">下載學習歷程 CSV</button></div>`
     + `<p class="hint">線上學習時數＝每段作答（間隔超過 ${SESSION_GAP_MIN} 分鐘算新的一段）取「實際時間差」與「內容用 1.5 倍速播完的長度」較大者。同名、同社編、少打姓視為同一人。點名字看明細。</p>`
@@ -304,7 +313,6 @@ function renderHistory(rows){
       + `<td><b>${fmtMins(x.total)}</b></td>`
       + `<td>${esc(timeStr(x.last))}</td></tr>`).join("")
     + `</table></section>`;
-  $("historyCsv").onclick = downloadHistoryCsv;
 }
 function downloadHistoryCsv(){
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -350,128 +358,220 @@ function barsHtml(items){
   }).join("");
 }
 
+// ==== 畫面：四個分頁（三個主題＋學習歷程），點單元才看回饋與成果。網址 #value、#ai/ai01、#usb/ch3… 可以直接回到同一個畫面 ====
+const TABS = [
+  {id: "value", series: "52", name: "《工程師的價值》52 週", unit: "集"},
+  {id: "ai", series: "ai", name: "AI 素養 × 工程師", unit: "堂"},
+  {id: "usb", series: "usb", name: "USB 資安宣導", unit: "單元"},
+  {id: "people", name: "👤 學員學習歷程"},
+];
+function route(){
+  const [tab, unit] = decodeURIComponent(location.hash.replace(/^#/, "")).split("/");
+  return {tab: TABS.some(t => t.id === tab) ? tab : "value", unit: unit || ""};
+}
+window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
+const qKey = (sc, k) => sc.q || `情境${k+1}`;
+const lastTime = (rs) => rs.reduce((a, r) => (r.submitted_at > a ? r.submitted_at : a), "");
+// 作答人數：情境卡取各卡作答數的最大值；沒有情境卡的集數＝回應筆數
+function peopleOf(scenarios, rs){
+  return scenarios.length ? Math.max(0, ...scenarios.map((sc, k) => rs.filter(r => r.question === qKey(sc, k)).length))
+                          : rs.filter(r => !isScn(r) && r.question !== EXAM_Q).length;
+}
+function tile(k, v){ return `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`; }
+
+function scenarioBlock(scenarios, rs){
+  const scnRows = rs.filter(isScn);
+  if(!scenarios.length) return "";
+  if(!scnRows.length) return `<div class="empty">情境卡還沒有人作答</div>`;
+  return `<div class="block"><div class="blockTitle">情境卡</div>` + scenarios.map((sc, k) => {
+    const qr = scnRows.filter(r => r.question === qKey(sc, k));
+    const named = latestByName(qr);
+    return `<div class="q">${sc.q ? "" : `情境 ${k+1}｜`}${esc(sc.situation)}</div>`
+      + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})))
+      + (named.length ? `<details class="nameList"><summary>具名作答 ${named.length} 人</summary><table class="names"><tr><th>名字＋社編</th><th>選擇</th><th>時間</th></tr>`
+          + named.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.choice)}. ${esc(sc.options[LETTERS.indexOf(r.choice)] || "")}</td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
+          + `</table></details>` : "");
+  }).join("") + `</div>`;
+}
+function feedbackBlock(ep, rs){
+  const otherRows = rs.filter(r => !isScn(r) && r.question !== EXAM_Q);
+  let body = "";
+  const choiceRows = otherRows.filter(r => r.choice);
+  if(ep.takeaways.length && choiceRows.length){
+    body += `<div class="block"><div class="blockTitle">最有感的一點（${choiceRows.length} 人選）</div>`
+      + barsHtml(ep.takeaways.map(t => ({label: t, n: choiceRows.filter(r => r.choice === t).length}))) + `</div>`;
+  }
+  const texts = otherRows.filter(r => r.response);
+  if(texts.length){
+    body += `<details open><summary>打字回應 ${texts.length} 則</summary><ul class="texts">`
+      + texts.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
+      + `</ul></details>`;
+  }
+  return body;
+}
+
+// USB 結訓名單：每個單元的情境題都做完＋測驗及格才算通過；同一人的重複紀錄合併
+function rosterInfo(course, rs){
+  const chapQs = {};
+  course.scenarios.forEach(sc => { const m = (sc.q || "").match(/^第(\d+)章/); if(m) (chapQs[m[1]] = chapQs[m[1]] || []).push(sc.q); });
+  const chapNums = Object.keys(chapQs).sort((a, b) => a - b);
+  const namedAll = rs.filter(r => r.name);
+  const roster = [...new Set(namedAll.map(r => r.name))].sort((a, b) => a.localeCompare(b, "zh-Hant")).map(name => {
+    const mine = namedAll.filter(r => r.name === name);
+    const done = chapNums.filter(n => chapQs[n].every(q => mine.some(r => r.question === q)));
+    const miss = chapNums.filter(n => !done.includes(n));
+    const exam = mine.find(r => r.question === EXAM_Q); // 資料是新到舊，第一筆就是最後一次交卷
+    return {name, done, miss, exam, pass: !miss.length && !!exam && /・通過/.test(exam.choice || "")};
+  });
+  // 同一組裡有人通過 → 只留通過的；都沒通過 → 只留進度最多的一筆。被收起來的列在下面，不刪資料
+  const score = (x) => [x.pass ? 1 : 0, x.done.length, x.exam ? 1 : 0, x.exam ? x.exam.submitted_at : ""];
+  const better = (a, b) => { const sa = score(a), sb = score(b); for(let k = 0; k < sa.length; k++){ if(sa[k] !== sb[k]) return sa[k] > sb[k] ? a : b; } return a; };
+  const parent = roster.map((x, k) => k);
+  const root = (k) => parent[k] === k ? k : (parent[k] = root(parent[k]));
+  roster.forEach((x, k) => roster.forEach((y, j) => { if(j > k && sameName(x.name, y.name)) parent[root(j)] = root(k); }));
+  const groups = {};
+  roster.forEach((x, k) => (groups[root(k)] = groups[root(k)] || []).push(x));
+  const kept = [], merged = [];
+  Object.values(groups).forEach(g => {
+    const keep = g.some(x => x.pass) ? g.filter(x => x.pass) : [g.reduce(better)];
+    g.forEach(x => (keep.includes(x) ? kept : merged).push(x));
+  });
+  const shown = roster.filter(x => kept.includes(x));
+  return {chapNums, chapQs, shown, merged, nPass: shown.filter(x => x.pass).length};
+}
+function rosterHtml(info){
+  if(!adminMode) return `<div class="ep empty">結訓名單要用管理密碼登入才看得到</div>`;
+  if(!info.shown.length) return `<div class="ep empty">還沒有具名的作答</div>`;
+  const n = info.chapNums.length;
+  const rowHtml = (x) => `<tr><td>${esc(x.name)}</td>`
+    + `<td>${x.done.length} / ${n}${x.miss.length ? `<br><small class="fail">缺第 ${x.miss.join("、")} 章</small>` : ""}</td>`
+    + `<td>${x.exam ? `${esc(x.exam.choice)}<br><small>${esc(timeStr(x.exam.submitted_at))}</small>` : `<span class="fail">未交卷</span>`}</td>`
+    + `<td class="${x.pass ? "pass" : "fail"}">${x.pass ? "✅ 通過" : "未通過"}</td></tr>`;
+  const head = `<tr><th>名字＋社編</th><th>單元完成</th><th>結訓測驗（最後一次）</th><th>結訓</th></tr>`;
+  return `<section class="ep nameList"><div class="blockTitle">結訓名單：通過 ${info.nPass} / ${info.shown.length} 人`
+    + `（${n} 個單元的情境題都做完＋測驗及格才算通過${info.merged.length ? `；已合併重複 ${info.merged.length} 筆` : ""}）</div>`
+    + `<table class="names">${head}${info.shown.map(rowHtml).join("")}</table>`
+    + (info.merged.length ? `<details><summary>被合併的重複紀錄 ${info.merged.length} 筆（同名、同社編或少打姓，視為同一人：已有完成的就只留完成的，否則留進度最多的一筆；若其實是不同人請自行判斷）</summary>`
+        + `<table class="names">${head}${info.merged.map(rowHtml).join("")}</table></details>` : "")
+    + `</section>`;
+}
+
+// 52 週／AI 素養：單元列表與單元明細
+function seriesView(tab, eps, byLabel, unit){
+  const canToggle = adminMode && !!API_BASE && openLoaded;
+  if(unit){
+    const ep = eps.find(e => e.key === unit);
+    if(!ep) return `<a class="back" href="#${tab.id}">← 回單元列表</a><div class="ep empty">找不到這個單元</div>`;
+    const rs = byLabel[ep.label] || [];
+    return `<a class="back" href="#${tab.id}">← 回${esc(tab.name)}單元列表</a>`
+      + `<section class="ep"><div class="detailHead"><span class="epTag">${esc(ep.tag)}</span><span class="epTitle">${esc(ep.title)}</span>`
+      + (canToggle ? openChip(ep.key) + openSeg(ep.key) : "") + `</div>`
+      + `<div class="tiles" style="margin-top:12px">${tile("作答人數", peopleOf(ep.scenarios, rs))}${tile("回應筆數", rs.length)}`
+      + tile("最近一筆", `<span style="font-size:15px">${lastTime(rs) ? esc(timeStr(lastTime(rs))) : "—"}</span>`) + `</div>`
+      + (rs.length ? scenarioBlock(ep.scenarios, rs) + feedbackBlock(ep, rs) : `<div class="empty">這個單元還沒有回應</div>`)
+      + `</section>`;
+  }
+  const all = eps.flatMap(e => byLabel[e.label] || []);
+  const nOpen = canToggle ? eps.filter(e => isOpenNow(e.key)).length : null;
+  return `<div class="tiles">`
+    + (nOpen !== null ? tile("開放中", `${nOpen}<small> / ${eps.length} ${tab.unit}</small>`) : tile(`${tab.unit}數`, eps.length))
+    + tile("有回應的" + tab.unit, `${eps.filter(e => (byLabel[e.label] || []).length).length}<small> / ${eps.length}</small>`)
+    + tile("回應筆數", all.length)
+    + tile("最近一筆", `<span style="font-size:15px">${lastTime(all) ? esc(timeStr(lastTime(all))) : "—"}</span>`) + `</div>`
+    + (canToggle ? `<p class="hint">每一${tab.unit}右邊可以手動「開放／關閉」入口網站上的卡片（蓋過排程，學員重新整理就看得到），「依排程」＝照原本的開放日期。</p>` : "")
+    + `<div class="units">` + eps.map(e => {
+        const rs = byLabel[e.label] || [];
+        return `<a class="unit${rs.length ? "" : " dim"}" href="#${tab.id}/${encodeURIComponent(e.key)}">`
+          + `<span class="epTag">${esc(e.tag)}</span>`
+          + `<span class="ut"><b>${esc(e.title)}</b><small>${rs.length ? `${peopleOf(e.scenarios, rs)} 人作答・${rs.length} 筆・最近 ${esc(timeStr(lastTime(rs)))}` : "還沒有回應"}</small></span>`
+          + (canToggle ? openChip(e.key) + openSeg(e.key) : "<span></span><span></span>")
+          + `<span class="more">查看 ▸</span></a>`;
+      }).join("") + `</div>`;
+}
+
+// USB：10 章＋結訓測驗＋結訓名單
+function usbView(tab, byLabel, unit){
+  const course = EPISODES.find(e => e.series === "usb");
+  if(!course) return `<div class="ep empty">沒有 USB 課程資料</div>`;
+  const rs = byLabel[course.label] || [];
+  const info = rosterInfo(course, rs);
+  const examRows = rs.filter(r => r.question === EXAM_Q);
+  const passedExam = examRows.filter(r => /・通過/.test(r.choice || "")).length;
+  const chScn = (n) => course.scenarios.filter(sc => (sc.q || "").startsWith(`第${n}章`));
+  const chRows = (n) => rs.filter(r => (r.question || "").startsWith(`第${n}章`));
+  const back = `<a class="back" href="#usb">← 回 USB 資安宣導單元列表</a>`;
+  if(unit === "roster") return back + rosterHtml(info);
+  if(unit === "exam"){
+    const named = latestByName(examRows);
+    return back + `<section class="ep"><div class="detailHead"><span class="epTag">USB</span><span class="epTitle">📝 結訓測驗</span></div>`
+      + `<div class="tiles" style="margin-top:12px">${tile("交卷次數", examRows.length)}${tile("測驗及格", passedExam)}${tile("測驗不及格", examRows.length - passedExam)}</div>`
+      + (examRows.length ? barsHtml([{label: "測驗及格（80 分以上且必答題對）", n: passedExam}, {label: "測驗不及格", n: examRows.length - passedExam}]) : `<div class="empty">還沒有人交卷</div>`)
+      + (named.length ? `<div class="nameList"><div class="sectionTitle">每人最後一次成績（${named.length} 人）</div><table class="names"><tr><th>名字＋社編</th><th>成績</th><th>各題作答</th><th>時間</th></tr>`
+          + named.map(r => `<tr><td>${esc(r.name)}</td><td class="${/・通過/.test(r.choice) ? "pass" : "fail"}">${esc(r.choice)}</td><td><small>${esc(r.response)}</small></td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
+          + `</table></div>` : "")
+      + `</section>`;
+  }
+  const m = unit.match(/^ch(\d+)$/);
+  if(m){
+    const n = +m[1], rows = chRows(n);
+    return back + `<section class="ep"><div class="detailHead"><span class="epTag">第 ${n} 章</span><span class="epTitle">${esc(course.chapters[n - 1] || "")}</span></div>`
+      + `<div class="tiles" style="margin-top:12px">${tile("作答人數", peopleOf(chScn(n), rows))}${tile("回應筆數", rows.length)}`
+      + tile("最近一筆", `<span style="font-size:15px">${lastTime(rows) ? esc(timeStr(lastTime(rows))) : "—"}</span>`) + `</div>`
+      + scenarioBlock(chScn(n), rows) + `</section>`;
+  }
+  const unitRow = (href, tag, title, sub, chip) => `<a class="unit" href="#usb/${href}"><span class="epTag">${tag}</span>`
+    + `<span class="ut"><b>${title}</b><small>${sub}</small></span>${chip || "<span></span>"}<span></span><span class="more">查看 ▸</span></a>`;
+  return `<div class="tiles">`
+    + (adminMode ? tile("結訓通過", `${info.nPass}<small> / ${info.shown.length} 人</small>`) : "")
+    + tile("測驗交卷", `${examRows.length}<small> 次</small>`)
+    + tile("回應筆數", rs.length)
+    + tile("最近一筆", `<span style="font-size:15px">${lastTime(rs) ? esc(timeStr(lastTime(rs))) : "—"}</span>`) + `</div>`
+    + `<div class="units">`
+    + unitRow("roster", "🎓", "結訓名單", adminMode ? `通過 ${info.nPass} / ${info.shown.length} 人・逐人看單元完成與測驗成績` : "要管理密碼才看得到",
+        adminMode ? `<span class="chip open">${info.nPass} 人通過</span>` : "")
+    + course.chapters.map((t, k) => {
+        const rows = chRows(k + 1);
+        return unitRow(`ch${k + 1}`, `第 ${k + 1} 章`, esc(t), rows.length ? `${peopleOf(chScn(k + 1), rows)} 人作答・${rows.length} 筆` : "還沒有回應");
+      }).join("")
+    + unitRow("exam", "📝", "結訓測驗", examRows.length ? `交卷 ${examRows.length} 次・及格 ${passedExam} 次` : "還沒有人交卷")
+    + `</div>`;
+}
+
 function render(){
   const rows = filteredRows();
-  const series = $("series").value;
-  const eps = EPISODES.filter(e => series === "all" || e.series === series);
   const byLabel = {};
   rows.forEach(r => { (byLabel[r.episode] = byLabel[r.episode] || []).push(r); });
-
-  let html = "", shownRows = 0, epsWithData = 0;
-  eps.forEach(ep => {
-    const rs = byLabel[ep.label] || [];
-    if(!rs.length && $("hideEmpty").checked) return;
-    if(rs.length) epsWithData++;
-    shownRows += rs.length;
-    const scnRows = rs.filter(isScn);
-    const examRows = rs.filter(r => r.question === EXAM_Q);
-    const otherRows = rs.filter(r => !isScn(r) && r.question !== EXAM_Q);
-    const people = examRows.length && !scnRows.length ? examRows.length : ep.scenarios.length
-      ? Math.max(0, ...ep.scenarios.map((sc, k) => scnRows.filter(r => r.question === (sc.q || `情境${k+1}`)).length))
-      : otherRows.length;
-    let body = "";
-    if(!rs.length) body = `<div class="empty">還沒有回應</div>`;
-    if(ep.scenarios.length && scnRows.length){
-      body += `<div class="block"><div class="blockTitle">情境卡</div>` + ep.scenarios.map((sc, k) => {
-        const qr = scnRows.filter(r => r.question === (sc.q || `情境${k+1}`));
-        const named = latestByName(qr);
-        return `<div class="q">${sc.q ? "" : `情境 ${k+1}｜`}${esc(sc.situation)}</div>`
-          + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})))
-          + (named.length ? `<details class="nameList"><summary>具名作答 ${named.length} 人</summary><table class="names"><tr><th>名字＋社編</th><th>選擇</th><th>時間</th></tr>`
-              + named.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.choice)}. ${esc(sc.options[LETTERS.indexOf(r.choice)] || "")}</td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
-              + `</table></details>`
-            : (sc.require_name && qr.length && !adminMode ? `<div class="empty">具名名單：輸入管理密碼後才看得到</div>` : ""));
-      }).join("") + `</div>`;
-    }
-    // 課程（USB）：各章的情境題代號，用來逐人核對「每個單元都做完」
-    const chapQs = {};
-    ep.scenarios.forEach(sc => { const m = (sc.q || "").match(/^第(\d+)章/); if(m) (chapQs[m[1]] = chapQs[m[1]] || []).push(sc.q); });
-    const chapNums = Object.keys(chapQs).sort((a, b) => a - b);
-    if(examRows.length){
-      // choice 是「88分・通過」或「72分・未通過・必答題答錯」
-      const passed = examRows.filter(r => /・通過/.test(r.choice || "")).length;
-      body += `<div class="block"><div class="blockTitle">結訓測驗：交卷 ${examRows.length} 次・測驗及格 ${passed} 次</div>`
-        + barsHtml([{label: "測驗及格", n: passed}, {label: "測驗不及格", n: examRows.length - passed}]) + `</div>`;
-    }
-    const namedAll = rs.filter(r => r.name);
-    if(chapNums.length && namedAll.length){
-      // 結訓名單：每個單元的情境題都做完＋測驗 80 分以上且必答題對，才算通過
-      const people = [...new Set(namedAll.map(r => r.name))].sort((a, b) => a.localeCompare(b, "zh-Hant"));
-      const roster = people.map(name => {
-        const mine = namedAll.filter(r => r.name === name);
-        const done = chapNums.filter(n => chapQs[n].every(q => mine.some(r => r.question === q)));
-        const miss = chapNums.filter(n => !done.includes(n));
-        const exam = mine.find(r => r.question === EXAM_Q); // 資料是新到舊，第一筆就是最後一次交卷
-        const pass = !miss.length && exam && /・通過/.test(exam.choice || "");
-        return {name, done, miss, exam, pass};
-      });
-      // 同一人合併：社編打錯、少打姓、換手機重填，同一個人會出現好幾筆。視為同一人的情況：
-      //   ① 名字一樣（社編不同）　② 社編一樣（名字打錯）　③ 少打姓：一個名字是另一個去掉開頭的字（至少 2 字，例如「小明」與「王小明」）
-      // 同一組裡有人通過 → 只留通過的；都沒通過 → 只留進度最多的一筆。被收起來的列在下面，不刪資料。
-      // （不在程式裡寫死真名對照：這個網站的原始碼是公開的）
-      const samePerson = (a, b) => sameName(a.name, b.name);
-      const score = (x) => [x.pass ? 1 : 0, x.done.length, x.exam ? 1 : 0, x.exam ? x.exam.submitted_at : ""];
-      const better = (a, b) => { const sa = score(a), sb = score(b); for(let k = 0; k < sa.length; k++){ if(sa[k] !== sb[k]) return sa[k] > sb[k] ? a : b; } return a; };
-      const parent = roster.map((x, k) => k);
-      const root = (k) => parent[k] === k ? k : (parent[k] = root(parent[k]));
-      roster.forEach((x, k) => roster.forEach((y, j) => { if(j > k && samePerson(x, y)) parent[root(j)] = root(k); }));
-      const groups = {};
-      roster.forEach((x, k) => (groups[root(k)] = groups[root(k)] || []).push(x));
-      const kept = [], merged = [];
-      Object.values(groups).forEach(g => {
-        const keep = g.some(x => x.pass) ? g.filter(x => x.pass) : [g.reduce(better)];
-        g.forEach(x => (keep.includes(x) ? kept : merged).push(x));
-      });
-      const shown = roster.filter(x => kept.includes(x)); // 維持原本的排序
-      const nPass = shown.filter(x => x.pass).length;
-      const rowHtml = (x) => `<tr><td>${esc(x.name)}</td>`
-          + `<td>${x.done.length} / ${chapNums.length}${x.miss.length ? `<br><small class="fail">缺第 ${x.miss.join("、")} 章</small>` : ""}</td>`
-          + `<td>${x.exam ? `${esc(x.exam.choice)}<br><small>${esc(timeStr(x.exam.submitted_at))}</small>` : `<span class="fail">未交卷</span>`}</td>`
-          + `<td class="${x.pass ? "pass" : "fail"}">${x.pass ? "✅ 通過" : "未通過"}</td></tr>`;
-      const head = `<tr><th>名字＋社編</th><th>單元完成</th><th>結訓測驗（最後一次）</th><th>結訓</th></tr>`;
-      body += `<div class="block nameList"><div class="blockTitle">結訓名單：通過 ${nPass} / ${shown.length} 人`
-        + `（${chapNums.length} 個單元的情境題都做完＋測驗及格才算通過${merged.length ? `；已合併重複 ${merged.length} 筆` : ""}）</div>`
-        + `<table class="names">${head}${shown.map(rowHtml).join("")}</table>`
-        + (merged.length ? `<details><summary>被合併的重複紀錄 ${merged.length} 筆（同名、同社編或少打姓，視為同一人：已有完成的就只留完成的，否則留進度最多的一筆；若其實是不同人請自行判斷）</summary>`
-            + `<table class="names">${head}${merged.map(rowHtml).join("")}</table></details>` : "")
-        + `</div>`;
-    } else if(chapNums.length && rs.length && !adminMode){
-      body += `<div class="empty">結訓名單：要管理密碼才看得到</div>`;
-    }
-    const choiceRows = otherRows.filter(r => r.choice);
-    if(ep.takeaways.length && choiceRows.length){
-      body += `<div class="block"><div class="blockTitle">最有感的一點（${choiceRows.length} 人選）</div>`
-        + barsHtml(ep.takeaways.map(t => ({label: t, n: choiceRows.filter(r => r.choice === t).length}))) + `</div>`;
-    }
-    const texts = otherRows.filter(r => r.response);
-    if(texts.length){
-      body += `<details><summary>打字回應 ${texts.length} 則</summary><ul class="texts">`
-        + texts.map(r => `<li><time>${esc(new Date(r.submitted_at).toLocaleString("zh-TW"))}</time>${esc(r.response)}</li>`).join("")
-        + `</ul></details>`;
-    }
-    html += `<section class="ep"><div class="epHead"><span class="epTag">${esc(ep.tag)}</span>`
-      + `<span class="epTitle">${esc(ep.title)}</span><span class="epCount">${people} 人作答・${rs.length} 筆</span></div>${body}</section>`;
-  });
-
-  // 資料庫裡有、但對不上目前任何一集的（例如改過標題的舊集數）
+  const {tab: tabId, unit} = route();
+  const tab = TABS.find(t => t.id === tabId);
   const known = new Set(EPISODES.map(e => e.label));
-  const orphan = rows.filter(r => !known.has(r.episode));
-  if(orphan.length && series === "all"){
-    html += `<section class="ep"><div class="epHead"><span class="epTag">其他</span><span class="epTitle">對不上目前集數的回應</span>`
-      + `<span class="epCount">${orphan.length} 筆</span></div><details><summary>展開</summary><ul class="texts">`
-      + orphan.map(r => `<li><time>${esc(r.episode)}・${esc(new Date(r.submitted_at).toLocaleString("zh-TW"))}</time>`
-        + `${esc([r.question, r.choice, r.response].filter(Boolean).join("｜"))}</li>`).join("")
-      + `</ul></details></section>`;
+  $("tabs").innerHTML = TABS.map(t => {
+    let sub;
+    if(t.series){
+      const eps = EPISODES.filter(e => e.series === t.series);
+      const n = eps.reduce((a, e) => a + (byLabel[e.label] || []).length, 0);
+      sub = t.series === "usb" ? `10 章＋結訓・${n} 筆回應` : `${eps.length} ${t.unit}・${n} 筆回應`;
+    } else sub = adminMode ? "完成單元＋線上學習時數" : "要管理密碼";
+    return `<a class="tab${t.id === tabId ? " cur" : ""}" href="#${t.id}"><b>${t.name}</b><small>${sub}</small></a>`;
+  }).join("");
+  let html;
+  if(tab.id === "people"){
+    html = historyHtml(rows);
+    const orphan = rows.filter(r => !known.has(r.episode));
+    if(orphan.length){
+      html += `<section class="ep"><div class="epHead"><span class="epTag">其他</span><span class="epTitle">對不上目前集數的回應</span>`
+        + `<span class="epCount">${orphan.length} 筆</span></div><details><summary>展開</summary><ul class="texts">`
+        + orphan.map(r => `<li><time>${esc(r.episode)}・${esc(timeStr(r.submitted_at))}</time>`
+          + `${esc([r.question, r.choice, r.response].filter(Boolean).join("｜"))}</li>`).join("")
+        + `</ul></details></section>`;
+    }
+  } else if(tab.id === "usb"){
+    html = usbView(tab, byLabel, unit);
+  } else {
+    html = seriesView(tab, EPISODES.filter(e => e.series === tab.series), byLabel, unit);
   }
-
-  $("list").innerHTML = html || `<div class="ep empty">這個條件下沒有資料</div>`;
-  renderOpenMgr();
-  renderHistory(rows);
-  const last = rows.reduce((a, r) => (r.submitted_at > a ? r.submitted_at : a), "");
-  $("tiles").innerHTML =
-    `<div class="tile"><div class="k">回應筆數</div><div class="v">${shownRows}</div></div>`
-    + `<div class="tile"><div class="k">有回應的集數</div><div class="v">${epsWithData}<small> / ${eps.length}</small></div></div>`
-    + `<div class="tile"><div class="k">最近一筆</div><div class="v" style="font-size:16px">${last ? esc(new Date(last).toLocaleString("zh-TW")) : "—"}</div></div>`;
+  $("view").innerHTML = html;
+  const hc = $("historyCsv");
+  if(hc) hc.onclick = downloadHistoryCsv;
 }
 
 function showGate(msg){
@@ -499,6 +599,7 @@ async function load(){
     if(res.ok){
       allRows = (await res.json()).responses || [];
       adminMode = true;
+      if(!openLoaded) loadOpenState();
     } else {
       // 管理密碼對了但讀名單失敗（例如資料庫還沒加 name 欄）：先顯示不含名字的資料
       note = res.status === 503 ? "雲端資料庫還沒加 name 欄（migrations/002_add_name.sql），先顯示不含名字的資料。"
@@ -542,7 +643,7 @@ function downloadCsv(){
   URL.revokeObjectURL(a.href);
 }
 
-["series", "since", "hideEmpty"].forEach(id => $(id).addEventListener("change", render));
+$("since").addEventListener("change", render);
 $("reload").onclick = load;
 $("csv").onclick = downloadCsv;
 $("gate").addEventListener("submit", () => {

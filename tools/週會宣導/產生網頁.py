@@ -312,6 +312,7 @@ def build_dashboard(cloud_config):
                    if ep.get("id") else "EP " + ep_num(ep),
             "title": ep["title"],
             "takeaways": ep.get("takeaways", []),
+            "chapters": [ch.get("short") or ch["title"] for ch in ep.get("chapters", [])],
             "scenarios": [
                 {"situation": c["situation"], "options": [o["text"] for o in c["options"]]}
                 for c in ep.get("scenario_cards", [])
