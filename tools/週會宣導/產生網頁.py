@@ -45,6 +45,27 @@ def js(value):
     return json.dumps(value, ensure_ascii=False)
 
 
+VOICE_DIR = HERE / "語音"  # 預錄語音（BreezyVoice）：語音/<代號>/000.mp3…、quote.mp3、台詞.json
+
+
+def voice_clips(ep):
+    """有預錄語音就內嵌成 data URI（網頁還是單一檔案、雙擊即播）。只放「錄的台詞跟現在一樣」的句子，
+    腳本改過的句子自動退回瀏覽器語音，不會出現字幕跟聲音對不上。沒有任何音檔就是 None。"""
+    folder = VOICE_DIR / ep_key(ep)
+    manifest = folder / "台詞.json"
+    if not manifest.exists():
+        return None
+    recorded = json.loads(manifest.read_text(encoding="utf-8"))["lines"]
+    uri = lambda name: "data:audio/mpeg;base64," + base64.b64encode((folder / f"{name}.mp3").read_bytes()).decode()
+    lines = [l for sc in ep["scenes"] for l in sc["lines"]]
+    clips = {str(n): uri(f"{n:03d}") for n, l in enumerate(lines)
+             if recorded.get(f"{n:03d}") == l[1] and (folder / f"{n:03d}.mp3").exists()}
+    quote = uri("quote") if recorded.get("quote") == ep["golden_quote"] and (folder / "quote.mp3").exists() else None
+    if not clips and not quote:
+        return None
+    return {"engine": json.loads(manifest.read_text(encoding="utf-8")).get("engine", ""), "lines": clips, "quote": quote}
+
+
 def build_data_block(ep):
     roles = ep["roles"]
 
@@ -92,7 +113,8 @@ def build_data_block(ep):
         + "const SCENARIOS = " + js(ep.get("scenario_cards", [])) + ";\n"
         + "const SCENARIO_METRICS = " + js(ep.get("scenario_metrics", [])) + ";\n"
         + "const CHAPTERS = " + js(ep.get("chapters", [])) + ";\n"
-        + "const EXAM = " + js(ep.get("exam")) + ";\n\n"
+        + "const EXAM = " + js(ep.get("exam")) + ";\n"
+        + "const VOICE_CLIPS = " + js(voice_clips(ep)) + ";\n\n"
     )
 
 
