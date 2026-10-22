@@ -36,6 +36,11 @@ def wav_to_mp3(data):
 def main(argv):
     if not argv:
         sys.exit(__doc__)
+    # --out 資料夾：匯到別的地方（例如 Breeze TTS 2 只做內部試聽，不要放進 語音/ 上網站）
+    out_root = VOICE_DIR
+    if "--out" in argv:
+        k = argv.index("--out"); out_root = Path(argv[k + 1]); argv = argv[:k] + argv[k + 2:]
+    engine = "Breeze TTS 2" if "breeze2" in Path(argv[0]).name.lower() else "BreezyVoice"
     z = zipfile.ZipFile(argv[0])
     names = [n for n in z.namelist() if re.search(r"\.(mp3|wav)$", n, re.I)]
     keys = {re.match(r"(?:.*/)?([0-9a-z]+)_(\d{3}|quote)\.", n, re.I).group(1).lower() for n in names
@@ -47,7 +52,7 @@ def main(argv):
     if not lines_file.exists():
         sys.exit(f"找不到 {lines_file.relative_to(ROOT)}，請先跑 預錄語音/匯出Kaggle筆記本.py {key}")
     expected = json.loads(lines_file.read_text(encoding="utf-8"))["lines"]
-    out = VOICE_DIR / key
+    out = out_root / key
     out.mkdir(parents=True, exist_ok=True)
     done = {}
     for n in names:
@@ -62,11 +67,11 @@ def main(argv):
             data = wav_to_mp3(data)
         (out / f"{m.group(1)}.mp3").write_bytes(data)
         done[m.group(1)] = expected[stem]
-    (out / "台詞.json").write_text(json.dumps({"key": key, "engine": "BreezyVoice", "lines": dict(sorted(done.items()))},
+    (out / "台詞.json").write_text(json.dumps({"key": key, "engine": engine, "lines": dict(sorted(done.items()))},
                                              ensure_ascii=False, indent=1), encoding="utf-8")
     missing = [s for s in expected if s.split("_", 1)[1] not in done]
     size = sum(p.stat().st_size for p in out.glob("*.mp3"))
-    print(f"✅ 語音/{key}/：{len(done)} / {len(expected)} 句，共 {size // 1024} KB" + (f"（缺 {missing}，這幾句照舊用瀏覽器唸）" if missing else ""))
+    print(f"✅ {out}（{engine}）：{len(done)} / {len(expected)} 句，共 {size // 1024} KB" + (f"（缺 {missing}，這幾句照舊用瀏覽器唸）" if missing else ""))
 
 
 if __name__ == "__main__":
