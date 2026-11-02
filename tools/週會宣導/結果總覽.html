@@ -152,7 +152,8 @@
   </div>
   <details class="ep nameList" id="rosterBox">
     <summary id="rosterSummary">👥 學員名單（應完成名單）：尚未設定</summary>
-    <p class="hint">一行一個地區，格式「地區：名字、名字…」，名字寫平常稱呼的名（不用姓、不用社編），系統會自動對上學員填的「名字＋社編」。
+    <p class="hint">一行一個地區，格式「地區：名字、名字…」，名字寫平常稱呼的名（不用姓），系統會自動對上學員填的「名字＋社編」。
+      名字後面也可以附社編（去掉最後一碼，跟學員填的一樣），例如「小明1234」：學員名字打錯字時，社編對得上也會算他本人。
       名單只存在你的雲端資料庫（要管理密碼才讀得到），不會寫進網站原始碼。設定後，應到人數＝名單人數，各單元會列出未完成名單。</p>
     <textarea id="rosterText" rows="6" style="width:100%;font:inherit;font-size:14px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)" placeholder="嘉義：名字、名字&#10;台南：名字、名字"></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" id="rosterSave">儲存名單</button><span class="hint" id="rosterMsg"></span></div>
@@ -319,7 +320,11 @@ function parseRoster(text){
   String(text || "").split(/\n+/).forEach(line => {
     const m = line.match(/^\s*([^：:]+)[：:](.*)$/);
     const region = m ? m[1].trim() : "";
-    (m ? m[2] : line).split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean).forEach(name => out.push({region, name}));
+    // 每個人可以只寫名（王小明→小明），也可以在後面附社編（小明1234、小明(1234)）：有社編就多一個核對方式
+    (m ? m[2] : line).split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean).forEach(item => {
+      const mm = item.match(/^(.*?)[（(]?(\d{2,12})[）)]?$/);
+      out.push(mm && mm[1] ? {region, name: mm[1], id: mm[2]} : {region, name: item.replace(/[（()）]/g, ""), id: ""});
+    });
   });
   return out;
 }
@@ -361,12 +366,14 @@ async function saveRoster(){
   $("rosterSummary").textContent = rosterSummaryText();
   render();
 }
-// 名單上的人 → 他填過的所有紀錄（學員填「名字＋社編」，名單只寫名，所以用「去掉社編後以這個名結尾」對）
+// 名單上的人 → 他填過的所有紀錄。學員填「名字＋社編」：名字以名單上的名結尾，或社編跟名單附的社編一樣，都算他本人
+// （社編核對可以接住名字打錯字；社編要跟學員填的一樣，是去掉最後一碼的那串）
+const memberOwns = (m, name) => namePart(name).endsWith(m.name) || (!!m.id && idPart(name) === m.id);
 function matchRoster(rows){
   const named = rows.filter(r => r.name);
-  return ROSTER.map(m => Object.assign({}, m, {rows: named.filter(r => namePart(r.name).endsWith(m.name))}));
+  return ROSTER.map(m => Object.assign({}, m, {rows: named.filter(r => memberOwns(m, r.name))}));
 }
-const isRosterRow = (r) => ROSTER.some(m => namePart(r.name).endsWith(m.name));
+const isRosterRow = (r) => ROSTER.some(m => memberOwns(m, r.name));
 // 某人在某一集的狀態：done 完成（情境卡都答＋寫心得；REFLECT_SINCE 之前做完的照舊算）／noreflect 情境卡做完沒寫心得／partial 只做一部分／none 沒作答
 function epStatus(mine, e){
   if(!mine.length) return "none";
@@ -399,7 +406,7 @@ function historyHtml(rows){
     const eps52 = EPISODES.filter(e => e.series === "52"), epsAi = EPISODES.filter(e => e.series === "ai");
     const course = EPISODES.find(e => e.chapterMins);
     const ordered = ROSTER.map(m => {
-      const x = historyData.find(h => namePart(h.person).endsWith(m.name) || h.aliases.some(a => namePart(a).endsWith(m.name)));
+      const x = historyData.find(h => memberOwns(m, h.person) || h.aliases.some(a => memberOwns(m, a)));
       return x ? Object.assign(x, {region: m.region}) : {person: m.name, region: m.region, aliases: [], done52: [], doneAi: [], eps52, epsAi,
         usb: course ? {done: 0, total: course.chapters.length, exam: null, pass: false} : null, sessions: [], total: 0, last: ""};
     });
