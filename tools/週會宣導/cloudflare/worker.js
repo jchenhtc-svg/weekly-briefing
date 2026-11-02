@@ -11,6 +11,8 @@
  *   GET  /open-state       各集「開放／關閉」的手動設定（入口網站主題頁讀，公開）
  *   POST /admin/open-state 主辦人在後台按「開放／關閉／依網頁預設」，要帶 X-Admin-Key
  *                    （存在 D1 的 settings 表，第一次寫入時自動建表，不用另外跑 migration）
+ *   GET/POST /admin/settings?key=roster  主辦人在後台存的學員名單（應完成名單），要帶 X-Admin-Key；
+ *                    名單有真名，所以只放在 D1、不寫進任何網頁或 repo
  *   GET  /respond    手機掃 QR Code 進來看到的簡易回應頁面
  *                    （?ep=<episode>&q=<question> 帶入要回答的問題）
  *
@@ -197,6 +199,32 @@ export default {
         "INSERT INTO settings (key, value) VALUES ('open_state', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
       ).bind(JSON.stringify(state)).run();
       return json({ ok: true, state });
+    }
+
+    if (url.pathname === "/admin/settings") {
+      if (!env.ADMIN_KEY || request.headers.get("X-Admin-Key") !== env.ADMIN_KEY) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      const key = url.searchParams.get("key") || "";
+      if (!["roster"].includes(key)) return json({ error: "unknown key" }, 400);
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)").run();
+      if (request.method === "GET") {
+        const row = await env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind(key).first();
+        return json({ value: row ? row.value : "" });
+      }
+      if (request.method === "POST") {
+        let body;
+        try {
+          body = await request.json();
+        } catch {
+          return json({ error: "invalid json" }, 400);
+        }
+        const value = String(body.value || "").slice(0, 20000);
+        await env.DB.prepare(
+          "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+        ).bind(key, value).run();
+        return json({ ok: true });
+      }
     }
 
     if (url.pathname === "/admin/responses" && request.method === "GET") {

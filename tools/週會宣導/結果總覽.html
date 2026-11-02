@@ -67,6 +67,13 @@
   body.hideNames .nameList{display:none}
   .hint{font-size:12.5px;color:var(--sub);margin:6px 0 4px}
   .rate{font-weight:800;color:var(--ink)}
+  .region{margin:8px 0 4px;font-size:13px}
+  .region b{display:inline-block;min-width:3.5em}
+  .pill{display:inline-block;margin:2px 4px 2px 0;padding:1px 8px;border-radius:999px;font-size:12.5px;border:1px solid var(--line)}
+  .pill.none{background:#fee2e2;border-color:#fecaca;color:#991b1b}
+  .pill.noreflect{background:#fef3c7;border-color:#fde68a;color:#92400e}
+  .pill.partial{background:#ffedd5;border-color:#fed7aa;color:#9a3412}
+  .pill.done{background:#dcfce7;border-color:#bbf7d0;color:#166534}
   .rate.low{color:#b91c1c}
   input[type=number]{font:inherit;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
   table.open td{vertical-align:middle}
@@ -143,6 +150,13 @@
     <button type="button" id="reflectCsv" title="名字換成學員代號，可以直接交給別人分析">下載學習心得（去識別化）</button>
     <span class="status" id="status">載入中…</span>
   </div>
+  <details class="ep nameList" id="rosterBox">
+    <summary id="rosterSummary">👥 學員名單（應完成名單）：尚未設定</summary>
+    <p class="hint">一行一個地區，格式「地區：名字、名字…」，名字寫平常稱呼的名（不用姓、不用社編），系統會自動對上學員填的「名字＋社編」。
+      名單只存在你的雲端資料庫（要管理密碼才讀得到），不會寫進網站原始碼。設定後，應到人數＝名單人數，各單元會列出未完成名單。</p>
+    <textarea id="rosterText" rows="6" style="width:100%;font:inherit;font-size:14px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)" placeholder="嘉義：名字、名字&#10;台南：名字、名字"></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" id="rosterSave">儲存名單</button><span class="hint" id="rosterMsg"></span></div>
+  </details>
   <div id="view"></div>
   <p class="note">點單元可以看回饋與成果；「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。<br>
     名字只在這個後台看得到；要投影統計給大家看時，勾「隱藏名字（投影用）」。登入只記在這個分頁，關掉分頁或按「登出」就要重新輸入密碼。</p>
@@ -215,13 +229,7 @@ function buildHistory(rows){
   return Object.entries(by).map(([person, rs]) => {
     const has = (label, q) => rs.some(r => r.episode === label && (!q || r.question === q));
     // 完成＝情境卡都答＋寫了學習心得；REFLECT_SINCE 之前就做完的，照當時的規則算完成
-    const epDone = (e) => {
-      const mine = rs.filter(r => r.episode === e.label);
-      const cards = e.scenarios.length ? e.scenarios.every((sc, k) => has(e.label, sc.q || `情境${k+1}`)) : mine.length > 0;
-      if(!cards) return false;
-      if(mine.some(r => r.question === REFLECT_Q)) return true;
-      return mine.length > 0 && mine.every(r => r.submitted_at.slice(0, 10) < REFLECT_SINCE);
-    };
+    const epDone = (e) => epStatus(rs.filter(r => r.episode === e.label), e) === "done";
     const done52 = eps52.filter(epDone), doneAi = epsAi.filter(epDone);
     let usb = null;
     if(course){
@@ -304,17 +312,108 @@ async function setOpenState(ep, open){
   }
 }
 
+// ==== 學員名單（應完成名單）：存在 Worker 的 D1 settings（要 ADMIN_KEY）；Worker 還沒更新就先存在這台電腦 ====
+let ROSTER = [], ROSTER_ROWS = [];
+function parseRoster(text){
+  const out = [];
+  String(text || "").split(/\n+/).forEach(line => {
+    const m = line.match(/^\s*([^：:]+)[：:](.*)$/);
+    const region = m ? m[1].trim() : "";
+    (m ? m[2] : line).split(/[、,，\s]+/).map(x => x.trim()).filter(Boolean).forEach(name => out.push({region, name}));
+  });
+  return out;
+}
+function rosterSummaryText(){
+  if(!ROSTER.length) return "👥 學員名單（應完成名單）：尚未設定";
+  const by = {};
+  ROSTER.forEach(m => { by[m.region] = (by[m.region] || 0) + 1; });
+  return `👥 學員名單：${ROSTER.length} 人（${Object.entries(by).map(([r, n]) => `${r || "未分區"} ${n}`).join("、")}）`;
+}
+async function loadRoster(){
+  let text = "";
+  try{
+    const res = await fetch(API_BASE + "/admin/settings?key=roster", { headers: { "X-Admin-Key": adminKey() } });
+    if(res.ok) text = (await res.json()).value || "";
+    else throw new Error("HTTP " + res.status);
+  } catch(e){
+    try{ text = localStorage.getItem("roster") || ""; }catch(err){}
+  }
+  $("rosterText").value = text;
+  ROSTER = parseRoster(text);
+  $("rosterSummary").textContent = rosterSummaryText();
+  render();
+}
+async function saveRoster(){
+  const text = $("rosterText").value.trim();
+  $("rosterMsg").textContent = "儲存中…";
+  try{
+    const res = await fetch(API_BASE + "/admin/settings?key=roster", { method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey() }, body: JSON.stringify({ value: text }) });
+    if(!res.ok) throw new Error(res.status === 404 ? "old-worker" : "HTTP " + res.status);
+    $("rosterMsg").textContent = "已儲存到雲端 ✓（每台電腦登入後都看得到）";
+  } catch(e){
+    try{ localStorage.setItem("roster", text); }catch(err){}
+    $("rosterMsg").textContent = e.message === "old-worker"
+      ? "雲端 Worker 還沒更新，名單先存在這台電腦（部署新版 worker.js 後再按一次儲存）"
+      : "沒有存到雲端（" + e.message + "），先存在這台電腦";
+  }
+  ROSTER = parseRoster(text);
+  $("rosterSummary").textContent = rosterSummaryText();
+  render();
+}
+// 名單上的人 → 他填過的所有紀錄（學員填「名字＋社編」，名單只寫名，所以用「去掉社編後以這個名結尾」對）
+function matchRoster(rows){
+  const named = rows.filter(r => r.name);
+  return ROSTER.map(m => Object.assign({}, m, {rows: named.filter(r => namePart(r.name).endsWith(m.name))}));
+}
+const isRosterRow = (r) => ROSTER.some(m => namePart(r.name).endsWith(m.name));
+// 某人在某一集的狀態：done 完成（情境卡都答＋寫心得；REFLECT_SINCE 之前做完的照舊算）／noreflect 情境卡做完沒寫心得／partial 只做一部分／none 沒作答
+function epStatus(mine, e){
+  if(!mine.length) return "none";
+  const cards = e.scenarios.length ? e.scenarios.every((sc, k) => mine.some(r => r.question === qKey(sc, k))) : true;
+  if(!cards) return "partial";
+  if(mine.some(r => r.question === REFLECT_Q)) return "done";
+  return mine.every(r => r.submitted_at.slice(0, 10) < REFLECT_SINCE) ? "done" : "noreflect";
+}
+const STATUS_TEXT = {none: "未作答", partial: "情境卡沒做完", noreflect: "沒寫心得", done: "完成"};
+// 未完成名單：依地區列出，名字旁標狀態；另外列出「名單外的作答者」（多半是名字打錯）
+function rosterStatusBlock(statusOf, rs, label, texts){
+  texts = texts || STATUS_TEXT;
+  if(!ROSTER.length) return `<div class="hint nameList">要看未完成名單，請先在上方「👥 學員名單」貼上名單</div>`;
+  const list = ROSTER_ROWS.map(m => Object.assign({}, m, {st: statusOf(m)}));
+  const todo = list.filter(m => m.st !== "done");
+  const regions = [...new Set(list.map(m => m.region))];
+  const outsiders = [...new Set(rs.filter(r => r.name && !isRosterRow(r)).map(r => r.name))];
+  return `<div class="nameList"><div class="sectionTitle">${label || "完成狀況"}：完成 ${list.length - todo.length} / ${list.length} 人・未完成 ${todo.length} 人</div>`
+    + regions.map(rg => { const t = todo.filter(m => m.region === rg);
+        return `<div class="region"><b>${esc(rg || "未分區")}</b>` + (t.length ? t.map(m => `<span class="pill ${m.st}" title="${texts[m.st]}">${esc(m.name)}・${texts[m.st]}</span>`).join("") : `<span class="pill done">全部完成</span>`) + `</div>`; }).join("")
+    + (outsiders.length ? `<div class="hint">名單外的作答者（可能是名字打錯或不在名單上）：${outsiders.map(esc).join("、")}</div>` : "")
+    + `</div>`;
+}
+
 function historyHtml(rows){
   if(!adminMode){ historyData = []; return `<div class="ep empty">學習歷程要用管理密碼登入才看得到</div>`; }
   historyData = buildHistory(rows);
+  if(ROSTER.length){
+    // 依名單排序、標地區；名單上還沒有任何紀錄的人也列出來（全部 0）
+    const eps52 = EPISODES.filter(e => e.series === "52"), epsAi = EPISODES.filter(e => e.series === "ai");
+    const course = EPISODES.find(e => e.chapterMins);
+    const ordered = ROSTER.map(m => {
+      const x = historyData.find(h => namePart(h.person).endsWith(m.name) || h.aliases.some(a => namePart(a).endsWith(m.name)));
+      return x ? Object.assign(x, {region: m.region}) : {person: m.name, region: m.region, aliases: [], done52: [], doneAi: [], eps52, epsAi,
+        usb: course ? {done: 0, total: course.chapters.length, exam: null, pass: false} : null, sessions: [], total: 0, last: ""};
+    });
+    const extra = historyData.filter(h => !ordered.includes(h)).map(h => Object.assign(h, {region: "名單外"}));
+    historyData = ordered.concat(extra);
+  }
   if(!historyData.length) return `<div class="ep empty">還沒有具名的學習紀錄</div>`;
   const totalAll = historyData.reduce((a, x) => a + x.total, 0);
   return `<section class="ep nameList"><div class="epHead"><span class="epTag">學習歷程</span>`
     + `<span class="epTitle">學員學習歷程：${historyData.length} 人・合計 ${fmtMins(totalAll)}</span>`
     + `<button type="button" id="historyCsv">下載學習歷程 CSV</button></div>`
     + `<p class="hint">線上學習時數＝每段作答（間隔超過 ${SESSION_GAP_MIN} 分鐘算新的一段）取「實際時間差」與「內容用 1.5 倍速播完的長度」較大者。同名、同社編、少打姓視為同一人。點名字看明細。</p>`
-    + `<table class="names hist"><tr><th>名字＋社編</th><th>工程師的價值</th><th>AI 素養</th><th>USB 資安</th><th>線上學習時數</th><th>最近學習</th></tr>`
-    + historyData.map((x, k) => `<tr><td><details><summary>${esc(x.person)}</summary>`
+    + `<table class="names hist"><tr>${ROSTER.length ? "<th>地區</th>" : ""}<th>名字＋社編</th><th>工程師的價值</th><th>AI 素養</th><th>USB 資安</th><th>線上學習時數</th><th>最近學習</th></tr>`
+    + historyData.map((x, k) => `<tr>${ROSTER.length ? `<td>${esc(x.region || "")}</td>` : ""}<td><details><summary>${esc(x.person)}</summary>`
         + (x.aliases.length ? `<small>也寫成：${x.aliases.map(esc).join("、")}</small>` : "")
         + `<ul class="sess">` + x.sessions.map(ss => `<li><b>${esc(new Date(ss.start).toLocaleString("zh-TW"))}</b>　採計 ${fmtMins(ss.mins)}`
           + `<small>（實際 ${fmtMins(ss.span)}／1.5 倍速內容 ${fmtMins(ss.floor)}）</small><br>`
@@ -323,18 +422,18 @@ function historyHtml(rows){
       + `<td>${x.doneAi.length} / ${x.epsAi.length} 堂</td>`
       + `<td>${x.usb ? `${x.usb.done} / ${x.usb.total} 單元<br><span class="${x.usb.pass ? "pass" : "fail"}">${x.usb.pass ? "✅ 結訓通過" : x.usb.exam ? "測驗 " + esc(x.usb.exam.choice) : "未交卷"}</span>` : "—"}</td>`
       + `<td><b>${fmtMins(x.total)}</b></td>`
-      + `<td>${esc(timeStr(x.last))}</td></tr>`).join("")
+      + `<td>${x.last ? esc(timeStr(x.last)) : `<span class="fail">還沒開始</span>`}</td></tr>`).join("")
     + `</table></section>`;
 }
 function downloadHistoryCsv(){
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const lines = [["名字＋社編", "其他寫法", "工程師的價值完成集數", "完成的集數", "AI 素養完成堂數", "完成的堂數",
+  const lines = [["地區", "名字＋社編", "其他寫法", "工程師的價值完成集數", "完成的集數", "AI 素養完成堂數", "完成的堂數",
     "USB 完成單元", "USB 結訓測驗", "USB 結訓", "線上學習時數（分）", "線上學習時數（小時）", "學習段數", "最近學習"].map(cell).join(",")]
-    .concat(historyData.map(x => [x.person, x.aliases.join("、"),
+    .concat(historyData.map(x => [x.region || "", x.person, x.aliases.join("、"),
       `${x.done52.length}/${x.eps52.length}`, x.done52.map(e => e.tag).join("、"),
       `${x.doneAi.length}/${x.epsAi.length}`, x.doneAi.map(e => e.tag).join("、"),
       x.usb ? `${x.usb.done}/${x.usb.total}` : "", x.usb && x.usb.exam ? x.usb.exam.choice : "", x.usb ? (x.usb.pass ? "通過" : "未通過") : "",
-      Math.round(x.total), (x.total / 60).toFixed(2), x.sessions.length, timeStr(x.last)].map(cell).join(",")));
+      Math.round(x.total), (x.total / 60).toFixed(2), x.sessions.length, x.last ? timeStr(x.last) : "還沒開始"].map(cell).join(",")));
   const blob = new Blob(["\ufeff" + lines.join("\r\n")], {type: "text/csv;charset=utf-8"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -403,7 +502,10 @@ const reflectRows = (rs) => rs.filter(r => r.question === REFLECT_Q && r.respons
 function reflectPeople(rs){ const rr = reflectRows(rs); return distinctPeople(rr) + rr.filter(r => !r.name).length; }
 // 應到人數：後台自己填（記在這台電腦）；沒填就用目前出現過的具名學員數
 let expectedAuto = 0;
-function expectedN(){ const v = parseInt($("expected").value, 10); return v > 0 ? v : expectedAuto; }
+function expectedN(){
+  if(ROSTER.length) return ROSTER.length; // 有學員名單就以名單人數為應到人數
+  const v = parseInt($("expected").value, 10); return v > 0 ? v : expectedAuto;
+}
 function rateHtml(n, label){
   const d = expectedN();
   if(!d) return `${label} ${n} 人`;
@@ -511,9 +613,12 @@ function seriesView(tab, eps, byLabel, unit){
     return `<a class="back" href="#${tab.id}">← 回${esc(tab.name)}單元列表</a>`
       + `<section class="ep"><div class="detailHead"><span class="epTag">${esc(ep.tag)}</span><span class="epTitle">${esc(ep.title)}</span>`
       + (canToggle ? openChip(ep.key) + openSeg(ep.key) : "") + `</div>`
-      + `<div class="tiles" style="margin-top:12px">${rateTile("作答率", peopleOf(ep.scenarios, rs))}${rateTile("學習心得回答率", reflectPeople(rs))}`
+      + `<div class="tiles" style="margin-top:12px">`
+      + (ROSTER.length ? rateTile("完成率", ROSTER_ROWS.filter(m => epStatus(m.rows.filter(r => r.episode === ep.label), ep) === "done").length) : "")
+      + `${rateTile("作答率", peopleOf(ep.scenarios, rs))}${rateTile("學習心得回答率", reflectPeople(rs))}`
       + tile("回應筆數", rs.length)
       + tile("最近一筆", `<span style="font-size:15px">${lastTime(rs) ? esc(timeStr(lastTime(rs))) : "—"}</span>`) + `</div>`
+      + rosterStatusBlock(m => epStatus(m.rows.filter(r => r.episode === ep.label), ep), rs, "完成狀況（情境卡都答＋寫心得）")
       + (rs.length ? scenarioBlock(ep.scenarios, rs) + feedbackBlock(ep, rs) : `<div class="empty">這個單元還沒有回應</div>`)
       + `</section>`;
   }
@@ -533,7 +638,7 @@ function seriesView(tab, eps, byLabel, unit){
         const rs = byLabel[e.label] || [];
         return `<a class="unit${rs.length ? "" : " dim"}" href="#${tab.id}/${encodeURIComponent(e.key)}">`
           + `<span class="epTag">${esc(e.tag)}</span>`
-          + `<span class="ut"><b>${esc(e.title)}</b><small>${rs.length ? `${rateHtml(peopleOf(e.scenarios, rs), "作答")}・${rateHtml(reflectPeople(rs), "心得")}・最近 ${esc(timeStr(lastTime(rs)))}` : "還沒有回應"}</small></span>`
+          + `<span class="ut"><b>${esc(e.title)}</b><small>${ROSTER.length ? (() => { const n = ROSTER_ROWS.filter(m => epStatus(m.rows.filter(r => r.episode === e.label), e) === "done").length; return `${rateHtml(n, "完成")}・未完成 ${ROSTER.length - n} 人・`; })() : ""}${rs.length ? `${rateHtml(peopleOf(e.scenarios, rs), "作答")}・${rateHtml(reflectPeople(rs), "心得")}・最近 ${esc(timeStr(lastTime(rs)))}` : "還沒有回應"}</small></span>`
           + (canToggle ? openChip(e.key) + openSeg(e.key) : "<span></span><span></span>")
           + `<span class="more">查看 ▸</span></a>`;
       }).join("") + `</div>`;
@@ -550,11 +655,22 @@ function usbView(tab, byLabel, unit){
   const chScn = (n) => course.scenarios.filter(sc => (sc.q || "").startsWith(`第${n}章`));
   const chRows = (n) => rs.filter(r => (r.question || "").startsWith(`第${n}章`));
   const back = `<a class="back" href="#usb">← 回 USB 資安宣導單元列表</a>`;
-  if(unit === "roster") return back + rosterHtml(info);
+  const mineUsb = (m) => m.rows.filter(r => r.episode === course.label);
+  const chStatus = (m, n) => { const mine = mineUsb(m), qs = chScn(n).map(sc => sc.q);
+    const got = qs.filter(q => mine.some(r => r.question === q)).length;
+    return got === qs.length ? "done" : got ? "partial" : "none"; };
+  const examOf = (m) => mineUsb(m).filter(r => r.question === EXAM_Q).sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))[0];
+  const passStatus = (m) => { const ex = examOf(m), chs = course.chapters.map((t, k) => chStatus(m, k + 1));
+    if(chs.every(x => x === "done") && ex && /・通過/.test(ex.choice || "")) return "done";
+    return mineUsb(m).length ? "partial" : "none"; };
+  if(unit === "roster") return back + rosterStatusBlock(passStatus, rs, "結訓狀況（10 章情境題都做完＋測驗及格）", {none: "未開始", partial: "未通過", noreflect: "", done: "通過"})
+    + rosterHtml(info);
   if(unit === "exam"){
     const named = latestByName(examRows);
     return back + `<section class="ep"><div class="detailHead"><span class="epTag">USB</span><span class="epTitle">📝 結訓測驗</span></div>`
       + `<div class="tiles" style="margin-top:12px">${tile("交卷次數", examRows.length)}${tile("測驗及格", passedExam)}${tile("測驗不及格", examRows.length - passedExam)}</div>`
+      + rosterStatusBlock(m => { const ex = examOf(m); return !ex ? "none" : /・通過/.test(ex.choice || "") ? "done" : "partial"; }, examRows,
+          "交卷狀況", {none: "未交卷", partial: "未及格", noreflect: "", done: "及格"})
       + (examRows.length ? barsHtml([{label: "測驗及格（80 分以上且必答題對）", n: passedExam}, {label: "測驗不及格", n: examRows.length - passedExam}]) : `<div class="empty">還沒有人交卷</div>`)
       + (named.length ? `<div class="nameList"><div class="sectionTitle">每人最後一次成績（${named.length} 人）</div><table class="names"><tr><th>名字＋社編</th><th>成績</th><th>各題作答</th><th>時間</th></tr>`
           + named.map(r => `<tr><td>${esc(r.name)}</td><td class="${/・通過/.test(r.choice) ? "pass" : "fail"}">${esc(r.choice)}</td><td><small>${esc(r.response)}</small></td><td>${esc(timeStr(r.submitted_at))}</td></tr>`).join("")
@@ -567,6 +683,7 @@ function usbView(tab, byLabel, unit){
     return back + `<section class="ep"><div class="detailHead"><span class="epTag">第 ${n} 章</span><span class="epTitle">${esc(course.chapters[n - 1] || "")}</span></div>`
       + `<div class="tiles" style="margin-top:12px">${tile("作答人數", peopleOf(chScn(n), rows))}${tile("回應筆數", rows.length)}`
       + tile("最近一筆", `<span style="font-size:15px">${lastTime(rows) ? esc(timeStr(lastTime(rows))) : "—"}</span>`) + `</div>`
+      + rosterStatusBlock(mm => chStatus(mm, n), rows, "完成狀況（本章情境題都答）", {none: "未作答", partial: "沒做完", noreflect: "", done: "完成"})
       + scenarioBlock(chScn(n), rows) + `</section>`;
   }
   const unitRow = (href, tag, title, sub, chip) => `<a class="unit" href="#usb/${href}"><span class="epTag">${tag}</span>`
@@ -590,6 +707,9 @@ function usbView(tab, byLabel, unit){
 function render(){
   const rows = filteredRows();
   PMAP = personMap(rows.filter(r => r.name));
+  ROSTER_ROWS = matchRoster(rows);
+  $("expected").disabled = !!ROSTER.length;
+  if(ROSTER.length) $("expected").value = "";
   expectedAuto = new Set(Object.values(PMAP)).size;
   $("expected").placeholder = expectedAuto ? `自動 ${expectedAuto}` : "自動";
   const byLabel = {};
@@ -653,6 +773,7 @@ async function load(){
       allRows = (await res.json()).responses || [];
       adminMode = true;
       if(!openLoaded) loadOpenState();
+      if(!ROSTER.length && !$("rosterText").value) loadRoster();
     } else {
       // 管理密碼對了但讀名單失敗（例如資料庫還沒加 name 欄）：先顯示不含名字的資料
       note = res.status === 503 ? "雲端資料庫還沒加 name 欄（migrations/002_add_name.sql），先顯示不含名字的資料。"
@@ -677,7 +798,10 @@ function renderAdminBox(){
     + `<label><input type="checkbox" id="hideNames"${hidden ? " checked" : ""}> 隱藏名字（投影用）</label> `
     + `<button type="button" id="adminOut">登出</button>`;
   $("hideNames").onchange = (e) => document.body.classList.toggle("hideNames", e.target.checked);
-  $("adminOut").onclick = () => { setAdminKey(""); allRows = []; adminMode = false; showGate("已登出"); };
+  $("adminOut").onclick = () => { // 登出時名單也從畫面清掉
+    setAdminKey(""); allRows = []; adminMode = false; ROSTER = []; ROSTER_ROWS = [];
+    $("rosterText").value = ""; $("rosterSummary").textContent = rosterSummaryText(); showGate("已登出");
+  };
 }
 
 function downloadReflectCsv(){
@@ -721,6 +845,7 @@ $("since").addEventListener("change", render);
 try{ $("expected").value = localStorage.getItem("expected-count") || ""; }catch(e){}
 $("expected").addEventListener("input", () => { try{ localStorage.setItem("expected-count", $("expected").value); }catch(e){} render(); });
 $("reflectCsv").onclick = downloadReflectCsv;
+$("rosterSave").onclick = saveRoster;
 $("reload").onclick = load;
 $("csv").onclick = downloadCsv;
 $("gate").addEventListener("submit", () => {
