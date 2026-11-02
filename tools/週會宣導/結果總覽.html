@@ -66,6 +66,9 @@
   .gate .back{display:inline-block;margin-top:12px;font-size:13px;color:var(--sub)}
   body.hideNames .nameList{display:none}
   .hint{font-size:12.5px;color:var(--sub);margin:6px 0 4px}
+  .rate{font-weight:800;color:var(--ink)}
+  .rate.low{color:#b91c1c}
+  input[type=number]{font:inherit;font-size:13px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
   table.open td{vertical-align:middle}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
   .seg button{border:0;border-radius:0;padding:5px 10px;font-size:12.5px;background:var(--card)}
@@ -135,7 +138,9 @@
   <div class="controls">
     <label>從這天起算 <input type="date" id="since"></label>
     <button type="button" id="reload">重新整理</button>
+    <label title="用來算回答率；記在這台電腦">應到人數 <input type="number" id="expected" min="1" max="999" style="width:5em" placeholder="自動"></label>
     <button type="button" id="csv">下載全部回應 CSV</button>
+    <button type="button" id="reflectCsv" title="名字換成學員代號，可以直接交給別人分析">下載學習心得（去識別化）</button>
     <span class="status" id="status">載入中…</span>
   </div>
   <div id="view"></div>
@@ -209,7 +214,14 @@ function buildHistory(rows){
   const course = EPISODES.find(e => e.chapterMins);
   return Object.entries(by).map(([person, rs]) => {
     const has = (label, q) => rs.some(r => r.episode === label && (!q || r.question === q));
-    const epDone = (e) => e.scenarios.length ? e.scenarios.every((sc, k) => has(e.label, sc.q || `情境${k+1}`)) : has(e.label);
+    // 完成＝情境卡都答＋寫了學習心得；REFLECT_SINCE 之前就做完的，照當時的規則算完成
+    const epDone = (e) => {
+      const mine = rs.filter(r => r.episode === e.label);
+      const cards = e.scenarios.length ? e.scenarios.every((sc, k) => has(e.label, sc.q || `情境${k+1}`)) : mine.length > 0;
+      if(!cards) return false;
+      if(mine.some(r => r.question === REFLECT_Q)) return true;
+      return mine.length > 0 && mine.every(r => r.submitted_at.slice(0, 10) < REFLECT_SINCE);
+    };
     const done52 = eps52.filter(epDone), doneAi = epsAi.filter(epDone);
     let usb = null;
     if(course){
@@ -372,10 +384,43 @@ function route(){
 window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
 const qKey = (sc, k) => sc.q || `情境${k+1}`;
 const lastTime = (rs) => rs.reduce((a, r) => (r.submitted_at > a ? r.submitted_at : a), "");
-// 作答人數：情境卡取各卡作答數的最大值；沒有情境卡的集數＝回應筆數
+// 作答人數：具名的算「不同的人」（同名／同社編／少打姓合併；具名作答每次都會送，不能算筆數），
+// 匿名的（具名上線前的舊資料）情境卡取各卡作答數的最大值、沒有情境卡的取回應筆數
+let PMAP = {};
+function distinctPeople(rs){ return new Set(rs.filter(r => r.name).map(r => PMAP[r.name] || r.name)).size; }
 function peopleOf(scenarios, rs){
-  return scenarios.length ? Math.max(0, ...scenarios.map((sc, k) => rs.filter(r => r.question === qKey(sc, k)).length))
-                          : rs.filter(r => !isScn(r) && r.question !== EXAM_Q).length;
+  const anon = rs.filter(r => !r.name);
+  const anonN = scenarios.length ? Math.max(0, ...scenarios.map((sc, k) => anon.filter(r => r.question === qKey(sc, k)).length))
+                                 : anon.filter(r => !isScn(r) && r.question !== EXAM_Q).length;
+  // 有情境卡的集數：作答＝玩情境卡（心得另外算）；沒有情境卡的（第一～九篇）：送出心得／回應就是作答
+  return distinctPeople(scenarios.length ? rs.filter(r => r.question !== REFLECT_Q) : rs) + anonN;
+}
+// 課後心得（必答開放題）
+const REFLECT_Q = "學習心得";
+const REFLECT_MIN = 15;
+const REFLECT_SINCE = "2026-11-02"; // 這天起心得題才是必答；之前完成的不因為沒寫心得被算成未完成
+const reflectRows = (rs) => rs.filter(r => r.question === REFLECT_Q && r.response);
+function reflectPeople(rs){ const rr = reflectRows(rs); return distinctPeople(rr) + rr.filter(r => !r.name).length; }
+// 應到人數：後台自己填（記在這台電腦）；沒填就用目前出現過的具名學員數
+let expectedAuto = 0;
+function expectedN(){ const v = parseInt($("expected").value, 10); return v > 0 ? v : expectedAuto; }
+function rateHtml(n, label){
+  const d = expectedN();
+  if(!d) return `${label} ${n} 人`;
+  const pct = Math.round(n / d * 100);
+  return `${label} <span class="rate${pct < 60 ? " low" : ""}">${n} / ${d}（${pct}%）</span>`;
+}
+function rateTile(k, n){
+  const d = expectedN();
+  return tile(k, d ? `${Math.round(n / d * 100)}%<small> ${n} / ${d} 人</small>` : `${n}<small> 人</small>`);
+}
+function reflectBlock(rs){
+  const rr = reflectRows(rs);
+  if(!rr.length) return `<div class="sectionTitle">學習心得</div><div class="empty">還沒有人寫學習心得（${REFLECT_SINCE} 起情境卡後必答）</div>`;
+  const short = rr.filter(r => r.response.replace(/\s/g, "").length < REFLECT_MIN).length;
+  return `<details open><summary>學習心得 ${rr.length} 則${short ? `（其中 ${short} 則少於 ${REFLECT_MIN} 字）` : ""}</summary><ul class="texts">`
+    + rr.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
+    + `</ul></details>`;
 }
 function tile(k, v){ return `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`; }
 
@@ -395,15 +440,15 @@ function scenarioBlock(scenarios, rs){
 }
 function feedbackBlock(ep, rs){
   const otherRows = rs.filter(r => !isScn(r) && r.question !== EXAM_Q);
-  let body = "";
+  let body = reflectBlock(rs);
   const choiceRows = otherRows.filter(r => r.choice);
   if(ep.takeaways.length && choiceRows.length){
     body += `<div class="block"><div class="blockTitle">最有感的一點（${choiceRows.length} 人選）</div>`
       + barsHtml(ep.takeaways.map(t => ({label: t, n: choiceRows.filter(r => r.choice === t).length}))) + `</div>`;
   }
-  const texts = otherRows.filter(r => r.response);
+  const texts = otherRows.filter(r => r.response && r.question !== REFLECT_Q);
   if(texts.length){
-    body += `<details open><summary>打字回應 ${texts.length} 則</summary><ul class="texts">`
+    body += `<details><summary>${REFLECT_SINCE} 以前的打字回應（選填時期）${texts.length} 則</summary><ul class="texts">`
       + texts.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
       + `</ul></details>`;
   }
@@ -466,7 +511,8 @@ function seriesView(tab, eps, byLabel, unit){
     return `<a class="back" href="#${tab.id}">← 回${esc(tab.name)}單元列表</a>`
       + `<section class="ep"><div class="detailHead"><span class="epTag">${esc(ep.tag)}</span><span class="epTitle">${esc(ep.title)}</span>`
       + (canToggle ? openChip(ep.key) + openSeg(ep.key) : "") + `</div>`
-      + `<div class="tiles" style="margin-top:12px">${tile("作答人數", peopleOf(ep.scenarios, rs))}${tile("回應筆數", rs.length)}`
+      + `<div class="tiles" style="margin-top:12px">${rateTile("作答率", peopleOf(ep.scenarios, rs))}${rateTile("學習心得回答率", reflectPeople(rs))}`
+      + tile("回應筆數", rs.length)
       + tile("最近一筆", `<span style="font-size:15px">${lastTime(rs) ? esc(timeStr(lastTime(rs))) : "—"}</span>`) + `</div>`
       + (rs.length ? scenarioBlock(ep.scenarios, rs) + feedbackBlock(ep, rs) : `<div class="empty">這個單元還沒有回應</div>`)
       + `</section>`;
@@ -476,6 +522,10 @@ function seriesView(tab, eps, byLabel, unit){
   return `<div class="tiles">`
     + (nOpen !== null ? tile("開放中", `${nOpen}<small> / ${eps.length} ${tab.unit}</small>`) : tile(`${tab.unit}數`, eps.length))
     + tile("有回應的" + tab.unit, `${eps.filter(e => (byLabel[e.label] || []).length).length}<small> / ${eps.length}</small>`)
+    + (() => { const open = eps.filter(e => (byLabel[e.label] || []).length); const d = expectedN();
+        if(!open.length || !d) return "";
+        const avg = open.reduce((a, e) => a + peopleOf(e.scenarios, byLabel[e.label]) / d, 0) / open.length;
+        return tile("平均作答率", `${Math.round(avg * 100)}%<small> 有回應的${tab.unit}</small>`); })()
     + tile("回應筆數", all.length)
     + tile("最近一筆", `<span style="font-size:15px">${lastTime(all) ? esc(timeStr(lastTime(all))) : "—"}</span>`) + `</div>`
     + (canToggle ? `<p class="hint">每一${tab.unit}右邊可以手動「開放／關閉」入口網站上的卡片（蓋過排程，學員重新整理就看得到），「依排程」＝照原本的開放日期。</p>` : "")
@@ -483,7 +533,7 @@ function seriesView(tab, eps, byLabel, unit){
         const rs = byLabel[e.label] || [];
         return `<a class="unit${rs.length ? "" : " dim"}" href="#${tab.id}/${encodeURIComponent(e.key)}">`
           + `<span class="epTag">${esc(e.tag)}</span>`
-          + `<span class="ut"><b>${esc(e.title)}</b><small>${rs.length ? `${peopleOf(e.scenarios, rs)} 人作答・${rs.length} 筆・最近 ${esc(timeStr(lastTime(rs)))}` : "還沒有回應"}</small></span>`
+          + `<span class="ut"><b>${esc(e.title)}</b><small>${rs.length ? `${rateHtml(peopleOf(e.scenarios, rs), "作答")}・${rateHtml(reflectPeople(rs), "心得")}・最近 ${esc(timeStr(lastTime(rs)))}` : "還沒有回應"}</small></span>`
           + (canToggle ? openChip(e.key) + openSeg(e.key) : "<span></span><span></span>")
           + `<span class="more">查看 ▸</span></a>`;
       }).join("") + `</div>`;
@@ -539,6 +589,9 @@ function usbView(tab, byLabel, unit){
 
 function render(){
   const rows = filteredRows();
+  PMAP = personMap(rows.filter(r => r.name));
+  expectedAuto = new Set(Object.values(PMAP)).size;
+  $("expected").placeholder = expectedAuto ? `自動 ${expectedAuto}` : "自動";
   const byLabel = {};
   rows.forEach(r => { (byLabel[r.episode] = byLabel[r.episode] || []).push(r); });
   const {tab: tabId, unit} = route();
@@ -627,6 +680,27 @@ function renderAdminBox(){
   $("adminOut").onclick = () => { setAdminKey(""); allRows = []; adminMode = false; showGate("已登出"); };
 }
 
+function downloadReflectCsv(){
+  const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = filteredRows();
+  const pmap = personMap(rows.filter(r => r.name));
+  const codes = {};
+  [...new Set(Object.values(pmap))].sort().forEach((p, k) => { codes[p] = "學員" + String(k + 1).padStart(3, "0"); });
+  const epOf = Object.fromEntries(EPISODES.map(e => [e.label, e]));
+  const seriesName = {"52": "工程師的價值", "ai": "AI 素養", "usb": "USB 資安"};
+  const list = rows.filter(r => r.response && r.question !== EXAM_Q && !isScn(r));
+  const lines = [["系列", "單元", "題目", "學員代號", "內容", "字數", "時間"].map(cell).join(",")]
+    .concat(list.map(r => { const e = epOf[r.episode];
+      return [e ? seriesName[e.series] : "", e ? `${e.tag} ${e.title}` : r.episode, r.question === REFLECT_Q ? "學習心得（必答）" : "打字回應（選填時期）",
+        r.name ? codes[pmap[r.name]] : "匿名", r.response, r.response.replace(/\s/g, "").length, timeStr(r.submitted_at)].map(cell).join(","); }));
+  const blob = new Blob(["\ufeff" + lines.join("\r\n")], {type: "text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `學習心得_去識別化_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
 function downloadCsv(){
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const titleOf = Object.fromEntries(EPISODES.map(e => [e.label, `${e.tag} ${e.title}`]));
@@ -644,6 +718,9 @@ function downloadCsv(){
 }
 
 $("since").addEventListener("change", render);
+try{ $("expected").value = localStorage.getItem("expected-count") || ""; }catch(e){}
+$("expected").addEventListener("input", () => { try{ localStorage.setItem("expected-count", $("expected").value); }catch(e){} render(); });
+$("reflectCsv").onclick = downloadReflectCsv;
 $("reload").onclick = load;
 $("csv").onclick = downloadCsv;
 $("gate").addEventListener("submit", () => {

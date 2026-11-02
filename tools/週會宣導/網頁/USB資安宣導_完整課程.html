@@ -174,6 +174,10 @@ button.chNext:hover{filter:brightness(1.3)}
 button.exGo{display:inline-block;margin:4px 6px 0 0;padding:4px 10px;font-size:13px;border-radius:999px;background:#fff;color:var(--ink);border:1.5px solid #f59e0b}
 .clipToggle{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-weight:800;font-size:14px;margin:0 0 12px;cursor:pointer}
 .clipToggle small{font-weight:600;color:var(--sub);font-size:12px}
+.reflectBox{border:2px solid var(--line);border-radius:12px;padding:12px;margin:12px 0;background:#fffdf5}
+.reflectBox.done{font-weight:800;color:#15803d;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.reflectHead{font-weight:800;font-size:14.5px;margin:4px 0 8px}
+.reflectHead .mustTag.inline{margin:0 6px 0 0}
 .chChip.exam{border-color:#b91c1c}
 .chChip.exam.cur{background:#b91c1c;border-color:#b91c1c}
 /* 具名欄、必答標籤 */
@@ -1198,15 +1202,16 @@ async function submitResponse(){
     name = readName("respName");
     if(!name){ note.textContent = "請先填寫名字＋社編去掉最後一碼"; return; }
   }
-  if(!text && !choice){
-    note.textContent = TAKEAWAYS.length ? "先選一個最有感的重點，或打幾個字再送出喔" : "打點字再送出喔";
+  // 學習心得是必答題（至少 REFLECT_MIN 個字）；「最有感的一點」維持選填
+  if(text.replace(/\s/g, "").length < REFLECT_MIN){
+    note.textContent = `「${REFLECT_PROMPT}」是必答題，請至少寫 ${REFLECT_MIN} 個字`;
+    inputEl.focus();
     return;
   }
 
-  const plainQuestion = MANAGER_QUESTION.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "");
   const payload = {
     episode: EPISODE_LABEL,
-    question: plainQuestion,
+    question: REFLECT_Q, // 打的字就是學習心得；後台與學習歷程都用這個代號辨認
     choice: choice,
     response: text,
     submittedAt: new Date().toISOString(),
@@ -1442,6 +1447,55 @@ async function loadScenarioStats(){
   if(onEndCard) scnUpdateDists(); // 只換統計那幾塊，不重畫整張卡（展開中的「其他選項」不會被收起來）
 }
 
+// ==== 課後心得（必答開放題）：情境卡玩完／結訓測驗交卷前，寫「這一集學到什麼」 ====
+const REFLECT_Q = "學習心得";
+const REFLECT_MIN = 15;
+const REFLECT_PROMPT = "這一集你學到什麼？之後在現場會怎麼做？";
+const reflectSentKey = () => "reflect:" + EPISODE_LABEL;
+function reflectSent(){ try{ return localStorage.getItem(reflectSentKey()) || ""; }catch(e){ return ""; } }
+function reflectBoxHtml(prompt){
+  if(reflectSent()) return `<div class="reflectBox done">✓ 已送出學習心得，謝謝！<button type="button" class="scnLink" onclick="reflectAgain()">再寫一次</button></div>`;
+  return `<div class="reflectBox" id="reflectBox"><div class="reflectHead"><span class="mustTag inline">必答</span>${escapeHtml(prompt || REFLECT_PROMPT)}</div>`
+    + (NAME_EVERYWHERE ? nameBoxHtml("reflectName") : "")
+    + `<textarea id="reflectInput" class="responseInput" maxlength="500" placeholder="至少 ${REFLECT_MIN} 個字，寫下你自己的話（例如：下次遇到……我會先……）"></textarea>`
+    + `<button type="button" class="responseSubmit" onclick="submitReflection()">送出學習心得</button>`
+    + `<div class="responseNote" id="reflectNote"></div></div>`;
+}
+function reflectAgain(){ try{ localStorage.removeItem(reflectSentKey()); }catch(e){} renderScenario(); }
+function readReflection(id){
+  const el = document.getElementById(id);
+  const text = (el ? el.value : "").trim();
+  return text.replace(/\s/g, "").length >= REFLECT_MIN ? text : null;
+}
+async function submitReflection(){
+  const note = document.getElementById("reflectNote");
+  let name = "";
+  if(NAME_EVERYWHERE){ name = readName("reflectName"); if(!name){ note.textContent = "請先填寫名字＋社編去掉最後一碼"; return; } }
+  const text = readReflection("reflectInput");
+  if(!text){ note.textContent = `學習心得是必答題，請至少寫 ${REFLECT_MIN} 個字`; return; }
+  const payload = Object.assign({ episode: EPISODE_LABEL, question: REFLECT_Q, choice: "", response: text,
+    submittedAt: new Date().toISOString() }, name ? {name} : {});
+  note.textContent = RESPONSE_API_BASE ? "送出中…" : "";
+  const ok = await sendReflection(payload);
+  if(!ok && RESPONSE_API_BASE){ note.textContent = "沒有送出成功（網路不通），已改存成本機檔案，請交給主辦人"; return; }
+  try{ localStorage.setItem(reflectSentKey(), new Date().toISOString()); }catch(e){}
+  const box = document.getElementById("reflectBox");
+  if(box) box.outerHTML = `<div class="reflectBox done">✓ 已送出學習心得，謝謝！${RESPONSE_API_BASE ? "" : "（本機版不會上傳，已存成檔案）"}</div>`;
+}
+// 送出一筆心得：雲端版送 Worker，失敗或本機版就存成本機檔案；回傳是否送上雲端
+async function sendReflection(payload){
+  if(RESPONSE_API_BASE){
+    try{
+      const res = await fetch(RESPONSE_API_BASE + "/submit", { method: "POST",
+        headers: { "Content-Type": "application/json", "X-Site-Key": RESPONSE_SITE_KEY }, body: JSON.stringify(payload) });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      return true;
+    } catch(e){ downloadResponseLocally(payload); return false; }
+  }
+  downloadResponseLocally(payload);
+  return false;
+}
+
 function renderScenario(){
   const box = document.getElementById("scnBox");
   if(!box) return;
@@ -1482,6 +1536,7 @@ function renderScenario(){
       + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
       + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
       + `<div class="endQuestion">${ACT.question}</div>`
+      + (ACT.chapter < 0 ? reflectBoxHtml() : "") // 課程模式（USB）不問
       + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
       + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`
       + chapterNextHtml();
@@ -1765,9 +1820,9 @@ function showEndCard(opts = {}){
         + `<span class="num">${"①②③④⑤"[k] || ""}</span>${escapeHtml(t)}</button>`).join("")
       + `</div>`
     : "";
-  const placeholder = TAKEAWAYS.length ? "想多說一點也可以（選填）……" : "打幾個字，說說你的想法……";
+  const placeholder = `至少 ${REFLECT_MIN} 個字，寫下你自己的話（例如：下次遇到……我會先……）`;
   speechBubble.innerHTML = `<div class="quoteLine">${ACT.quote}</div><div class="endQuestion">${ACT.question}</div>`
-    + `<div class="responseBox">${NAME_EVERYWHERE ? nameBoxHtml("respName") : ""}${choiceBlock}<textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
+    + `<div class="responseBox">${NAME_EVERYWHERE ? nameBoxHtml("respName") : ""}${choiceBlock}<div class="reflectHead"><span class="mustTag inline">必答</span>${REFLECT_PROMPT}</div><textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
     + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
     + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
   who.textContent = "播放完畢 — 今日金句與主管互動問題（再按一次執行播放可從頭重播）";
