@@ -55,6 +55,11 @@ jobs:
       - name: 確認新版 Worker 有回應
         if: steps.check.outputs.ready == 'true'
         run: |
-          code=$(curl -s -o /dev/null -w "%{http_code}" https://weekly-briefing-responses.nec106020-weekly2026.workers.dev/open-state)
-          echo "GET /open-state → HTTP $code"
+          base=https://weekly-briefing-responses.nec106020-weekly2026.workers.dev
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$base/open-state")
+          echo "GET /open-state → HTTP $code（要 200）"
           [ "$code" = "200" ]
+          # 新版才有 /admin/settings：沒帶管理密碼應該回 401（舊版會是 404）
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$base/admin/settings?key=roster")
+          echo "GET /admin/settings（不帶密碼）→ HTTP $code（要 401）"
+          [ "$code" = "401" ]
