@@ -35,3 +35,9 @@ Worker 的 CORS 設為 `*`，不綁來源，所以 Pages 網址改變不影響�
 
 **只搬了 `assets/template.html`，沒搬整個技能。** 技能本體（`SKILL.md`）留在原本的
 `my-research-tools`（private），這個公開 repo 只保留建置真正需要的那一個檔案。
+
+## Worker 自動部署（2026-11-02 起）
+`.github/workflows/deploy-worker.yml`：`tools/週會宣導/cloudflare/worker.js` 有改動推上 `main` 就自動 `wrangler deploy`（也可在 Actions 手動 Run workflow）。
+需要 repo secrets `CLOUDFLARE_API_TOKEN`（權限只開 Workers Scripts:Edit、D1:Edit）與 `CLOUDFLARE_ACCOUNT_ID`；沒設定時這個流程會自動跳過，不會失敗。
+Worker 上的 SITE_KEY、ADMIN_KEY 等 secret 不受影響，資料庫結構變更（ALTER TABLE）仍要手動跑。
+

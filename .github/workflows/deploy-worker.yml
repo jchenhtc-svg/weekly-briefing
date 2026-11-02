@@ -1,0 +1,60 @@
+name: 部署回應收集 Worker 到 Cloudflare
+
+# worker.js 有改動、推上 main 就自動部署；也可以在 Actions 頁面手動按 Run workflow。
+# 需要兩個 repo secrets（使用者自己在 GitHub 設定，Claude 看不到）：
+#   CLOUDFLARE_API_TOKEN   權限只開 Workers Scripts:Edit、D1:Edit
+#   CLOUDFLARE_ACCOUNT_ID  Cloudflare 帳號 ID
+# Worker 上原本的 SITE_KEY、ADMIN_KEY 等 secret 不會被部署蓋掉。
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/週會宣導/cloudflare/worker.js"
+      - "tools/週會宣導/cloudflare/wrangler.toml"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢查有沒有設定 Cloudflare secrets
+        id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
+            echo "還沒設定 CLOUDFLARE_API_TOKEN／CLOUDFLARE_ACCOUNT_ID，這次先跳過部署。"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ready == 'true'
+
+      - name: 部署 Worker
+        if: steps.check.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: tools/週會宣導/cloudflare
+          command: deploy
+
+      - name: 確認新版 Worker 有回應
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" https://weekly-briefing-responses.nec106020-weekly2026.workers.dev/open-state)
+          echo "GET /open-state → HTTP $code"
+          [ "$code" = "200" ]
