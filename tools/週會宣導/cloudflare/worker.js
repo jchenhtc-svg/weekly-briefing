@@ -13,6 +13,10 @@
  *                    （存在 D1 的 settings 表，第一次寫入時自動建表，不用另外跑 migration）
  *   GET/POST /admin/settings?key=roster  主辦人在後台存的學員名單（應完成名單），要帶 X-Admin-Key；
  *                    名單有真名，所以只放在 D1、不寫進任何網頁或 repo
+ *   GET/POST /admin/site-lead  主辦人替每個據點設「據點長密碼」（POST {region, password}，password 空白＝取消）；
+ *                    只存 SHA-256 雜湊，GET 只回「哪些據點設好了」，不回密碼
+ *   GET  /lead/data  據點長用自己的密碼（X-Lead-Key）登入：只回自己據點的名單與真名；
+ *                    其他據點的人換成代號（台南-A…），名單外的具名紀錄拿掉名字——其他據點的真名不會送到據點長的瀏覽器
  *   GET  /respond    手機掃 QR Code 進來看到的簡易回應頁面
  *                    （?ep=<episode>&q=<question> 帶入要回答的問題）
  *
@@ -80,7 +84,7 @@ async function submitIt(){
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*", // 播放器是 file:// 開啟，Origin 會是 "null"，用 * 才會過
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Site-Key, X-Admin-Key",
+  "Access-Control-Allow-Headers": "Content-Type, X-Site-Key, X-Admin-Key, X-Lead-Key",
 };
 
 function json(data, status = 200) {
@@ -89,6 +93,41 @@ function json(data, status = 200) {
     headers: { "Content-Type": "application/json; charset=utf-8", ...CORS_HEADERS },
   });
 }
+
+// ==== 據點長（南部據點長專案）====
+// 名單格式跟後台一樣：一行一個地區「地區：名字、名字1234…」（名字後可附社編）
+function parseRoster(text) {
+  const out = [];
+  String(text || "").split(/\n+/).forEach((line) => {
+    const m = line.match(/^\s*([^：:]+)[：:](.*)$/);
+    const region = m ? m[1].trim() : "";
+    (m ? m[2] : line).split(/[、,，\s]+/).map((x) => x.trim()).filter(Boolean).forEach((item) => {
+      const mm = item.match(/^(.*?)[（(]?(\d{2,12})[）)]?$/);
+      out.push(mm && mm[1] ? { region, name: mm[1], id: mm[2] } : { region, name: item.replace(/[（()）]/g, ""), id: "" });
+    });
+  });
+  return out;
+}
+// 學員填的「名字＋社編」對到名單上的人（跟後台 memberOwns 同一套規則）
+const namePart = (n) => String(n).replace(/\d+$/, "");
+const idPart = (n) => (String(n).match(/\d+$/) || [""])[0];
+const memberOwns = (m, name) => namePart(name).endsWith(m.name) || (!!m.id && idPart(name) === m.id);
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+const leadHash = (region, password) => sha256(`site-lead:${region}:${password}`);
+async function getSetting(env, key) {
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)").run();
+  const row = await env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind(key).first();
+  return row ? row.value : "";
+}
+async function putSetting(env, key, value) {
+  await env.DB.prepare(
+    "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  ).bind(key, value).run();
+}
+const CODE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 export default {
   async fetch(request, env) {
@@ -225,6 +264,60 @@ export default {
         ).bind(key, value).run();
         return json({ ok: true });
       }
+    }
+
+    if (url.pathname === "/admin/site-lead") {
+      if (!env.ADMIN_KEY || request.headers.get("X-Admin-Key") !== env.ADMIN_KEY) {
+        return json({ error: "unauthorized" }, 401);
+      }
+      const leads = JSON.parse((await getSetting(env, "site_leads")) || "{}");
+      if (request.method === "GET") return json({ regions: Object.keys(leads) });
+      if (request.method === "POST") {
+        let body;
+        try {
+          body = await request.json();
+        } catch {
+          return json({ error: "invalid json" }, 400);
+        }
+        const region = String(body.region || "").trim().slice(0, 20);
+        const password = String(body.password || "");
+        if (!region) return json({ error: "region required" }, 400);
+        if (!password) delete leads[region];
+        else if (password.length < 6) return json({ error: "password too short" }, 400);
+        else if (password === env.ADMIN_KEY) return json({ error: "same as admin key" }, 400);
+        else leads[region] = await leadHash(region, password);
+        await putSetting(env, "site_leads", JSON.stringify(leads));
+        return json({ ok: true, regions: Object.keys(leads) });
+      }
+    }
+
+    if (url.pathname === "/lead/data" && request.method === "GET") {
+      const password = request.headers.get("X-Lead-Key") || "";
+      const leads = JSON.parse((await getSetting(env, "site_leads")) || "{}");
+      let region = "";
+      if (password) {
+        for (const r of Object.keys(leads)) {
+          if ((await leadHash(r, password)) === leads[r]) { region = r; break; }
+        }
+      }
+      if (!region) return json({ error: "unauthorized" }, 401);
+      const roster = parseRoster(await getSetting(env, "roster"));
+      // 自己據點：保留名單上的名（不帶社編）；其他據點：換成「地區-A」代號
+      const count = {};
+      const shown = roster.map((m) => {
+        if (m.region === region) return { region: m.region, name: m.name, id: "" };
+        const k = (count[m.region] = (count[m.region] || 0) + 1) - 1;
+        return { region: m.region, name: `${m.region}-${CODE_LETTERS[k % 26]}${k >= 26 ? Math.floor(k / 26) : ""}`, id: "" };
+      });
+      const { results } = await env.DB.prepare(
+        "SELECT episode, question, response, choice, name, submitted_at FROM responses ORDER BY id DESC"
+      ).all();
+      const rows = results.map((r) => {
+        if (!r.name) return r;
+        const k = roster.findIndex((m) => memberOwns(m, r.name));
+        return Object.assign({}, r, { name: k < 0 ? null : shown[k].name });
+      });
+      return json({ region, roster: shown, responses: rows });
     }
 
     if (url.pathname === "/admin/responses" && request.method === "GET") {

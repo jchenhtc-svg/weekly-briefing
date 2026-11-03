@@ -111,6 +111,7 @@
   .chip{font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap}
   .chip.open{background:#dcfce7;color:#15803d}
   .chip.closed{background:var(--track);color:var(--sub)}
+  body.leadMode #rosterBox, body.leadMode #expected, body.leadMode label:has(#expected){display:none}
   .chip.manual::after{content:"・手動";font-weight:600}
   .back{display:inline-block;margin:2px 0 10px;font-size:13.5px;font-weight:800;color:var(--bar);text-decoration:none}
   .detailHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:4px}
@@ -129,8 +130,8 @@
 <!-- 後台管理：從首頁「🔒 後台管理」進來，先輸入管理密碼（Worker 的 ADMIN_KEY）才看得到資料 -->
 <form class="gate" id="gate" hidden onsubmit="return false">
   <h1>🔒 後台管理</h1>
-  <p>回應結果總覽（含具名名單），請輸入管理密碼</p>
-  <input type="password" id="gateKey" autocomplete="current-password" placeholder="管理密碼">
+  <p>回應結果總覽（含具名名單），請輸入管理密碼；據點長請輸入自己的據點長密碼</p>
+  <input type="password" id="gateKey" autocomplete="current-password" placeholder="管理密碼／據點長密碼">
   <button type="submit" id="gateGo">登入</button>
   <div class="gateMsg" id="gateMsg"></div>
   <a class="back" href="../index.html">← 回首頁</a>
@@ -157,6 +158,10 @@
       名單只存在你的雲端資料庫（要管理密碼才讀得到），不會寫進網站原始碼。設定後，應到人數＝名單人數，各單元會列出未完成名單。</p>
     <textarea id="rosterText" rows="6" style="width:100%;font:inherit;font-size:14px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)" placeholder="嘉義：名字、名字&#10;台南：名字、名字"></textarea>
     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" id="rosterSave">儲存名單</button><span class="hint" id="rosterMsg"></span></div>
+    <div class="sectionTitle">🏢 據點長密碼</div>
+    <p class="hint">每個據點設一組密碼（至少 6 個字，不要跟管理密碼一樣）。據點長在同一個登入畫面輸入，就只看得到自己據點的名字；其他據點只看得到完成率。
+      密碼只存雜湊，忘了就重設一組；清空再按「設定」＝取消這個據點的登入。</p>
+    <div id="leadBox"></div>
   </details>
   <div id="view"></div>
   <p class="note">點單元可以看回饋與成果；「從這天起算」可以排除開放前的測試作答。情境卡同一支手機每張只算一次；「最有感的一點」和打字回應每送出一次算一筆。CSV 用 Excel 開啟即可（UTF-8）。<br>
@@ -175,6 +180,10 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":
 const LETTERS = "ABCDE";
 let allRows = [];
 let adminMode = false; // 用管理密碼讀到含名字的資料
+// 據點長模式：用據點長密碼登入，雲端只送來自己據點的真名，其他據點的人已換成「地區-A」代號
+let leadRegion = "";
+const seeNames = () => adminMode || !!leadRegion;
+const isMine = (name) => !leadRegion || ROSTER.some(m => m.region === leadRegion && m.name === name);
 const EXAM_Q = "結訓測驗";
 const isScn = (r) => /^(第\d+章)?情境\d+$/.test(r.question || "");
 const adminKey = () => { try { return sessionStorage.getItem("admin-key") || ""; } catch(e){ return ""; } };
@@ -346,6 +355,7 @@ async function loadRoster(){
   $("rosterText").value = text;
   ROSTER = parseRoster(text);
   $("rosterSummary").textContent = rosterSummaryText();
+  if(LEADS_SET.length || $("leadBox").innerHTML) renderLeads();
   render();
 }
 async function saveRoster(){
@@ -364,7 +374,41 @@ async function saveRoster(){
   }
   ROSTER = parseRoster(text);
   $("rosterSummary").textContent = rosterSummaryText();
+  if(adminMode) renderLeads();
   render();
+}
+// ==== 據點長密碼（Worker 只存雜湊）====
+let LEADS_SET = [];
+function renderLeads(msg){
+  const regions = [...new Set(ROSTER.map(m => m.region).filter(Boolean))];
+  if(!regions.length){ $("leadBox").innerHTML = `<div class="hint">先儲存學員名單（有地區），這裡就會列出各據點。</div>`; return; }
+  $("leadBox").innerHTML = regions.map(rg => `<div class="region"><b>${esc(rg)}</b>`
+      + `<input type="password" autocomplete="new-password" data-lead="${esc(rg)}" placeholder="${LEADS_SET.includes(rg) ? "已設定（輸入新密碼可重設）" : "尚未設定"}" style="width:14em"> `
+      + `<button type="button" data-lead-go="${esc(rg)}">設定</button> <span class="hint">${LEADS_SET.includes(rg) ? "✅ 已設定" : ""}</span></div>`).join("")
+    + (msg ? `<div class="hint">${esc(msg)}</div>` : "");
+  $("leadBox").querySelectorAll("[data-lead-go]").forEach(b => b.onclick = () => {
+    const rg = b.dataset.leadGo, inp = [...$("leadBox").querySelectorAll("[data-lead]")].find(x => x.dataset.lead === rg);
+    saveLead(rg, inp.value);
+  });
+}
+async function loadLeads(){
+  try{
+    const res = await fetch(API_BASE + "/admin/site-lead", { headers: { "X-Admin-Key": adminKey() } });
+    if(res.ok) LEADS_SET = (await res.json()).regions || [];
+    renderLeads(res.ok ? "" : res.status === 404 ? "雲端 Worker 還沒更新，暫時不能設定據點長密碼" : "讀取失敗（HTTP " + res.status + "）");
+  } catch(e){ renderLeads("連不上雲端"); }
+}
+async function saveLead(region, password){
+  if(password && password.length < 6){ renderLeads("密碼至少 6 個字"); return; }
+  if(!password && !confirm(`取消「${region}」的據點長登入？`)) return;
+  try{
+    const res = await fetch(API_BASE + "/admin/site-lead", { method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey() }, body: JSON.stringify({ region, password }) });
+    const d = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(d.error === "same as admin key" ? "不能跟管理密碼一樣" : d.error || "HTTP " + res.status);
+    LEADS_SET = d.regions || [];
+    renderLeads(password ? `「${region}」據點長密碼已設定 ✓（請私下告訴據點長）` : `已取消「${region}」的據點長登入`);
+  } catch(e){ renderLeads("設定失敗：" + e.message); }
 }
 // 名單上的人 → 他填過的所有紀錄。學員填「名字＋社編」：名字以名單上的名結尾，或社編跟名單附的社編一樣，都算他本人
 // （社編核對可以接住名字打錯字；社編要跟學員填的一樣，是去掉最後一碼的那串）
@@ -390,7 +434,17 @@ function rosterStatusBlock(statusOf, rs, label, texts){
   const list = ROSTER_ROWS.map(m => Object.assign({}, m, {st: statusOf(m)}));
   const todo = list.filter(m => m.st !== "done");
   const regions = [...new Set(list.map(m => m.region))];
-  const outsiders = [...new Set(rs.filter(r => r.name && !isRosterRow(r)).map(r => r.name))];
+  const outsiders = leadRegion ? [] : [...new Set(rs.filter(r => r.name && !isRosterRow(r)).map(r => r.name))];
+  const pct = (rg) => { const all = list.filter(m => m.region === rg), d = all.filter(m => m.st === "done").length;
+    return `${Math.round(d / (all.length || 1) * 100)}%<small>（${d} / ${all.length} 人）</small>`; };
+  if(leadRegion){
+    const mine = list.filter(m => m.region === leadRegion), t = mine.filter(m => m.st !== "done");
+    return `<div class="nameList"><div class="sectionTitle">${label || "完成狀況"}・${esc(leadRegion)}據點：完成 ${mine.length - t.length} / ${mine.length} 人・未完成 ${t.length} 人</div>`
+      + `<div class="region"><b>${esc(leadRegion)}</b>` + (t.length ? t.map(m => `<span class="pill ${m.st}" title="${texts[m.st]}">${esc(m.name)}・${texts[m.st]}</span>`).join("") : `<span class="pill done">全部完成</span>`) + `</div>`
+      + `<div class="sectionTitle">各據點完成率（其他據點不顯示名字）</div>`
+      + regions.map(rg => `<div class="region"><b>${esc(rg)}</b>${rg === leadRegion ? "★ " : ""}${pct(rg)}</div>`).join("")
+      + `<div class="region"><b>全體</b>${Math.round((list.length - todo.length) / (list.length || 1) * 100)}%<small>（${list.length - todo.length} / ${list.length} 人）</small></div></div>`;
+  }
   return `<div class="nameList"><div class="sectionTitle">${label || "完成狀況"}：完成 ${list.length - todo.length} / ${list.length} 人・未完成 ${todo.length} 人</div>`
     + regions.map(rg => { const t = todo.filter(m => m.region === rg);
         return `<div class="region"><b>${esc(rg || "未分區")}</b>` + (t.length ? t.map(m => `<span class="pill ${m.st}" title="${texts[m.st]}">${esc(m.name)}・${texts[m.st]}</span>`).join("") : `<span class="pill done">全部完成</span>`) + `</div>`; }).join("")
@@ -399,7 +453,7 @@ function rosterStatusBlock(statusOf, rs, label, texts){
 }
 
 function historyHtml(rows){
-  if(!adminMode){ historyData = []; return `<div class="ep empty">學習歷程要用管理密碼登入才看得到</div>`; }
+  if(!seeNames()){ historyData = []; return `<div class="ep empty">學習歷程要用管理密碼登入才看得到</div>`; }
   historyData = buildHistory(rows);
   if(ROSTER.length){
     // 依名單排序、標地區；名單上還沒有任何紀錄的人也列出來（全部 0）
@@ -413,13 +467,15 @@ function historyHtml(rows){
     const extra = historyData.filter(h => !ordered.includes(h)).map(h => Object.assign(h, {region: "名單外"}));
     historyData = ordered.concat(extra);
   }
-  if(!historyData.length) return `<div class="ep empty">還沒有具名的學習紀錄</div>`;
+  const compare = leadRegion ? regionCompareHtml(historyData) : "";
+  if(leadRegion) historyData = historyData.filter(x => x.region === leadRegion);
+  if(!historyData.length) return compare + `<div class="ep empty">還沒有具名的學習紀錄</div>`;
   const totalAll = historyData.reduce((a, x) => a + x.total, 0);
-  return `<section class="ep nameList"><div class="epHead"><span class="epTag">學習歷程</span>`
-    + `<span class="epTitle">學員學習歷程：${historyData.length} 人・合計 ${fmtMins(totalAll)}</span>`
+  return compare + `<section class="ep nameList"><div class="epHead"><span class="epTag">學習歷程</span>`
+    + `<span class="epTitle">${leadRegion ? esc(leadRegion) + "據點" : "學員"}學習歷程：${historyData.length} 人・合計 ${fmtMins(totalAll)}</span>`
     + `<button type="button" id="historyCsv">下載學習歷程 CSV</button></div>`
     + `<p class="hint">線上學習時數＝每段作答（間隔超過 ${SESSION_GAP_MIN} 分鐘算新的一段）取「實際時間差」與「內容用 1.5 倍速播完的長度」較大者。同名、同社編、少打姓視為同一人。點名字看明細。</p>`
-    + `<table class="names hist"><tr>${ROSTER.length ? "<th>地區</th>" : ""}<th>名字＋社編</th><th>工程師的價值</th><th>AI 素養</th><th>USB 資安</th><th>線上學習時數</th><th>最近學習</th></tr>`
+    + `<table class="names hist"><tr>${ROSTER.length ? "<th>地區</th>" : ""}<th>${leadRegion ? "名字" : "名字＋社編"}</th><th>工程師的價值</th><th>AI 素養</th><th>USB 資安</th><th>線上學習時數</th><th>最近學習</th></tr>`
     + historyData.map((x, k) => `<tr>${ROSTER.length ? `<td>${esc(x.region || "")}</td>` : ""}<td><details><summary>${esc(x.person)}</summary>`
         + (x.aliases.length ? `<small>也寫成：${x.aliases.map(esc).join("、")}</small>` : "")
         + `<ul class="sess">` + x.sessions.map(ss => `<li><b>${esc(new Date(ss.start).toLocaleString("zh-TW"))}</b>　採計 ${fmtMins(ss.mins)}`
@@ -430,6 +486,22 @@ function historyHtml(rows){
       + `<td>${x.usb ? `${x.usb.done} / ${x.usb.total} 單元<br><span class="${x.usb.pass ? "pass" : "fail"}">${x.usb.pass ? "✅ 結訓通過" : x.usb.exam ? "測驗 " + esc(x.usb.exam.choice) : "未交卷"}</span>` : "—"}</td>`
       + `<td><b>${fmtMins(x.total)}</b></td>`
       + `<td>${x.last ? esc(timeStr(x.last)) : `<span class="fail">還沒開始</span>`}</td></tr>`).join("")
+    + `</table></section>`;
+}
+// 據點長看的「各據點比較」：只有百分比和平均，不列其他據點的名字
+function regionCompareHtml(list){
+  const regions = [...new Set(ROSTER.map(m => m.region))];
+  const avgPct = (xs, f) => xs.length ? Math.round(xs.reduce((a, x) => a + f(x), 0) / xs.length * 100) + "%" : "—";
+  const ratio = (a, b) => b ? a / b : 0;
+  return `<section class="ep"><div class="epHead"><span class="epTag">據點比較</span><span class="epTitle">各據點平均完成率與學習時數</span></div>`
+    + `<p class="hint">只顯示各據點的平均，其他據點的個人資料看不到。★＝你的據點。</p>`
+    + `<table class="names"><tr><th>據點</th><th>人數</th><th>工程師的價值</th><th>AI 素養</th><th>USB 結訓通過</th><th>平均線上學習時數</th></tr>`
+    + regions.map(rg => { const xs = list.filter(x => x.region === rg);
+        return `<tr><td>${rg === leadRegion ? "★ " : ""}${esc(rg)}</td><td>${xs.length}</td>`
+          + `<td>${avgPct(xs, x => ratio(x.done52.length, x.eps52.length))}</td>`
+          + `<td>${avgPct(xs, x => ratio(x.doneAi.length, x.epsAi.length))}</td>`
+          + `<td>${avgPct(xs, x => x.usb && x.usb.pass ? 1 : 0)}</td>`
+          + `<td>${xs.length ? fmtMins(xs.reduce((a, x) => a + x.total, 0) / xs.length) : "—"}</td></tr>`; }).join("")
     + `</table></section>`;
 }
 function downloadHistoryCsv(){
@@ -528,7 +600,7 @@ function reflectBlock(rs){
   if(!rr.length) return `<div class="sectionTitle">學習心得</div><div class="empty">還沒有人寫學習心得（${REFLECT_SINCE} 起情境卡後必答）</div>`;
   const short = rr.filter(r => r.response.replace(/\s/g, "").length < REFLECT_MIN).length;
   return `<details open><summary>學習心得 ${rr.length} 則${short ? `（其中 ${short} 則少於 ${REFLECT_MIN} 字）` : ""}</summary><ul class="texts">`
-    + rr.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
+    + rr.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name && isMine(r.name) ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
     + `</ul></details>`;
 }
 function tile(k, v){ return `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`; }
@@ -539,7 +611,7 @@ function scenarioBlock(scenarios, rs){
   if(!scnRows.length) return `<div class="empty">情境卡還沒有人作答</div>`;
   return `<div class="block"><div class="blockTitle">情境卡</div>` + scenarios.map((sc, k) => {
     const qr = scnRows.filter(r => r.question === qKey(sc, k));
-    const named = latestByName(qr);
+    const named = latestByName(qr).filter(r => isMine(r.name));
     return `<div class="q">${sc.q ? "" : `情境 ${k+1}｜`}${esc(sc.situation)}</div>`
       + barsHtml(sc.options.map((t, j) => ({label: `${LETTERS[j]}. ${t}`, n: qr.filter(r => r.choice === LETTERS[j]).length})))
       + (named.length ? `<details class="nameList"><summary>具名作答 ${named.length} 人</summary><table class="names"><tr><th>名字＋社編</th><th>選擇</th><th>時間</th></tr>`
@@ -558,7 +630,7 @@ function feedbackBlock(ep, rs){
   const texts = otherRows.filter(r => r.response && r.question !== REFLECT_Q);
   if(texts.length){
     body += `<details><summary>${REFLECT_SINCE} 以前的打字回應（選填時期）${texts.length} 則</summary><ul class="texts">`
-      + texts.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
+      + texts.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name && isMine(r.name) ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
       + `</ul></details>`;
   }
   return body;
@@ -594,7 +666,9 @@ function rosterInfo(course, rs){
   return {chapNums, chapQs, shown, merged, nPass: shown.filter(x => x.pass).length};
 }
 function rosterHtml(info){
-  if(!adminMode) return `<div class="ep empty">結訓名單要用管理密碼登入才看得到</div>`;
+  if(!seeNames()) return `<div class="ep empty">結訓名單要用管理密碼登入才看得到</div>`;
+  if(leadRegion) info = Object.assign({}, info, {shown: info.shown.filter(x => isMine(x.name)), merged: info.merged.filter(x => isMine(x.name))},
+    {nPass: info.shown.filter(x => isMine(x.name) && x.pass).length});
   if(!info.shown.length) return `<div class="ep empty">還沒有具名的作答</div>`;
   const n = info.chapNums.length;
   const rowHtml = (x) => `<tr><td>${esc(x.name)}</td>`
@@ -673,7 +747,7 @@ function usbView(tab, byLabel, unit){
   if(unit === "roster") return back + rosterStatusBlock(passStatus, rs, "結訓狀況（10 章情境題都做完＋測驗及格）", {none: "未開始", partial: "未通過", noreflect: "", done: "通過"})
     + rosterHtml(info);
   if(unit === "exam"){
-    const named = latestByName(examRows);
+    const named = latestByName(examRows).filter(r => isMine(r.name));
     return back + `<section class="ep"><div class="detailHead"><span class="epTag">USB</span><span class="epTitle">📝 結訓測驗</span></div>`
       + `<div class="tiles" style="margin-top:12px">${tile("交卷次數", examRows.length)}${tile("測驗及格", passedExam)}${tile("測驗不及格", examRows.length - passedExam)}</div>`
       + rosterStatusBlock(m => { const ex = examOf(m); return !ex ? "none" : /・通過/.test(ex.choice || "") ? "done" : "partial"; }, examRows,
@@ -696,12 +770,12 @@ function usbView(tab, byLabel, unit){
   const unitRow = (href, tag, title, sub, chip) => `<a class="unit" href="#usb/${href}"><span class="epTag">${tag}</span>`
     + `<span class="ut"><b>${title}</b><small>${sub}</small></span>${chip || "<span></span>"}<span></span><span class="more">查看 ▸</span></a>`;
   return `<div class="tiles">`
-    + (adminMode ? tile("結訓通過", `${info.nPass}<small> / ${info.shown.length} 人</small>`) : "")
+    + (adminMode ? tile("結訓通過", `${info.nPass}<small> / ${info.shown.length} 人</small>`) : leadRegion ? tile("本據點結訓通過", `${info.shown.filter(x => isMine(x.name) && x.pass).length}<small> / ${ROSTER.filter(m => m.region === leadRegion).length} 人</small>`) : "")
     + tile("測驗交卷", `${examRows.length}<small> 次</small>`)
     + tile("回應筆數", rs.length)
     + tile("最近一筆", `<span style="font-size:15px">${lastTime(rs) ? esc(timeStr(lastTime(rs))) : "—"}</span>`) + `</div>`
     + `<div class="units">`
-    + unitRow("roster", "🎓", "結訓名單", adminMode ? `通過 ${info.nPass} / ${info.shown.length} 人・逐人看單元完成與測驗成績` : "要管理密碼才看得到",
+    + unitRow("roster", "🎓", "結訓名單", adminMode ? `通過 ${info.nPass} / ${info.shown.length} 人・逐人看單元完成與測驗成績` : leadRegion ? "本據點逐人看單元完成與測驗成績・各據點通過率" : "要管理密碼才看得到",
         adminMode ? `<span class="chip open">${info.nPass} 人通過</span>` : "")
     + course.chapters.map((t, k) => {
         const rows = chRows(k + 1);
@@ -730,7 +804,7 @@ function render(){
       const eps = EPISODES.filter(e => e.series === t.series);
       const n = eps.reduce((a, e) => a + (byLabel[e.label] || []).length, 0);
       sub = t.series === "usb" ? `10 章＋結訓・${n} 筆回應` : `${eps.length} ${t.unit}・${n} 筆回應`;
-    } else sub = adminMode ? "完成單元＋線上學習時數" : "要管理密碼";
+    } else sub = seeNames() ? "完成單元＋線上學習時數" : "要管理密碼";
     return `<a class="tab${t.id === tabId ? " cur" : ""}" href="#${t.id}"><b>${t.name}</b><small>${sub}</small></a>`;
   }).join("");
   let html;
@@ -775,12 +849,24 @@ async function load(){
   try{
     adminMode = false;
     const res = await fetch(API_BASE + "/admin/responses", { headers: { "X-Admin-Key": adminKey() } });
-    if(res.status === 401){ setAdminKey(""); showGate("密碼不對，請再試一次"); return; }
+    if(res.status === 401){
+      const lead = await fetch(API_BASE + "/lead/data", { headers: { "X-Lead-Key": adminKey() } });
+      if(!lead.ok){ leadRegion = ""; setAdminKey(""); showGate(lead.status === 401 ? "密碼不對，請再試一次" : "連不上雲端，晚點再試試看"); return; }
+      const d = await lead.json();
+      leadRegion = d.region; allRows = d.responses || []; ROSTER = d.roster || [];
+      document.body.classList.add("leadMode");
+      showMain();
+      $("status").textContent = "更新時間 " + new Date().toLocaleTimeString("zh-TW");
+      renderAdminBox(); render();
+      return;
+    }
+    leadRegion = ""; document.body.classList.remove("leadMode");
     if(res.ok){
       allRows = (await res.json()).responses || [];
       adminMode = true;
       if(!openLoaded) loadOpenState();
       if(!ROSTER.length && !$("rosterText").value) loadRoster();
+      if(!$("leadBox").innerHTML) loadLeads();
     } else {
       // 管理密碼對了但讀名單失敗（例如資料庫還沒加 name 欄）：先顯示不含名字的資料
       note = res.status === 503 ? "雲端資料庫還沒加 name 欄（migrations/002_add_name.sql），先顯示不含名字的資料。"
@@ -801,12 +887,13 @@ async function load(){
 
 function renderAdminBox(){
   const hidden = document.body.classList.contains("hideNames");
-  $("adminBox").innerHTML = `<span class="adminOn">🔓 已登入</span> `
+  $("adminBox").innerHTML = `<span class="adminOn">${leadRegion ? "🏢 " + esc(leadRegion) + "據點長" : "🔓 已登入"}</span> `
     + `<label><input type="checkbox" id="hideNames"${hidden ? " checked" : ""}> 隱藏名字（投影用）</label> `
     + `<button type="button" id="adminOut">登出</button>`;
   $("hideNames").onchange = (e) => document.body.classList.toggle("hideNames", e.target.checked);
   $("adminOut").onclick = () => { // 登出時名單也從畫面清掉
-    setAdminKey(""); allRows = []; adminMode = false; ROSTER = []; ROSTER_ROWS = [];
+    setAdminKey(""); allRows = []; adminMode = false; leadRegion = ""; ROSTER = []; ROSTER_ROWS = [];
+    document.body.classList.remove("leadMode"); $("leadBox").innerHTML = "";
     $("rosterText").value = ""; $("rosterSummary").textContent = rosterSummaryText(); showGate("已登出");
   };
 }
@@ -836,10 +923,10 @@ function downloadCsv(){
   const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const titleOf = Object.fromEntries(EPISODES.map(e => [e.label, `${e.tag} ${e.title}`]));
   // 解鎖名單時才多一欄「名字＋社編」
-  const head = ["集數", "題目", "選擇", "打字回應"].concat(adminMode ? ["名字＋社編"] : [], ["時間"]);
+  const head = ["集數", "題目", "選擇", "打字回應"].concat(seeNames() ? [leadRegion ? "名字（其他據點為代號）" : "名字＋社編"] : [], ["時間"]);
   const lines = [head.map(cell).join(",")]
     .concat(filteredRows().map(r => [titleOf[r.episode] || r.episode, r.question, r.choice, r.response]
-      .concat(adminMode ? [r.name] : [], [timeStr(r.submitted_at)]).map(cell).join(",")));
+      .concat(seeNames() ? [r.name] : [], [timeStr(r.submitted_at)]).map(cell).join(",")));
   const blob = new Blob(["﻿" + lines.join("\r\n")], {type: "text/csv;charset=utf-8"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -857,7 +944,7 @@ $("reload").onclick = load;
 $("csv").onclick = downloadCsv;
 $("gate").addEventListener("submit", () => {
   const v = $("gateKey").value.trim();
-  if(!v){ $("gateMsg").textContent = "請輸入管理密碼"; return; }
+  if(!v){ $("gateMsg").textContent = "請輸入密碼"; return; }
   $("gateGo").disabled = true; $("gateGo").textContent = "登入中…";
   setAdminKey(v); load();
 });
