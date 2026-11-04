@@ -186,6 +186,19 @@ button.exGo{display:inline-block;margin:4px 6px 0 0;padding:4px 10px;font-size:1
 .nameInput{width:100%;border:2px solid var(--line);border-radius:10px;padding:9px 12px;font-family:var(--disp);font-size:16px;font-weight:700;box-sizing:border-box}
 .nameHint{font-size:12.5px;color:#b91c1c;font-weight:700;min-height:0;margin-top:4px}
 .nameDone{font-size:13px;font-weight:800;color:#14532d;margin:0 0 10px}
+.rBox{border:2px solid #276dc3;border-radius:12px;padding:12px;margin:12px 0;background:#f5f9ff}
+.rBox .rHead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-weight:800;font-size:14.5px}
+.rBox .rLogo{display:inline-block;background:#276dc3;color:#fff;font-weight:900;border-radius:6px;padding:1px 8px;font-size:13px}
+.rBox .rSum{font-size:13.5px;margin:8px 0;color:#334}
+.rBox .rBar{margin:8px 0}
+.rBox .rBar .t{font-size:13.5px;line-height:1.45}
+.rBox .rBar .t small{color:#667;font-weight:700}
+.rBox .rBar .track{display:flex;align-items:center;gap:8px;margin-top:3px}
+.rBox .rBar .track i{display:block;height:10px;border-radius:5px;background:#276dc3;min-width:4px}
+.rBox .rBar .track b{font-size:12.5px;white-space:nowrap}
+.rBox .rWords span{display:inline-block;margin:3px 4px 0 0;padding:2px 9px;border-radius:999px;background:#e3edfb;font-size:13px;font-weight:700}
+.rBox details{margin-top:8px;font-size:12.5px}
+.rBox pre{white-space:pre-wrap;font-size:11.5px;background:#fff;border:1px solid #d5deeb;border-radius:8px;padding:8px;max-height:220px;overflow:auto}
 .mustTag{display:inline-block;font-size:12px;font-weight:900;background:#b91c1c;color:#fff;border-radius:6px;padding:2px 10px;margin-bottom:8px}
 .mustTag.inline{margin:0 0 0 6px;padding:0 6px;font-size:11px;vertical-align:2px}
 /* 結訓測驗 */
@@ -727,6 +740,7 @@ const SCENARIO_METRICS = [{"name": "效率", "icon": "⏱", "desc": "把事情�
 const CHAPTERS = [{"title": "為什麼要管理 USB", "short": "為何管理", "start": 0, "end": 10, "quote": "USB 很方便，<br>風險也很方便。", "question": "如果客戶設備今天中毒，<br>你拿得出證據證明不是你的 USB 嗎？", "scenarios": [{"situation": "早上出門才發現公司 USB 忘在辦公室。客戶的 POS 等著更新，你口袋裡剛好有一支自己的 USB。", "options": [{"text": "先用自己的，回去再說", "score": {"效率": 2, "資安": -3, "稽核證據": -2, "客戶信任": -3}, "result": "更新完成了，但這支 USB 沒掃過毒、沒有資產標籤。規定很清楚：個人 USB 一律不得接入客戶設備。"}, {"text": "跟客戶說明，回公司拿公司配發的 USB 再來", "score": {"效率": -2, "資安": 2, "稽核證據": 1, "客戶信任": 1}, "result": "多跑一趟，但接進客戶設備的每一支 USB 都說得出來歷。"}, {"text": "打給主管，看能不能請同事帶過來", "score": {"效率": -1, "資安": 2, "稽核證據": 1, "客戶信任": 1}, "result": "等了一下，問題解決，也沒有破例。忘了帶，就想辦法拿到對的那一支。"}]}, {"situation": "你剛把 USB 插上客戶電腦，客戶的資訊人員走過來問：「這支 USB 是哪裡來的？」", "options": [{"text": "「應該沒問題啦，我們公司的。」", "score": {"效率": 0, "資安": 0, "稽核證據": -2, "客戶信任": -2}, "result": "口頭說明不是證據。客戶要的是看得到的東西。"}, {"text": "出示資產標籤和最近的掃毒紀錄", "score": {"效率": 0, "資安": 1, "稽核證據": 3, "客戶信任": 3}, "result": "客戶看完點點頭。有證據，對話三十秒就結束。"}, {"text": "先拔掉，說之後再補資料給他", "score": {"效率": -1, "資安": 0, "稽核證據": -2, "客戶信任": -3}, "result": "客戶更懷疑了：為什麼現在拿不出來？"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "真實案例與教訓", "short": "真實案例", "start": 11, "end": 20, "quote": "一支 USB 跑三家，<br>三家一起擔風險。", "question": "你有沒有一支 USB 跑過好幾個客戶？<br>現在你身上有幾支客戶專屬 USB？", "scenarios": [{"situation": "今天行程：上午客戶 A、下午客戶 B、晚上客戶 C。你的公司 USB 都有掃過毒，但只有一支。", "options": [{"text": "掃過毒就好，一支跑全天", "score": {"效率": 1, "資安": -3, "稽核證據": -1, "客戶信任": -2}, "result": "掃毒擋得住已知病毒，擋不住客戶 A 的資料跑進客戶 B 的系統。這就是交叉污染。"}, {"text": "出發前準備三支客戶專屬 USB，各自掃毒、各自留證據", "score": {"效率": -1, "資安": 3, "稽核證據": 2, "客戶信任": 2}, "result": "多花十分鐘準備，三家客戶的東西互不相混。"}, {"text": "每到一家就把 USB 格式化再用", "score": {"效率": -1, "資安": 0, "稽核證據": -2, "客戶信任": 0}, "result": "格式化不等於掃毒，也沒有留下證據；客戶問起，一樣說不清楚。"}]}, {"situation": "你一插上 USB，客戶的防毒軟體就跳出告警。客戶要你說明 USB 來源與掃毒狀況。", "options": [{"text": "「我記得上禮拜有掃過。」", "score": {"效率": 0, "資安": 0, "稽核證據": -3, "客戶信任": -3}, "result": "「記得」不是證據。客戶接著要求公司提出改善措施和管理證明。"}, {"text": "立刻停用這支 USB、通報主管，並提供事前留存的掃毒紀錄", "score": {"效率": 0, "資安": 2, "稽核證據": 2, "客戶信任": 2}, "result": "告警照實處理、證據拿得出來，客戶看到的是一套有在運作的管理。"}, {"text": "先拔掉，回去重新掃毒、補一張截圖給客戶", "score": {"效率": -1, "資安": 0, "稽核證據": -3, "客戶信任": -2}, "result": "補做的截圖只能證明「現在」乾淨，不能證明「當時」乾淨（第 7 集會細講）。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "USB 五大風險", "short": "五大風險", "start": 21, "end": 31, "quote": "私、共、毒、失、密，<br>五個字背起來。", "question": "私、共、毒、失、密，<br>你最容易踩到的是哪一個？", "scenarios": [{"situation": "你要帶一支存有客戶 Log 和 Config 的 USB 回公司分析。這支 USB 還沒加密。", "options": [{"text": "放口袋直接帶走，小心一點就好", "score": {"效率": 1, "資安": -3, "稽核證據": -1, "客戶信任": -2}, "result": "路上掉了，撿到的人插上電腦就能讀到客戶的設定和紀錄。"}, {"text": "先用 BitLocker 加密，再帶走", "score": {"效率": -1, "資安": 3, "稽核證據": 1, "客戶信任": 2}, "result": "多花幾分鐘。就算真的掉了，內容也讀不到。"}, {"text": "改用 LINE 把檔案傳給自己", "score": {"效率": 1, "資安": -3, "稽核證據": -2, "客戶信任": -3}, "result": "客戶資料跑到私人通訊軟體，比 USB 更難收回。"}]}, {"situation": "公司 USB 忘在車上，車停得有點遠。同事遞來他自己的 USB：「我的很乾淨，先用啦。」", "options": [{"text": "謝謝，先用一下就好", "score": {"效率": 1, "資安": -3, "稽核證據": -2, "客戶信任": -2}, "result": "「私」——個人 USB，一律禁止。乾不乾淨，沒有證據誰都不知道。"}, {"text": "婉拒，走去車上拿公司 USB", "score": {"效率": -1, "資安": 2, "稽核證據": 1, "客戶信任": 1}, "result": "多走五分鐘，沒有破例。"}, {"text": "請同事先掃毒，掃完再用他的", "score": {"效率": -1, "資安": -1, "稽核證據": -1, "客戶信任": 0}, "result": "掃了毒還是個人 USB，沒有資產標籤、不在管理範圍裡，一樣不行。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "USB 使用五原則", "short": "使用原則", "start": 32, "end": 44, "quote": "一客戶一 USB，<br>先掃毒再上場。", "question": "五條原則裡，<br>你今天被抽查會卡在哪一條？", "scenarios": [{"situation": "你掃完毒，截了圖。這張截圖要怎麼處理？", "options": [{"text": "存在自己手機相簿就好", "score": {"效率": 1, "資安": 0, "稽核證據": -2, "客戶信任": 0}, "result": "換手機、刪照片，紀錄就不見了；主管或客戶要查，也查不到。"}, {"text": "截圖要看得到掃描時間、原始檔不修改，依制度上傳並附上 USB 編號", "score": {"效率": -1, "資安": 0, "稽核證據": 3, "客戶信任": 1}, "result": "多花一分鐘，時間、編號都對得上，一年後被問到也拿得出來。"}, {"text": "傳到工作群組，大家都看得到", "score": {"效率": 0, "資安": -1, "稽核證據": -1, "客戶信任": 0}, "result": "群組訊息會被洗掉，也不是正式紀錄，還可能把不該公開的畫面傳出去。"}]}, {"situation": "主管突然說要抽查你的 USB。你的 USB 掃過毒，但資產標籤掉了。", "options": [{"text": "「標籤掉了而已，掃毒有做啦。」", "score": {"效率": 0, "資安": 0, "稽核證據": -2, "客戶信任": 0}, "result": "沒有標籤，就對不上是哪一支 USB，掃毒紀錄也對不起來。"}, {"text": "照實說明，當天補貼標籤並重新登錄", "score": {"效率": -1, "資安": 1, "稽核證據": 2, "客戶信任": 1}, "result": "抽查就是為了發現這種小漏洞，補起來就好。"}, {"text": "先借同事有標籤的 USB 給主管看", "score": {"效率": 0, "資安": -1, "稽核證據": -3, "客戶信任": -1}, "result": "拿別人的 USB 應付抽查，比沒標籤嚴重得多。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "掃毒時機與流程", "short": "掃毒管理", "start": 45, "end": 55, "quote": "30 天一掃，<br>出門前再看一眼。", "question": "你身上每一支 USB，<br>最後一次掃毒是幾天前？", "scenarios": [{"situation": "今天要去客戶端換機。你的 USB 上次掃毒是 45 天前。", "options": [{"text": "才多 15 天，應該沒差，直接用", "score": {"效率": 1, "資安": -2, "稽核證據": -3, "客戶信任": -2}, "result": "已經超過 30 天的規定。真出事，你拿不出有效證據。"}, {"text": "出發前先掃毒、確認結果、留下證據再出門", "score": {"效率": -1, "資安": 2, "稽核證據": 3, "客戶信任": 2}, "result": "多花十幾分鐘，USB 和證據都在有效期限內。"}, {"text": "先去客戶端，在客戶的電腦上掃", "score": {"效率": 0, "資安": -3, "稽核證據": -1, "客戶信任": -3}, "result": "把沒確認過的 USB 插進客戶設備掃毒，正是要避免的風險。"}]}, {"situation": "要幫客戶做 PE 開機復原。你的 PE 開機碟已經兩年沒更新。", "options": [{"text": "能開機就好，照用", "score": {"效率": 1, "資安": -2, "稽核證據": -1, "客戶信任": -1}, "result": "兩年沒更新的工具碟，內容可能過時、帶有風險，也沒有近期的掃毒證據。"}, {"text": "先更新 PE 開機碟、掃毒並留證據，再去客戶端", "score": {"效率": -2, "資安": 3, "稽核證據": 2, "客戶信任": 2}, "result": "多花一點準備時間，工具本身就不會成為問題。"}, {"text": "跟同事借一支比較新的", "score": {"效率": 0, "資安": -1, "稽核證據": -1, "客戶信任": 0}, "result": "借來的碟一樣要確認來歷、掃毒狀況和證據，不能看起來新就用。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "有做 ≠ 有證據", "short": "稽核證據", "start": 56, "end": 70, "quote": "有做 ≠ 有證據。", "question": "如果現在要你拿出上一次掃毒的證據，<br>你需要幾分鐘？", "scenarios": [{"situation": "你確實有掃毒，但沒有截圖，也沒有紀錄。客戶的稽核人員要你提出證明。", "options": [{"text": "「我真的有掃，我可以保證。」", "score": {"效率": 0, "資安": 0, "稽核證據": -3, "客戶信任": -2}, "result": "保證不是證據。沒留紀錄，就可能被視同沒做。"}, {"text": "照實說明沒有留存紀錄，回報主管並改善留存流程", "score": {"效率": 0, "資安": 0, "稽核證據": 1, "客戶信任": 1}, "result": "這次證據補不回來，但誠實面對、改善流程，才不會再發生。"}, {"text": "回去重新掃一次、截圖補給他", "score": {"效率": -1, "資安": 0, "稽核證據": -3, "客戶信任": -3}, "result": "補做的截圖只能證明「現在」，而且客戶一看日期就知道是事後補的。"}]}, {"situation": "主管請大家整理掃毒證據。你手上有：掃毒截圖、LINE 上「已掃毒」的訊息、USB 編號和掃描日期。", "options": [{"text": "全部都交上去，越多越好", "score": {"效率": 0, "資安": 0, "稽核證據": 0, "客戶信任": 0}, "result": "截圖、編號、日期有效；LINE 訊息不算正式證據，交了也沒有用。"}, {"text": "交看得到掃描日期時間的原始截圖，加上 USB 編號", "score": {"效率": 0, "資安": 0, "稽核證據": 3, "客戶信任": 1}, "result": "可追溯、可驗證、可保存，三個條件都符合；截圖沒有修改過，時間也對得上。"}, {"text": "只交 LINE 訊息，因為有時間戳記", "score": {"效率": 0, "資安": 0, "稽核證據": -2, "客戶信任": -1}, "result": "LINE 訊息只是有人說他做了，不能證明那支 USB 真的掃過。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "事後補掃毒（必答）", "short": "事後補掃", "start": 71, "end": 82, "quote": "沒有證據的掃毒，<br>等同沒有掃毒。", "question": "必答題：客戶要求掃毒證據，你重新掃毒後補截圖，<br>這能證明什麼？", "scenarios": [{"situation": "【必答】客戶要求掃毒證據。工程師重新掃毒後補了一張截圖。這張截圖能證明什麼？", "options": [{"text": "可以證明當時有掃毒", "score": {"效率": 0, "資安": 0, "稽核證據": -3, "客戶信任": -3}, "result": "錯。補做的截圖只能證明現在，不能證明使用前已掃毒，不屬於有效稽核證據。這題答錯，結訓不通過。"}, {"text": "只能證明現在有掃毒", "score": {"效率": 0, "資安": 0, "稽核證據": 3, "客戶信任": 1}, "result": "對。事後補掃毒不能證明使用前已掃毒，也不能證明事件發生前已完成控制。"}, {"text": "可以證明工程師很認真", "score": {"效率": 0, "資安": 0, "稽核證據": -2, "客戶信任": -1}, "result": "認真不等於證據。稽核看的是事件發生之前就存在的紀錄。"}], "must": true, "require_name": true}, {"situation": "你用完 USB 才想起來，出門前忘了掃毒，也沒留證據。目前客戶還沒問。", "options": [{"text": "現在補掃、截圖，日期寫成今天早上", "score": {"效率": -1, "資安": 0, "稽核證據": -3, "客戶信任": -3}, "result": "這已經不是補救，是造假。一旦被發現，信任會整個崩掉。"}, {"text": "照實回報主管：這次漏了，並說明後續怎麼補強", "score": {"效率": 0, "資安": 1, "稽核證據": 1, "客戶信任": 1}, "result": "這次的證據補不回來，但誠實回報、補強流程，才是真正的控制。"}, {"text": "反正客戶沒問，當作沒事", "score": {"效率": 0, "資安": -1, "稽核證據": -2, "客戶信任": -1}, "result": "客戶哪天問起，你什麼都拿不出來，還多了一個隱瞞。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "USB 遺失處理", "short": "遺失處理", "start": 83, "end": 93, "quote": "掉了先報，<br>不要先找。", "question": "如果你的 USB 現在不見了，<br>你知道要打給誰嗎？", "scenarios": [{"situation": "下午回到公司，你發現早上用的 USB 不見了。裡面可能有客戶的 Log。", "options": [{"text": "先回客戶端和車上找找，找不到再說", "score": {"效率": -1, "資安": -3, "稽核證據": -2, "客戶信任": -2}, "result": "花了半天沒找到，才通報。這段時間，外洩範圍完全沒人評估。"}, {"text": "立刻通知主管和資訊單位，同時確認裡面有哪些資料", "score": {"效率": 0, "資安": 2, "稽核證據": 2, "客戶信任": 1}, "result": "就算等一下找回來，及早通報也能讓大家先評估風險。"}, {"text": "反正有加密，應該沒事，不用講", "score": {"效率": 0, "資安": -1, "稽核證據": -3, "客戶信任": -2}, "result": "有沒有加密、加密有沒有做好，都要經過確認。自己判斷沒事，不能取代通報。"}]}, {"situation": "你通報 USB 遺失後一小時，在車座椅下找到了它。", "options": [{"text": "找到就好，跟主管說「沒事了」就結束", "score": {"效率": 0, "資安": -1, "稽核證據": -1, "客戶信任": 0}, "result": "這一小時 USB 去過哪、有沒有被插過，都不知道。找回來不代表沒事。"}, {"text": "回報找到了，並配合確認內容、重新掃毒、補完事件紀錄", "score": {"效率": -1, "資安": 2, "稽核證據": 2, "客戶信任": 1}, "result": "把事件好好結案。下次有人問，這件事有完整的紀錄。"}, {"text": "當作沒掉過，把通報收回來", "score": {"效率": 0, "資安": -2, "稽核證據": -3, "客戶信任": -1}, "result": "撤回通報，等於把剛才的紀錄抹掉，反而更說不清楚。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "維護單位 USB 管理守則", "short": "現場守則", "start": 94, "end": 101, "quote": "出發前七勾，<br>完工後三勾。", "question": "拿出你的 USB 對一下清單，<br>出發前七項，你勾得到幾項？", "scenarios": [{"situation": "完工了。你把客戶的 Log 備份到 USB 上，接下來呢？", "options": [{"text": "留在 USB 上，下次可能用得到", "score": {"效率": 1, "資安": -2, "稽核證據": -1, "客戶信任": -1}, "result": "客戶的敏感資料一直跟著你跑，USB 一掉就是外洩。"}, {"text": "依規範保存到指定位置，然後刪除 USB 上的資料，更新紀錄", "score": {"效率": -1, "資安": 3, "稽核證據": 2, "客戶信任": 2}, "result": "資料該在的地方都在，USB 上不留尾巴。"}, {"text": "複製一份到自己電腦，再把 USB 清空", "score": {"效率": 0, "資安": -2, "稽核證據": -2, "客戶信任": -1}, "result": "資料跑到個人電腦，不在規範的保存位置，一樣是風險。"}]}, {"situation": "到了客戶 B 的現場，你拿出 USB 準備作業，才發現手上這支貼的是「客戶 C 專用」。", "options": [{"text": "都是公司 USB，先用再說", "score": {"效率": 1, "資安": -3, "稽核證據": -1, "客戶信任": -2}, "result": "這就是跨客戶共用。客戶 C 的東西，可能跟著進了客戶 B 的系統。"}, {"text": "不使用，回車上拿客戶 B 專用的那支", "score": {"效率": -1, "資安": 2, "稽核證據": 1, "客戶信任": 1}, "result": "多走一趟。到場後確認客戶名稱和 USB 一致，就是為了這一刻。"}, {"text": "先掃毒再用", "score": {"效率": -1, "資安": -1, "稽核證據": 0, "客戶信任": -1}, "result": "掃毒解決不了「拿錯客戶」的問題，交叉污染的風險還在。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}, {"title": "三原則與結訓", "short": "總複習", "start": 102, "end": 112, "quote": "客戶相信的是紀錄，<br>不是事後的說明。", "question": "三原則裡，<br>你回去第一件要改的是哪一條？", "scenarios": [{"situation": "客戶要求你提供上週那次維修的 USB 掃毒證據。", "options": [{"text": "口頭說明當時有掃", "score": {"效率": 0, "資安": 0, "稽核證據": -3, "客戶信任": -2}, "result": "口頭說明不是有效證據。"}, {"text": "提供事前依制度留存的掃毒證據", "score": {"效率": 0, "資安": 0, "稽核證據": 3, "客戶信任": 3}, "result": "客戶相信的是紀錄。事前留好，事後就不用解釋。"}, {"text": "馬上重新掃毒，把新的截圖給他", "score": {"效率": -1, "資安": 0, "稽核證據": -3, "客戶信任": -3}, "result": "事後補做的截圖，只能證明現在。"}]}, {"situation": "同事問你：「這幾個哪些不算有效證據？LINE 通知、口頭說明、事後補做截圖、掃描日期。」你會怎麼回答？", "options": [{"text": "全部都算，有總比沒有好", "score": {"效率": 0, "資安": 0, "稽核證據": -3, "客戶信任": -1}, "result": "LINE 通知、口頭說明、事後補做截圖都不算；只有掃描日期是有效證據的一部分。"}, {"text": "LINE 通知、口頭說明、事後補做截圖都不算；掃描日期算", "score": {"效率": 0, "資安": 0, "稽核證據": 3, "客戶信任": 1}, "result": "答對了。有效證據要可追溯、可驗證、可保存，而且在事件發生前就存在。"}, {"text": "只有事後補做截圖不算", "score": {"效率": 0, "資安": 0, "稽核證據": -1, "客戶信任": 0}, "result": "LINE 通知和口頭說明也不算，它們都無法驗證那支 USB 當時的狀態。"}]}], "metrics": [{"name": "效率", "icon": "⏱", "desc": "把事情真正做完，總共花了多少時間（包含後果）"}, {"name": "資安", "icon": "🔒", "desc": "有沒有讓病毒或客戶資料多一分風險"}, {"name": "稽核證據", "icon": "🧾", "desc": "事後拿得出「事前」留存的紀錄"}, {"name": "客戶信任", "icon": "🤝"}]}];
 const EXAM = {"pass_score": 80, "require_all_chapters": true, "questions": [{"q": "個人 USB 是否可接入客戶設備？", "options": ["可以", "不可以"], "answer": [1], "explain": "個人 USB 無法確認是否已完成掃毒，一律不得接入客戶設備。"}, {"q": "USB 至少多久掃毒一次？", "options": ["30 天", "365 天"], "answer": [0], "explain": "定期掃毒至少每 30 天一次。"}, {"q": "客戶專屬 USB 的目的是什麼？", "options": ["美觀", "避免交叉污染"], "answer": [1], "explain": "一客戶一 USB，避免把 A 客戶的資料或病毒帶到 B 客戶。"}, {"q": "USB 遺失的第一步是？", "options": ["自己找", "通知主管"], "answer": [1], "explain": "立即通報才能及早評估外洩範圍。"}, {"q": "BitLocker 的作用是什麼？", "options": ["加密", "提升速度"], "answer": [0], "explain": "BitLocker 用於加密 USB，遺失時內容無法被直接讀取。"}, {"q": "公司 USB 忘了帶，可否先用個人 USB？", "options": ["可以，臨時一次", "不可以"], "answer": [1], "explain": "任何情況都不得以個人 USB 代替。"}, {"q": "同一支 USB 可以跑多個客戶嗎？", "options": ["可以，掃過毒就好", "不可以"], "answer": [1], "explain": "跨客戶共用會造成交叉污染，必須使用客戶專屬 USB。"}, {"q": "Log 備份後應該怎麼處理？", "options": ["留在 USB 備用", "依規範保存後刪除"], "answer": [1], "explain": "Log 依規範保存後，USB 上的敏感資料應刪除。"}, {"q": "45 天未掃毒的 USB 可以直接使用嗎？", "options": ["可以", "不可以"], "answer": [1], "explain": "已超過 30 天，必須先掃毒並留存證據。"}, {"q": "PE USB 兩年未更新，適合使用嗎？", "options": ["適合", "不適合"], "answer": [1], "explain": "久未更新的工具 USB 可能帶有過時或有風險的內容。"}, {"q": "有掃毒但沒留證據，可能被視同未執行嗎？", "options": ["是", "否"], "answer": [0], "explain": "稽核只看可驗證的證據，沒有證據就無法證明有做。"}, {"q": "存有客戶資料的 USB 需要加密嗎？", "options": ["需要", "不需要"], "answer": [0], "explain": "未加密的 USB 遺失時，內容可被直接讀取。"}, {"q": "USB 遺失是否需要通報？", "options": ["需要", "找不到才需要"], "answer": [0], "explain": "不論是否找回，遺失當下就要通報。"}, {"q": "掃毒記錄可以只存在個人手機嗎？", "options": ["可以", "不建議，應依制度留存"], "answer": [1], "explain": "個人手機的紀錄難以追溯與查核，應依制度集中留存。"}, {"q": "客戶要求掃毒證據時，應提供什麼？", "options": ["口頭說明當時有掃", "事前留存的掃毒證據"], "answer": [1], "explain": "提供事前依制度留存的掃毒證據。"}, {"q": "哪些屬於有效掃毒證據？", "options": ["掃毒截圖（有日期時間、未修改）", "Defender 報告", "USB 編號", "掃描日期", "組長查核紀錄", "事後補做截圖"], "answer": [0, 1, 2, 3, 4], "multi": true, "explain": "前五項都是有效證據；事後補做截圖不能證明當時狀態。"}, {"q": "哪些「不是」有效證據？", "options": ["LINE 通知", "口頭說明", "事後補做截圖", "掃描日期"], "answer": [0, 1, 2], "multi": true, "explain": "LINE 通知、口頭說明、事後補做截圖都不是有效證據；掃描日期是。"}, {"q": "客戶要求掃毒證據，工程師重新掃毒後補截圖。這能證明什麼？", "options": ["可以證明當時有掃毒", "只能證明現在有掃毒"], "answer": [1], "must": true, "explain": "事後補掃毒不能證明使用前已掃毒，也不能證明事件發生前已完成控制，因此不屬於有效稽核證據。"}]};
 const VOICE_CLIPS = null;
+const OPEN_QUESTION = null;
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -1482,6 +1496,107 @@ async function submitReflection(){
   const box = document.getElementById("reflectBox");
   if(box) box.outerHTML = `<div class="reflectBox done">✓ 已送出學習心得，謝謝！${RESPONSE_API_BASE ? "" : "（本機版不會上傳，已存成檔案）"}</div>`;
 }
+// ==== 開放題「哪一句話讓你最有感受？」＋ 全場回答用 R 分析（webR：R 編譯成 WebAssembly，直接在瀏覽器裡跑）====
+const OPEN_Q_KEY = "最有感的一句";
+const openSentKey = () => "openq:" + EPISODE_LABEL;
+function openSent(){ try{ return localStorage.getItem(openSentKey()) || ""; }catch(e){ return ""; } }
+function openBoxHtml(){
+  if(!OPEN_QUESTION) return "";
+  const min = OPEN_QUESTION.min || 6;
+  const form = openSent()
+    ? `<div class="reflectBox done">✓ 已送出「最有感的一句」，謝謝！<button type="button" class="scnLink" onclick="openAgain()">再寫一次</button></div>`
+    : `<div class="reflectBox" id="openBox"><div class="reflectHead"><span class="mustTag inline">必答</span>${escapeHtml(OPEN_QUESTION.prompt || "哪一句話讓你最有感受？為什麼？")}</div>`
+      + (NAME_EVERYWHERE ? nameBoxHtml("openName") : "")
+      + `<textarea id="openInput" class="responseInput" maxlength="300" placeholder="把那句話寫下來（記不清楚寫大概就好），再說說為什麼有感"></textarea>`
+      + `<button type="button" class="responseSubmit" onclick="submitOpen()">送出</button><div class="responseNote" id="openNote"></div></div>`;
+  return form + (RESPONSE_API_BASE ? `<div class="rBox" id="rBox">${rBoxInner()}</div>` : "");
+}
+function openAgain(){ try{ localStorage.removeItem(openSentKey()); }catch(e){} renderScenario(); }
+async function submitOpen(){
+  const note = document.getElementById("openNote"), min = OPEN_QUESTION.min || 6;
+  let name = "";
+  if(NAME_EVERYWHERE){ name = readName("openName"); if(!name){ note.textContent = "請先填寫名字＋社編去掉最後一碼"; return; } }
+  const text = (document.getElementById("openInput").value || "").trim();
+  if(text.replace(/\s/g, "").length < min){ note.textContent = `這題是必答題，請至少寫 ${min} 個字`; return; }
+  note.textContent = RESPONSE_API_BASE ? "送出中…" : "";
+  const ok = await sendReflection(Object.assign({ episode: EPISODE_LABEL, question: OPEN_Q_KEY, choice: "", response: text,
+    submittedAt: new Date().toISOString() }, name ? {name} : {}));
+  if(!ok && RESPONSE_API_BASE){ note.textContent = "沒有送出成功（網路不通），已改存成本機檔案，請交給主辦人"; return; }
+  try{ localStorage.setItem(openSentKey(), new Date().toISOString()); }catch(e){}
+  const box = document.getElementById("openBox");
+  if(box) box.outerHTML = `<div class="reflectBox done">✓ 已送出「最有感的一句」，謝謝！${RESPONSE_API_BASE ? "" : "（本機版不會上傳，已存成檔案）"}</div>`;
+  if(RESPONSE_API_BASE) runRAnalysis(); // 送出後自動跑全場分析
+}
+// 候選台詞：每一句對白＋金句（比對用）
+function openCandidates(){
+  const out = d.map(x => ({who: x[0], text: x[1]}));
+  if(GOLDEN_QUOTE) out.push({who: "金句", text: GOLDEN_QUOTE.replace(/<[^>]+>/g, "")});
+  return out;
+}
+const R_ANALYZE = "# 「哪一句話讓你最有感受？」——比對每則回答最像哪一句台詞，統計排行與常見詞\nanalyze <- function(resp, lines) {\n  clean <- function(x) gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x)\n  bigrams <- function(s) {\n    ch <- strsplit(s, \"\")[[1]]\n    if (length(ch) < 2) return(character(0))\n    unique(paste0(ch[-length(ch)], ch[-1]))\n  }\n  rc <- clean(resp)\n  lb <- lapply(clean(lines), bigrams)\n  # 相似度＝台詞的二字組有幾成出現在回答裡；0.4 以上才算「引用了這句」\n  best <- vapply(rc, function(r) {\n    rb <- bigrams(r)\n    if (!length(rb)) return(NA_integer_)\n    sc <- vapply(lb, function(b) if (length(b)) length(intersect(b, rb)) / length(b) else 0, numeric(1))\n    if (max(sc) >= 0.4) which.max(sc) else NA_integer_\n  }, integer(1), USE.NAMES = FALSE)\n  tab <- table(factor(best, levels = seq_along(lines)))\n  tab <- sort(tab[tab > 0], decreasing = TRUE)\n  # 常見詞：只看大家自己寫的「為什麼」——先扣掉引用的那句台詞，再數二字組（每則只算一次），去掉含虛詞的組合\n  stop <- strsplit(\"的了是我你他她在就也都很會要有這那一個不說為什麼讓感覺得句話最們著和與及而但所以可以如果因此還被把給到嗎呢吧啊喔\", \"\")[[1]]\n  own <- lapply(seq_along(rc), function(i) {\n    rb <- bigrams(rc[i])\n    if (is.na(best[i])) rb else setdiff(rb, lb[[best[i]]])\n  })\n  allb <- unlist(own)\n  allb <- allb[!vapply(strsplit(allb, \"\"), function(p) any(p %in% stop), logical(1))]\n  wt <- sort(table(allb), decreasing = TRUE)\n  wt <- wt[wt >= ifelse(length(resp) >= 5, 2, 1)]\n  wt <- head(wt, 8)\n  c(sprintf(\"S\\t%d\\t%d\\t%.1f\", length(resp), sum(!is.na(best)), mean(nchar(rc))),\n    if (length(tab)) sprintf(\"T\\t%s\\t%d\", names(tab), as.integer(tab)),\n    if (length(wt)) sprintf(\"W\\t%s\\t%d\", names(wt), as.integer(wt)))\n}\n";
+let rState = "idle", rResult = null, rError = "", webRPromise = null;
+// webR 從 jsdelivr 載入（第一次約 20MB，之後瀏覽器會快取）；jsdelivr 不通再改用 webR 官方站
+// （npm 套件裡瀏覽器用的是 webr.js；webr.mjs 是給 Node 用的）
+const WEBR_BASES = [["https://cdn.jsdelivr.net/npm/webr@0.6.0/dist/", "webr.js"], ["https://webr.r-wasm.org/v0.6.0/", "webr.mjs"]];
+function getWebR(){
+  if(!webRPromise) webRPromise = (async () => {
+    let lastErr;
+    for(const [base, file] of (window.WEBR_BASES_OVERRIDE || WEBR_BASES)){
+      try{
+        const mod = await import(base + file);
+        // GitHub Pages 不能開跨來源隔離，所以用 PostMessage 通道（不需要 SharedArrayBuffer）
+        const webR = new mod.WebR({ baseUrl: base, channelType: mod.ChannelType.PostMessage });
+        await webR.init();
+        await webR.evalRVoid(R_ANALYZE);
+        return webR;
+      } catch(e){ lastErr = e; }
+    }
+    webRPromise = null;
+    throw lastErr || new Error("webR 載入失敗");
+  })();
+  return webRPromise;
+}
+function rBoxInner(){
+  const head = `<div class="rHead"><span class="rLogo">R</span>全場「最有感的一句」分析`
+    + (rState !== "loading" ? `<button type="button" class="scnLink" onclick="runRAnalysis()">${rResult ? "重新分析" : "用 R 分析全場回答"}</button>` : "") + `</div>`;
+  if(rState === "loading") return head + `<div class="rSum">⏳ 正在載入 R 並分析全場回答…（第一次約 10～20 秒）</div>`;
+  if(rState === "error") return head + `<div class="rSum">分析失敗：${escapeHtml(rError)}</div>`;
+  if(!rResult) return head + `<div class="rSum">送出你的答案後會自動分析；也可以直接按上面的按鈕看大家的回答。</div>`;
+  const R = rResult;
+  if(!R.n) return head + `<div class="rSum">還沒有人回答，你可以當第一個。</div>`;
+  const max = Math.max(1, ...R.top.map(x => x.n));
+  return head
+    + `<div class="rSum">共 ${R.n} 則回答・${R.matched} 則對得上台詞（${Math.round(R.matched / R.n * 100)}%）・平均 ${R.avg} 個字</div>`
+    + (R.top.length ? R.top.slice(0, 5).map((x, k) => `<div class="rBar"><div class="t">${k + 1}. 「${escapeHtml(x.text)}」 <small>— ${escapeHtml(x.who)}</small></div>`
+        + `<div class="track"><i style="width:${Math.round(x.n / max * 80)}%"></i><b>${x.n} 人・${Math.round(x.n / R.n * 100)}%</b></div></div>`).join("") : "")
+    + (R.n - R.matched ? `<div class="rSum">另外 ${R.n - R.matched} 則是用自己的話寫的感受</div>` : "")
+    + (R.words.length ? `<div class="rSum">大家常提到的詞：</div><div class="rWords">${R.words.map(w => `<span>${escapeHtml(w.w)} ×${w.n}</span>`).join("")}</div>` : "")
+    + `<details><summary>看 R 怎麼算的</summary><pre>${escapeHtml(R_ANALYZE)}</pre></details>`;
+}
+function rRender(){ const el = document.getElementById("rBox"); if(el) el.innerHTML = rBoxInner(); }
+async function runRAnalysis(){
+  rState = "loading"; rRender();
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), { headers: { "X-Site-Key": RESPONSE_SITE_KEY } });
+    if(!res.ok) throw new Error("讀不到全場回答（HTTP " + res.status + "）");
+    const resp = ((await res.json()).responses || []).filter(r => r.question === OPEN_Q_KEY && r.response).map(r => r.response);
+    const cand = openCandidates();
+    let out = ["S\t0\t0\t0"];
+    if(resp.length){
+      const webR = await getWebR();
+      await webR.objs.globalEnv.bind("resp", resp);
+      await webR.objs.globalEnv.bind("lines", cand.map(c => c.text));
+      out = (await (await webR.evalR("analyze(resp, lines)")).toJs()).values;
+    }
+    const R = {top: [], words: []};
+    out.forEach(line => { const f = line.split("\t");
+      if(f[0] === "S"){ R.n = +f[1]; R.matched = +f[2]; R.avg = f[3]; }
+      else if(f[0] === "T"){ const c = cand[+f[1] - 1]; if(c) R.top.push({who: c.who, text: c.text, n: +f[2]}); }
+      else if(f[0] === "W") R.words.push({w: f[1], n: +f[2]}); });
+    rResult = R; rState = "done";
+  } catch(e){ rState = "error"; rError = e.message || String(e); }
+  rRender();
+}
 // 送出一筆心得：雲端版送 Worker，失敗或本機版就存成本機檔案；回傳是否送上雲端
 async function sendReflection(payload){
   if(RESPONSE_API_BASE){
@@ -1536,7 +1651,7 @@ function renderScenario(){
       + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
       + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
       + `<div class="endQuestion">${ACT.question}</div>`
-      + (ACT.chapter < 0 ? reflectBoxHtml() : "") // 課程模式（USB）不問
+      + (ACT.chapter < 0 ? openBoxHtml() + reflectBoxHtml() : "") // 課程模式（USB）不問
       + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
       + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`
       + chapterNextHtml();

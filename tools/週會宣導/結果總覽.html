@@ -433,10 +433,11 @@ function epStatus(mine, e){
   if(!mine.length) return "none";
   const cards = e.scenarios.length ? e.scenarios.every((sc, k) => mine.some(r => r.question === qKey(sc, k))) : true;
   if(!cards) return "partial";
+  if(e.openQ && !mine.some(r => r.question === e.openQ)) return "noreflect"; // 有開放題的集數：兩題都要寫
   if(mine.some(r => r.question === REFLECT_Q)) return "done";
   return mine.every(r => r.submitted_at.slice(0, 10) < REFLECT_SINCE) ? "done" : "noreflect";
 }
-const STATUS_TEXT = {none: "未作答", partial: "情境卡沒做完", noreflect: "沒寫心得", done: "完成"};
+const STATUS_TEXT = {none: "未作答", partial: "情境卡沒做完", noreflect: "開放題沒寫完", done: "完成"};
 // 未完成名單：依地區列出，名字旁標狀態；另外列出「名單外的作答者」（多半是名字打錯）
 function rosterStatusBlock(statusOf, rs, label, texts){
   texts = texts || STATUS_TEXT;
@@ -645,7 +646,13 @@ function feedbackBlock(ep, rs){
     body += `<div class="block"><div class="blockTitle">最有感的一點（${choiceRows.length} 人選）</div>`
       + barsHtml(ep.takeaways.map(t => ({label: t, n: choiceRows.filter(r => r.choice === t).length}))) + `</div>`;
   }
-  const texts = otherRows.filter(r => r.response && r.question !== REFLECT_Q);
+  const openRows = ep.openQ ? otherRows.filter(r => r.question === ep.openQ && r.response) : [];
+  if(openRows.length){
+    body += `<div class="block"><div class="blockTitle">哪一句話最有感（開放題，${openRows.length} 則）</div><ul class="texts">`
+      + openRows.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name && isMine(r.name) ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")
+      + `</ul><p class="hint">全場的 R 分析（最多人引用的台詞、常見詞）在這一集播完的結尾畫面。</p></div>`;
+  }
+  const texts = otherRows.filter(r => r.response && r.question !== REFLECT_Q && r.question !== ep.openQ);
   if(texts.length){
     body += `<details><summary>${REFLECT_SINCE} 以前的打字回應（選填時期）${texts.length} 則</summary><ul class="texts">`
       + texts.map(r => `<li><time>${esc(timeStr(r.submitted_at))}${r.name && isMine(r.name) ? `<span class="nameList">・${esc(r.name)}</span>` : ""}</time>${esc(r.response)}</li>`).join("")

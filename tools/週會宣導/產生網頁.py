@@ -114,7 +114,8 @@ def build_data_block(ep):
         + "const SCENARIO_METRICS = " + js(ep.get("scenario_metrics", [])) + ";\n"
         + "const CHAPTERS = " + js(ep.get("chapters", [])) + ";\n"
         + "const EXAM = " + js(ep.get("exam")) + ";\n"
-        + "const VOICE_CLIPS = " + js(voice_clips(ep)) + ";\n\n"
+        + "const VOICE_CLIPS = " + js(voice_clips(ep)) + ";\n"
+        + "const OPEN_QUESTION = " + js(ep.get("open_question")) + ";\n\n"
     )
 
 
@@ -334,6 +335,7 @@ def build_dashboard(cloud_config):
                    if ep.get("id") else "EP " + ep_num(ep),
             "title": ep["title"],
             "takeaways": ep.get("takeaways", []),
+            **({"openQ": "最有感的一句"} if ep.get("open_question") else {}),
             "chapters": [ch.get("short") or ch["title"] for ch in ep.get("chapters", [])],
             "scenarios": [
                 {"situation": c["situation"], "options": [o["text"] for o in c["options"]]}

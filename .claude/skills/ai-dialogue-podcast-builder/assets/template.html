@@ -186,6 +186,19 @@ button.exGo{display:inline-block;margin:4px 6px 0 0;padding:4px 10px;font-size:1
 .nameInput{width:100%;border:2px solid var(--line);border-radius:10px;padding:9px 12px;font-family:var(--disp);font-size:16px;font-weight:700;box-sizing:border-box}
 .nameHint{font-size:12.5px;color:#b91c1c;font-weight:700;min-height:0;margin-top:4px}
 .nameDone{font-size:13px;font-weight:800;color:#14532d;margin:0 0 10px}
+.rBox{border:2px solid #276dc3;border-radius:12px;padding:12px;margin:12px 0;background:#f5f9ff}
+.rBox .rHead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-weight:800;font-size:14.5px}
+.rBox .rLogo{display:inline-block;background:#276dc3;color:#fff;font-weight:900;border-radius:6px;padding:1px 8px;font-size:13px}
+.rBox .rSum{font-size:13.5px;margin:8px 0;color:#334}
+.rBox .rBar{margin:8px 0}
+.rBox .rBar .t{font-size:13.5px;line-height:1.45}
+.rBox .rBar .t small{color:#667;font-weight:700}
+.rBox .rBar .track{display:flex;align-items:center;gap:8px;margin-top:3px}
+.rBox .rBar .track i{display:block;height:10px;border-radius:5px;background:#276dc3;min-width:4px}
+.rBox .rBar .track b{font-size:12.5px;white-space:nowrap}
+.rBox .rWords span{display:inline-block;margin:3px 4px 0 0;padding:2px 9px;border-radius:999px;background:#e3edfb;font-size:13px;font-weight:700}
+.rBox details{margin-top:8px;font-size:12.5px}
+.rBox pre{white-space:pre-wrap;font-size:11.5px;background:#fff;border:1px solid #d5deeb;border-radius:8px;padding:8px;max-height:220px;overflow:auto}
 .mustTag{display:inline-block;font-size:12px;font-weight:900;background:#b91c1c;color:#fff;border-radius:6px;padding:2px 10px;margin-bottom:8px}
 .mustTag.inline{margin:0 0 0 6px;padding:0 6px;font-size:11px;vertical-align:2px}
 /* 結訓測驗 */
@@ -531,6 +544,8 @@ const CHAPTERS = [];
 const EXAM = null;
 // 預錄語音（例如 BreezyVoice）：{engine, lines: {"行號": "data:audio/mpeg;base64,…"}, quote}；沒有就是 null，全部用瀏覽器語音
 const VOICE_CLIPS = null;
+// 開放題「哪一句話讓你最有感受？」：{prompt, min}；沒有就是 null。全場回答在結尾畫面用 R（webR，瀏覽器裡跑）分析
+const OPEN_QUESTION = null;
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -1281,6 +1296,107 @@ async function submitReflection(){
   const box = document.getElementById("reflectBox");
   if(box) box.outerHTML = `<div class="reflectBox done">✓ 已送出學習心得，謝謝！${RESPONSE_API_BASE ? "" : "（本機版不會上傳，已存成檔案）"}</div>`;
 }
+// ==== 開放題「哪一句話讓你最有感受？」＋ 全場回答用 R 分析（webR：R 編譯成 WebAssembly，直接在瀏覽器裡跑）====
+const OPEN_Q_KEY = "最有感的一句";
+const openSentKey = () => "openq:" + EPISODE_LABEL;
+function openSent(){ try{ return localStorage.getItem(openSentKey()) || ""; }catch(e){ return ""; } }
+function openBoxHtml(){
+  if(!OPEN_QUESTION) return "";
+  const min = OPEN_QUESTION.min || 6;
+  const form = openSent()
+    ? `<div class="reflectBox done">✓ 已送出「最有感的一句」，謝謝！<button type="button" class="scnLink" onclick="openAgain()">再寫一次</button></div>`
+    : `<div class="reflectBox" id="openBox"><div class="reflectHead"><span class="mustTag inline">必答</span>${escapeHtml(OPEN_QUESTION.prompt || "哪一句話讓你最有感受？為什麼？")}</div>`
+      + (NAME_EVERYWHERE ? nameBoxHtml("openName") : "")
+      + `<textarea id="openInput" class="responseInput" maxlength="300" placeholder="把那句話寫下來（記不清楚寫大概就好），再說說為什麼有感"></textarea>`
+      + `<button type="button" class="responseSubmit" onclick="submitOpen()">送出</button><div class="responseNote" id="openNote"></div></div>`;
+  return form + (RESPONSE_API_BASE ? `<div class="rBox" id="rBox">${rBoxInner()}</div>` : "");
+}
+function openAgain(){ try{ localStorage.removeItem(openSentKey()); }catch(e){} renderScenario(); }
+async function submitOpen(){
+  const note = document.getElementById("openNote"), min = OPEN_QUESTION.min || 6;
+  let name = "";
+  if(NAME_EVERYWHERE){ name = readName("openName"); if(!name){ note.textContent = "請先填寫名字＋社編去掉最後一碼"; return; } }
+  const text = (document.getElementById("openInput").value || "").trim();
+  if(text.replace(/\s/g, "").length < min){ note.textContent = `這題是必答題，請至少寫 ${min} 個字`; return; }
+  note.textContent = RESPONSE_API_BASE ? "送出中…" : "";
+  const ok = await sendReflection(Object.assign({ episode: EPISODE_LABEL, question: OPEN_Q_KEY, choice: "", response: text,
+    submittedAt: new Date().toISOString() }, name ? {name} : {}));
+  if(!ok && RESPONSE_API_BASE){ note.textContent = "沒有送出成功（網路不通），已改存成本機檔案，請交給主辦人"; return; }
+  try{ localStorage.setItem(openSentKey(), new Date().toISOString()); }catch(e){}
+  const box = document.getElementById("openBox");
+  if(box) box.outerHTML = `<div class="reflectBox done">✓ 已送出「最有感的一句」，謝謝！${RESPONSE_API_BASE ? "" : "（本機版不會上傳，已存成檔案）"}</div>`;
+  if(RESPONSE_API_BASE) runRAnalysis(); // 送出後自動跑全場分析
+}
+// 候選台詞：每一句對白＋金句（比對用）
+function openCandidates(){
+  const out = d.map(x => ({who: x[0], text: x[1]}));
+  if(GOLDEN_QUOTE) out.push({who: "金句", text: GOLDEN_QUOTE.replace(/<[^>]+>/g, "")});
+  return out;
+}
+const R_ANALYZE = "# 「哪一句話讓你最有感受？」——比對每則回答最像哪一句台詞，統計排行與常見詞\nanalyze <- function(resp, lines) {\n  clean <- function(x) gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x)\n  bigrams <- function(s) {\n    ch <- strsplit(s, \"\")[[1]]\n    if (length(ch) < 2) return(character(0))\n    unique(paste0(ch[-length(ch)], ch[-1]))\n  }\n  rc <- clean(resp)\n  lb <- lapply(clean(lines), bigrams)\n  # 相似度＝台詞的二字組有幾成出現在回答裡；0.4 以上才算「引用了這句」\n  best <- vapply(rc, function(r) {\n    rb <- bigrams(r)\n    if (!length(rb)) return(NA_integer_)\n    sc <- vapply(lb, function(b) if (length(b)) length(intersect(b, rb)) / length(b) else 0, numeric(1))\n    if (max(sc) >= 0.4) which.max(sc) else NA_integer_\n  }, integer(1), USE.NAMES = FALSE)\n  tab <- table(factor(best, levels = seq_along(lines)))\n  tab <- sort(tab[tab > 0], decreasing = TRUE)\n  # 常見詞：只看大家自己寫的「為什麼」——先扣掉引用的那句台詞，再數二字組（每則只算一次），去掉含虛詞的組合\n  stop <- strsplit(\"的了是我你他她在就也都很會要有這那一個不說為什麼讓感覺得句話最們著和與及而但所以可以如果因此還被把給到嗎呢吧啊喔\", \"\")[[1]]\n  own <- lapply(seq_along(rc), function(i) {\n    rb <- bigrams(rc[i])\n    if (is.na(best[i])) rb else setdiff(rb, lb[[best[i]]])\n  })\n  allb <- unlist(own)\n  allb <- allb[!vapply(strsplit(allb, \"\"), function(p) any(p %in% stop), logical(1))]\n  wt <- sort(table(allb), decreasing = TRUE)\n  wt <- wt[wt >= ifelse(length(resp) >= 5, 2, 1)]\n  wt <- head(wt, 8)\n  c(sprintf(\"S\\t%d\\t%d\\t%.1f\", length(resp), sum(!is.na(best)), mean(nchar(rc))),\n    if (length(tab)) sprintf(\"T\\t%s\\t%d\", names(tab), as.integer(tab)),\n    if (length(wt)) sprintf(\"W\\t%s\\t%d\", names(wt), as.integer(wt)))\n}\n";
+let rState = "idle", rResult = null, rError = "", webRPromise = null;
+// webR 從 jsdelivr 載入（第一次約 20MB，之後瀏覽器會快取）；jsdelivr 不通再改用 webR 官方站
+// （npm 套件裡瀏覽器用的是 webr.js；webr.mjs 是給 Node 用的）
+const WEBR_BASES = [["https://cdn.jsdelivr.net/npm/webr@0.6.0/dist/", "webr.js"], ["https://webr.r-wasm.org/v0.6.0/", "webr.mjs"]];
+function getWebR(){
+  if(!webRPromise) webRPromise = (async () => {
+    let lastErr;
+    for(const [base, file] of (window.WEBR_BASES_OVERRIDE || WEBR_BASES)){
+      try{
+        const mod = await import(base + file);
+        // GitHub Pages 不能開跨來源隔離，所以用 PostMessage 通道（不需要 SharedArrayBuffer）
+        const webR = new mod.WebR({ baseUrl: base, channelType: mod.ChannelType.PostMessage });
+        await webR.init();
+        await webR.evalRVoid(R_ANALYZE);
+        return webR;
+      } catch(e){ lastErr = e; }
+    }
+    webRPromise = null;
+    throw lastErr || new Error("webR 載入失敗");
+  })();
+  return webRPromise;
+}
+function rBoxInner(){
+  const head = `<div class="rHead"><span class="rLogo">R</span>全場「最有感的一句」分析`
+    + (rState !== "loading" ? `<button type="button" class="scnLink" onclick="runRAnalysis()">${rResult ? "重新分析" : "用 R 分析全場回答"}</button>` : "") + `</div>`;
+  if(rState === "loading") return head + `<div class="rSum">⏳ 正在載入 R 並分析全場回答…（第一次約 10～20 秒）</div>`;
+  if(rState === "error") return head + `<div class="rSum">分析失敗：${escapeHtml(rError)}</div>`;
+  if(!rResult) return head + `<div class="rSum">送出你的答案後會自動分析；也可以直接按上面的按鈕看大家的回答。</div>`;
+  const R = rResult;
+  if(!R.n) return head + `<div class="rSum">還沒有人回答，你可以當第一個。</div>`;
+  const max = Math.max(1, ...R.top.map(x => x.n));
+  return head
+    + `<div class="rSum">共 ${R.n} 則回答・${R.matched} 則對得上台詞（${Math.round(R.matched / R.n * 100)}%）・平均 ${R.avg} 個字</div>`
+    + (R.top.length ? R.top.slice(0, 5).map((x, k) => `<div class="rBar"><div class="t">${k + 1}. 「${escapeHtml(x.text)}」 <small>— ${escapeHtml(x.who)}</small></div>`
+        + `<div class="track"><i style="width:${Math.round(x.n / max * 80)}%"></i><b>${x.n} 人・${Math.round(x.n / R.n * 100)}%</b></div></div>`).join("") : "")
+    + (R.n - R.matched ? `<div class="rSum">另外 ${R.n - R.matched} 則是用自己的話寫的感受</div>` : "")
+    + (R.words.length ? `<div class="rSum">大家常提到的詞：</div><div class="rWords">${R.words.map(w => `<span>${escapeHtml(w.w)} ×${w.n}</span>`).join("")}</div>` : "")
+    + `<details><summary>看 R 怎麼算的</summary><pre>${escapeHtml(R_ANALYZE)}</pre></details>`;
+}
+function rRender(){ const el = document.getElementById("rBox"); if(el) el.innerHTML = rBoxInner(); }
+async function runRAnalysis(){
+  rState = "loading"; rRender();
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), { headers: { "X-Site-Key": RESPONSE_SITE_KEY } });
+    if(!res.ok) throw new Error("讀不到全場回答（HTTP " + res.status + "）");
+    const resp = ((await res.json()).responses || []).filter(r => r.question === OPEN_Q_KEY && r.response).map(r => r.response);
+    const cand = openCandidates();
+    let out = ["S\t0\t0\t0"];
+    if(resp.length){
+      const webR = await getWebR();
+      await webR.objs.globalEnv.bind("resp", resp);
+      await webR.objs.globalEnv.bind("lines", cand.map(c => c.text));
+      out = (await (await webR.evalR("analyze(resp, lines)")).toJs()).values;
+    }
+    const R = {top: [], words: []};
+    out.forEach(line => { const f = line.split("\t");
+      if(f[0] === "S"){ R.n = +f[1]; R.matched = +f[2]; R.avg = f[3]; }
+      else if(f[0] === "T"){ const c = cand[+f[1] - 1]; if(c) R.top.push({who: c.who, text: c.text, n: +f[2]}); }
+      else if(f[0] === "W") R.words.push({w: f[1], n: +f[2]}); });
+    rResult = R; rState = "done";
+  } catch(e){ rState = "error"; rError = e.message || String(e); }
+  rRender();
+}
 // 送出一筆心得：雲端版送 Worker，失敗或本機版就存成本機檔案；回傳是否送上雲端
 async function sendReflection(payload){
   if(RESPONSE_API_BASE){
@@ -1335,7 +1451,7 @@ function renderScenario(){
       + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
       + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
       + `<div class="endQuestion">${ACT.question}</div>`
-      + (ACT.chapter < 0 ? reflectBoxHtml() : "") // 課程模式（USB）不問
+      + (ACT.chapter < 0 ? openBoxHtml() + reflectBoxHtml() : "") // 課程模式（USB）不問
       + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
       + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`
       + chapterNextHtml();
