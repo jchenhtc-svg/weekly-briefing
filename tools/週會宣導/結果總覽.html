@@ -92,7 +92,7 @@
   .topbar h1{margin:0}
   #adminBox{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--sub)}
   #adminBox label{display:flex;align-items:center;gap:4px}
-  .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+  .tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:12px}
   .tab{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--card);
     color:var(--ink);text-decoration:none;min-width:0}
   .tab:hover{border-color:var(--bar)}
@@ -111,6 +111,16 @@
   .chip{font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap}
   .chip.open{background:#dcfce7;color:#15803d}
   .chip.closed{background:var(--track);color:var(--sub)}
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+  .mcard{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .mcard.mine{border-color:var(--bar);box-shadow:0 0 0 1px var(--bar)}
+  .mhead{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px}
+  .mlabel{display:block;font-size:12.5px;color:var(--sub);margin:6px 0}
+  .mlabel .pre{color:var(--ink);font-size:13.5px}
+  .mta{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:6px 8px;margin:4px 0 6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+  .mrow{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:8px 0;font-size:13.5px}
+  .pre{white-space:pre-wrap}
+  .overdue{color:#b91c1c;font-weight:800}
   body.leadMode #rosterBox, body.leadMode #expected, body.leadMode label:has(#expected){display:none}
   .chip.manual::after{content:"・手動";font-weight:600}
   .back{display:inline-block;margin:2px 0 10px;font-size:13.5px;font-weight:800;color:var(--bar);text-decoration:none}
@@ -454,23 +464,30 @@ function rosterStatusBlock(statusOf, rs, label, texts){
 
 function historyHtml(rows){
   if(!seeNames()){ historyData = []; return `<div class="ep empty">學習歷程要用管理密碼登入才看得到</div>`; }
-  historyData = buildHistory(rows);
-  if(ROSTER.length){
-    // 依名單排序、標地區；名單上還沒有任何紀錄的人也列出來（全部 0）
-    const eps52 = EPISODES.filter(e => e.series === "52"), epsAi = EPISODES.filter(e => e.series === "ai");
-    const course = EPISODES.find(e => e.chapterMins);
-    const ordered = ROSTER.map(m => {
-      const x = historyData.find(h => memberOwns(m, h.person) || h.aliases.some(a => memberOwns(m, a)));
-      return x ? Object.assign(x, {region: m.region}) : {person: m.name, region: m.region, aliases: [], done52: [], doneAi: [], eps52, epsAi,
-        usb: course ? {done: 0, total: course.chapters.length, exam: null, pass: false} : null, sessions: [], total: 0, last: ""};
-    });
-    const extra = historyData.filter(h => !ordered.includes(h)).map(h => Object.assign(h, {region: "名單外"}));
-    historyData = ordered.concat(extra);
-  }
+  historyData = historyOrdered(rows);
   const compare = leadRegion ? regionCompareHtml(historyData) : "";
   if(leadRegion) historyData = historyData.filter(x => x.region === leadRegion);
   if(!historyData.length) return compare + `<div class="ep empty">還沒有具名的學習紀錄</div>`;
   const totalAll = historyData.reduce((a, x) => a + x.total, 0);
+  return historyTable(compare, totalAll);
+}
+// 依名單排序、標地區；名單上還沒有任何紀錄的人也列出來（全部 0）
+function historyOrdered(rows){
+  let list = buildHistory(rows);
+  if(ROSTER.length){
+    const eps52 = EPISODES.filter(e => e.series === "52"), epsAi = EPISODES.filter(e => e.series === "ai");
+    const course = EPISODES.find(e => e.chapterMins);
+    const ordered = ROSTER.map(m => {
+      const x = list.find(h => memberOwns(m, h.person) || h.aliases.some(a => memberOwns(m, a)));
+      return x ? Object.assign(x, {region: m.region}) : {person: m.name, region: m.region, aliases: [], done52: [], doneAi: [], eps52, epsAi,
+        usb: course ? {done: 0, total: course.chapters.length, exam: null, pass: false} : null, sessions: [], total: 0, last: ""};
+    });
+    const extra = list.filter(h => !ordered.includes(h)).map(h => Object.assign(h, {region: "名單外"}));
+    list = ordered.concat(extra);
+  }
+  return list;
+}
+function historyTable(compare, totalAll){
   return compare + `<section class="ep nameList"><div class="epHead"><span class="epTag">學習歷程</span>`
     + `<span class="epTitle">${leadRegion ? esc(leadRegion) + "據點" : "學員"}學習歷程：${historyData.length} 人・合計 ${fmtMins(totalAll)}</span>`
     + `<button type="button" id="historyCsv">下載學習歷程 CSV</button></div>`
@@ -554,6 +571,7 @@ const TABS = [
   {id: "ai", series: "ai", name: "AI 素養 × 工程師", unit: "堂"},
   {id: "usb", series: "usb", name: "USB 資安宣導", unit: "單元"},
   {id: "people", name: "👤 學員學習歷程"},
+  {id: "meeting", name: "🗓 據點長例會"},
 ];
 function route(){
   const [tab, unit] = decodeURIComponent(location.hash.replace(/^#/, "")).split("/");
@@ -785,6 +803,178 @@ function usbView(tab, byLabel, unit){
     + `</div>`;
 }
 
+// ==== 🗓 據點長例會（南部據點長②）：雙週報告・學習進度・待辦追蹤・臨時動議・決議・會議紀錄 ====
+// 資料存在 Worker 的 D1 meeting_kv；主辦人（管理密碼）管例會本身，據點長（據點長密碼）寫自己據點的報告
+let MEET = null, meetDirty = false, meetLoading = false;
+const authHeaders = () => leadRegion ? {"X-Lead-Key": adminKey()} : {"X-Admin-Key": adminKey()};
+const REPORT_FIELDS = [["work", "本期重點工作／完成事項"], ["issues", "異常或客訴（只寫通稱，不寫客戶名）"],
+  ["staff", "人力狀況（請假、支援、新人）"], ["needs", "需要支援／要提到會上討論的事"]];
+const TODO_STATUS = ["未開始", "進行中", "完成", "延期"];
+const meetRegions = () => [...new Set(ROSTER.map(m => m.region).filter(Boolean))];
+const todayStr = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+async function loadMeeting(date){
+  if(!API_BASE || meetLoading) return;
+  meetLoading = true;
+  try{
+    const res = await fetch(API_BASE + "/meeting/state" + (date ? "?date=" + encodeURIComponent(date) : ""), {headers: authHeaders()});
+    MEET = res.ok ? await res.json() : {error: res.status === 404 ? "雲端 Worker 還沒更新（部署新版 worker.js 後就能用）" : "讀取失敗（HTTP " + res.status + "）"};
+  } catch(e){ MEET = {error: "連不上雲端，晚點再試試看"}; }
+  meetLoading = false; meetDirty = false;
+  if(route().tab === "meeting") render();
+}
+async function meetPost(path, body){
+  const res = await fetch(API_BASE + path, {method: "POST", headers: Object.assign({"Content-Type": "application/json"}, authHeaders()), body: JSON.stringify(body)});
+  const d = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error({forbidden: "沒有權限", closed: "這場例會已結案，不能再改", empty: "內容是空的"}[d.error] || d.error || "HTTP " + res.status);
+  return d;
+}
+async function meetDo(fn, msg, clear){
+  const box = $("meetMsg");
+  try{ if(box) box.textContent = "儲存中…"; await fn(); (clear || []).forEach(sel => $("view").querySelectorAll(sel).forEach(el => delete el.dataset.dirty)); await loadMeeting(MEET && MEET.meeting ? MEET.meeting.date : "");
+    if($("meetMsg")) $("meetMsg").textContent = msg || "已儲存 ✓";
+    meetDirty = !!$("view").querySelector("[data-dirty]"); }
+  catch(e){ if(box) box.textContent = "沒有存成功：" + e.message; else alert("沒有存成功：" + e.message); }
+}
+// 各據點學習進度（只有平均，不含名字；主辦人和據點長看到的一樣）
+function regionStats(list){
+  const ratio = (a, b) => b ? a / b : 0;
+  const avg = (xs, f) => xs.length ? xs.reduce((a, x) => a + f(x), 0) / xs.length : null;
+  return meetRegions().map(rg => { const xs = list.filter(x => x.region === rg);
+    return {region: rg, n: xs.length, v52: avg(xs, x => ratio(x.done52.length, x.eps52.length)), ai: avg(xs, x => ratio(x.doneAi.length, x.epsAi.length)),
+      usb: avg(xs, x => x.usb && x.usb.pass ? 1 : 0), mins: avg(xs, x => x.total)}; });
+}
+const pctStr = (v) => v === null ? "—" : Math.round(v * 100) + "%";
+function minutesDraft(rows){
+  const M = MEET, m = M.meeting, regions = meetRegions();
+  const absent = regions.filter(r => !m.attendance.includes(r));
+  const prevTodos = M.todos.filter(t => t.from && t.from < m.date);
+  const L = [`# 南部據點長例會紀錄（${m.date}）`, "",
+    `- 出席：${m.attendance.length ? m.attendance.join("、") : "（未勾選）"}${absent.length ? `；缺席：${absent.join("、")}` : ""}`,
+    `- 紀錄整理：主辦人`, "", "## 一、各據點雙週報告"];
+  regions.forEach(rg => { const r = M.reports[rg];
+    L.push("", `### ${rg}`);
+    if(!r) { L.push("- （會前未填報告）"); return; }
+    REPORT_FIELDS.forEach(([k, label]) => L.push(`- ${label.replace(/（.*）/, "")}：${(r[k] || "無").replace(/\n+/g, "；")}`)); });
+  L.push("", "## 二、學習進度（各據點平均）", "", "| 據點 | 工程師的價值 | AI 素養 | USB 結訓通過 | 平均線上學習時數 |", "|---|---|---|---|---|");
+  regionStats(historyOrdered(rows)).forEach(x => L.push(`| ${x.region} | ${pctStr(x.v52)} | ${pctStr(x.ai)} | ${pctStr(x.usb)} | ${x.mins === null ? "—" : fmtMins(x.mins)} |`));
+  L.push("", "## 三、上次待辦追蹤");
+  if(!prevTodos.length) L.push("- 無");
+  prevTodos.forEach(t => L.push(`- 【${t.status}】${t.text}（負責：${t.region || "未指定"}${t.due ? `，期限 ${t.due}` : ""}）${t.note ? `：${t.note}` : ""}`));
+  L.push("", "## 四、臨時動議");
+  if(!M.motions.length) L.push("- 無");
+  M.motions.forEach(x => L.push(`- ${x.region}：${x.text.replace(/\n+/g, "；")}`));
+  L.push("", "## 五、決議");
+  if(!m.decisions.length) L.push("- 無");
+  m.decisions.forEach((d, k) => { const t = M.todos.find(x => x.id === d.todo);
+    L.push(`${k + 1}. ${d.text}${t ? `（待辦：負責 ${t.region || "未指定"}${t.due ? `，期限 ${t.due}` : ""}）` : ""}`); });
+  if(m.note) L.push("", "## 其他", m.note);
+  return L.join("\n");
+}
+function meetingView(rows){
+  if(!API_BASE) return `<div class="ep empty">據點長例會只在雲端版能用</div>`;
+  if(!MEET){ loadMeeting(""); return `<div class="ep empty">載入中…</div>`; }
+  if(MEET.error) return `<div class="ep empty">${esc(MEET.error)}</div>`;
+  const M = MEET, m = M.meeting, regions = meetRegions(), admin = adminMode;
+  const head = `<section class="ep"><div class="detailHead"><span class="epTag">🗓 例會</span>`
+    + (M.dates.length ? `<label>例會日期 <select id="meetPick">${M.dates.map(d => `<option${m && d === m.date ? " selected" : ""}>${esc(d)}</option>`).join("")}</select></label>` : "")
+    + (m && m.closed ? `<span class="chip closed">已結案</span>` : m ? `<span class="chip open">進行中</span>` : "")
+    + (admin ? `<span style="margin-left:auto"><label>下次開會日 <input type="date" id="meetNew"></label> <button type="button" id="meetCreate">建立</button></span>` : "")
+    + `</div><p class="hint">每兩週一次線上例會。據點長會前登入，在下面填自己據點的「雙週報告」；開會時主辦人分享這一頁，大家也可以各自登入看同一份。`
+    + (admin ? "日期由你設定（上面「建立」），會後在最下面產生會議紀錄。" : "") + ` <span id="meetMsg" class="hint"></span></p></section>`;
+  if(!m) return head + `<div class="ep empty">${admin ? "還沒有例會，請在上方選下次開會日後按「建立」" : "主辦人還沒設定下次例會日期"}</div>`;
+  const canReport = (rg) => admin || (rg === leadRegion && !m.closed);
+  const reports = `<section class="ep"><div class="blockTitle">一、各據點雙週報告（${regions.filter(r => M.reports[r]).length} / ${regions.length} 據點已填）</div><div class="mgrid">`
+    + regions.map(rg => { const r = M.reports[rg];
+        return `<div class="mcard${rg === leadRegion ? " mine" : ""}"><div class="mhead"><b>${esc(rg)}</b>`
+          + (r ? `<span class="chip open">已填・${esc(timeStr(r.updated_at))}</span>` : `<span class="chip closed">未填</span>`) + `</div>`
+          + (canReport(rg)
+            ? REPORT_FIELDS.map(([k, label]) => `<label class="mlabel">${label}<textarea class="mta" rows="2" data-rf="${k}" data-region="${esc(rg)}">${esc(r ? r[k] : "")}</textarea></label>`).join("")
+              + `<button type="button" data-save-report="${esc(rg)}">儲存${esc(rg)}報告</button>`
+            : r ? REPORT_FIELDS.map(([k, label]) => `<div class="mlabel">${label}<div class="pre">${esc(r[k] || "—")}</div></div>`).join("") : `<div class="hint">會前還沒填</div>`)
+          + `</div>`; }).join("") + `</div></section>`;
+  const stats = regionStats(historyOrdered(rows));
+  const learn = `<section class="ep"><div class="blockTitle">二、學習進度（自動帶入，只顯示各據點平均）</div>`
+    + `<table class="names"><tr><th>據點</th><th>人數</th><th>工程師的價值</th><th>AI 素養</th><th>USB 結訓通過</th><th>平均線上學習時數</th></tr>`
+    + stats.map(x => `<tr><td>${x.region === leadRegion ? "★ " : ""}${esc(x.region)}</td><td>${x.n}</td><td>${pctStr(x.v52)}</td><td>${pctStr(x.ai)}</td><td>${pctStr(x.usb)}</td><td>${x.mins === null ? "—" : fmtMins(x.mins)}</td></tr>`).join("")
+    + `</table><p class="hint">各集完成＝情境卡都答＋寫學習心得。各據點的未完成名單請到各系列分頁看（據點長只看得到自己據點）。</p></section>`;
+  const today = todayStr();
+  const canTodo = (t) => admin || t.region === leadRegion;
+  const todoRow = (t) => `<tr><td>${esc(t.text)}${t.from ? `<br><small>${esc(t.from)} 例會</small>` : ""}</td><td>${esc(t.region || "—")}</td>`
+    + `<td class="${t.due && t.due < today && t.status !== "完成" ? "overdue" : ""}">${esc(t.due || "—")}</td>`
+    + `<td>${canTodo(t) ? `<select data-todo-status="${esc(t.id)}">${TODO_STATUS.map(x => `<option${x === t.status ? " selected" : ""}>${x}</option>`).join("")}</select>` : esc(t.status)}</td>`
+    + `<td>${canTodo(t) ? `<input data-todo-note="${esc(t.id)}" value="${esc(t.note)}" placeholder="進度備註" style="width:100%">` : esc(t.note || "")}</td>`
+    + (admin ? `<td><button type="button" data-todo-del="${esc(t.id)}" title="刪除">✕</button></td>` : "") + `</tr>`;
+  const thead = `<tr><th>事項</th><th>負責據點</th><th>期限</th><th>狀態</th><th>備註</th>${admin ? "<th></th>" : ""}</tr>`;
+  const prev = M.todos.filter(t => !t.from || t.from < m.date).sort((a, b) => (a.due || "9").localeCompare(b.due || "9"));
+  const open = prev.filter(t => t.status !== "完成"), done = prev.filter(t => t.status === "完成");
+  const todos = `<section class="ep"><div class="blockTitle">三、上次待辦追蹤（未完成 ${open.length} 項${open.filter(t => t.due && t.due < today).length ? `・逾期 ${open.filter(t => t.due && t.due < today).length} 項` : ""}）</div>`
+    + (open.length ? `<table class="names">${thead}${open.map(todoRow).join("")}</table>` : `<div class="hint">之前的待辦都完成了</div>`)
+    + (done.length ? `<details><summary>已完成 ${done.length} 項</summary><table class="names">${thead}${done.map(todoRow).join("")}</table></details>` : "")
+    + `<p class="hint">據點長可以改自己據點待辦的狀態和備註；改完自動儲存。</p></section>`;
+  const motions = `<section class="ep"><div class="blockTitle">四、臨時動議（${M.motions.length} 件）</div>`
+    + (M.motions.length ? `<ul class="texts">${M.motions.map(x => `<li><time>${esc(x.region)}・${esc(timeStr(x.at))}</time><span class="pre">${esc(x.text)}</span>`
+        + (admin || x.region === leadRegion ? ` <button type="button" data-motion-del="${esc(x.id)}">刪除</button>` : "") + `</li>`).join("")}</ul>` : `<div class="hint">目前沒有臨時動議</div>`)
+    + (!m.closed || admin ? `<textarea class="mta" id="motionText" rows="2" placeholder="會前或會中都可以提"></textarea><button type="button" id="motionAdd">提出臨時動議</button>` : "")
+    + `</section>`;
+  const decisionsList = m.decisions.length ? `<ol>${m.decisions.map(d => { const t = M.todos.find(x => x.id === d.todo);
+      return `<li>${esc(d.text)}${t ? ` <small>→ 待辦：${esc(t.region || "未指定")}${t.due ? `・${esc(t.due)}` : ""}・${esc(t.status)}</small>` : ""}`
+        + (admin ? ` <button type="button" data-dec-del="${esc(d.id)}">刪除</button>` : "") + `</li>`; }).join("")}</ol>` : `<div class="hint">還沒有決議</div>`;
+  const decisions = `<section class="ep"><div class="blockTitle">五、本次決議 → 新待辦</div>${decisionsList}`
+    + (admin ? `<textarea class="mta" id="decText" rows="2" placeholder="決議內容"></textarea>`
+      + `<div class="mrow"><label><input type="checkbox" id="decTodo" checked> 轉成待辦</label>`
+      + `<label>負責據點 <select id="decRegion"><option value="">未指定</option><option>全體</option>${regions.map(r => `<option>${esc(r)}</option>`).join("")}</select></label>`
+      + `<label>期限 <input type="date" id="decDue"></label><button type="button" id="decAdd">加入決議</button></div>` : "")
+    + `</section>`;
+  const minutes = admin
+    ? `<section class="ep"><div class="blockTitle">六、出席與會議紀錄</div><div class="mrow">出席：${regions.map(r => `<label><input type="checkbox" data-attend="${esc(r)}"${m.attendance.includes(r) ? " checked" : ""}> ${esc(r)}</label>`).join(" ")}</div>`
+      + `<label class="mlabel">其他紀錄（會中補充，會放進紀錄最後）<textarea class="mta" id="meetNote" rows="2">${esc(m.note)}</textarea></label>`
+      + `<div class="mrow"><button type="button" id="minGen">產生紀錄草稿</button><button type="button" id="minSave">儲存紀錄</button>`
+      + `<button type="button" id="minCopy">複製</button><button type="button" id="minDl">下載 .md</button>`
+      + `<button type="button" id="meetClose">${m.closed ? "重新開啟例會" : "結案（據點長不能再改報告）"}</button><button type="button" id="meetDel">刪除這場例會</button></div>`
+      + `<textarea class="mta" id="minText" rows="14" placeholder="按「產生紀錄草稿」自動整理：出席、各據點報告、學習進度、待辦追蹤、臨時動議、決議">${esc(m.minutes)}</textarea>`
+      + `<p class="hint">草稿產生後可以直接改；按「儲存紀錄」後據點長登入就看得到。需要潤飾成正式紀錄，把草稿貼給 Claude 整理。</p></section>`
+    : `<section class="ep"><div class="blockTitle">六、會議紀錄</div>${m.minutes ? `<div class="pre">${esc(m.minutes)}</div>` : `<div class="hint">主辦人會後整理</div>`}</section>`;
+  return head + reports + learn + todos + motions + decisions + minutes;
+}
+function bindMeeting(){
+  const v = $("view"), M = MEET;
+  v.querySelectorAll("textarea, input").forEach(el => el.addEventListener("input", () => { meetDirty = true; el.dataset.dirty = "1"; }));
+  if($("meetPick")) $("meetPick").onchange = (e) => { if(!meetDirty || confirm("還有沒儲存的內容，確定要切換？")) loadMeeting(e.target.value); };
+  if($("meetCreate")) $("meetCreate").onclick = () => { const d = $("meetNew").value; if(!d) return alert("請先選開會日期");
+    meetDo(async () => { await meetPost("/meeting/save", {type: "meeting", date: d}); MEET.meeting = {date: d}; }, `已建立 ${d} 例會 ✓`); };
+  if(!M || !M.meeting) return;
+  const date = M.meeting.date;
+  v.querySelectorAll("[data-save-report]").forEach(b => b.onclick = () => { const rg = b.dataset.saveReport, body = {type: "report", date, region: rg};
+    v.querySelectorAll("[data-rf]").forEach(t => { if(t.dataset.region === rg) body[t.dataset.rf] = t.value; });
+    meetDo(() => meetPost("/meeting/save", body), `${rg}報告已儲存 ✓`, [`[data-region="${CSS.escape(rg)}"]`]); });
+  v.querySelectorAll("[data-todo-status]").forEach(sel => sel.onchange = () => meetDo(() => meetPost("/meeting/todo", {id: sel.dataset.todoStatus, status: sel.value})));
+  v.querySelectorAll("[data-todo-note]").forEach(inp => inp.onchange = () => meetDo(() => meetPost("/meeting/todo", {id: inp.dataset.todoNote, note: inp.value}), "", [`[data-todo-note="${CSS.escape(inp.dataset.todoNote)}"]`]));
+  v.querySelectorAll("[data-todo-del]").forEach(b => b.onclick = () => confirm("刪除這項待辦？") && meetDo(() => meetPost("/meeting/todo", {id: b.dataset.todoDel, delete: true})));
+  v.querySelectorAll("[data-motion-del]").forEach(b => b.onclick = () => confirm("刪除這件臨時動議？") && meetDo(() => meetPost("/meeting/save", {type: "motion", date, id: b.dataset.motionDel, delete: true})));
+  if($("motionAdd")) $("motionAdd").onclick = () => { const t = $("motionText").value.trim(); if(!t) return;
+    meetDo(() => meetPost("/meeting/save", {type: "motion", date, text: t}), "臨時動議已送出 ✓", ["#motionText"]); };
+  const saveMeeting = (patch, msg, clear) => meetDo(() => meetPost("/meeting/save", Object.assign({type: "meeting", date}, patch)), msg, clear);
+  if($("decAdd")) $("decAdd").onclick = () => { const text = $("decText").value.trim(); if(!text) return;
+    const toTodo = $("decTodo").checked, region = $("decRegion").value, due = $("decDue").value;
+    meetDo(async () => { let todo = "";
+      if(toTodo) todo = (await meetPost("/meeting/todo", {text, region, due, from: date})).id;
+      await meetPost("/meeting/save", {type: "meeting", date, decisions: M.meeting.decisions.concat([{id: Date.now().toString(36), text, todo}])}); }, "決議已加入 ✓", ["#decText", "#decDue"]); };
+  v.querySelectorAll("[data-dec-del]").forEach(b => b.onclick = () => confirm("刪除這項決議？（轉出的待辦要另外在待辦清單刪）")
+    && saveMeeting({decisions: M.meeting.decisions.filter(d => d.id !== b.dataset.decDel)}));
+  v.querySelectorAll("[data-attend]").forEach(c => c.onchange = () => saveMeeting({attendance: [...v.querySelectorAll("[data-attend]:checked")].map(x => x.dataset.attend)}, "出席已更新 ✓"));
+  if($("meetNote")) $("meetNote").onchange = () => saveMeeting({note: $("meetNote").value}, "已儲存 ✓", ["#meetNote"]);
+  if($("minGen")) $("minGen").onclick = () => { if($("minText").value.trim() && !confirm("要用新的草稿蓋掉目前的紀錄嗎？")) return;
+    $("minText").value = minutesDraft(filteredRows()); $("minText").dataset.dirty = "1"; meetDirty = true; $("meetMsg").textContent = "草稿已產生，確認後按「儲存紀錄」"; };
+  if($("minSave")) $("minSave").onclick = () => saveMeeting({minutes: $("minText").value}, "會議紀錄已儲存 ✓", ["#minText"]);
+  if($("minCopy")) $("minCopy").onclick = () => navigator.clipboard.writeText($("minText").value).then(() => { $("meetMsg").textContent = "已複製 ✓"; });
+  if($("minDl")) $("minDl").onclick = () => { const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([$("minText").value], {type: "text/markdown;charset=utf-8"}));
+    a.download = `南部據點長例會紀錄_${date}.md`; document.body.appendChild(a); a.click(); a.remove(); };
+  if($("meetClose")) $("meetClose").onclick = () => saveMeeting({closed: !M.meeting.closed}, M.meeting.closed ? "已重新開啟 ✓" : "已結案 ✓");
+  if($("meetDel")) $("meetDel").onclick = () => confirm(`刪除 ${date} 這場例會（含各據點報告和臨時動議）？待辦會保留。`)
+    && meetDo(async () => { await meetPost("/meeting/save", {type: "meeting", date, delete: true}); MEET.meeting = null; }, "已刪除");
+}
+
 function render(){
   const rows = filteredRows();
   PMAP = personMap(rows.filter(r => r.name));
@@ -804,11 +994,14 @@ function render(){
       const eps = EPISODES.filter(e => e.series === t.series);
       const n = eps.reduce((a, e) => a + (byLabel[e.label] || []).length, 0);
       sub = t.series === "usb" ? `10 章＋結訓・${n} 筆回應` : `${eps.length} ${t.unit}・${n} 筆回應`;
-    } else sub = seeNames() ? "完成單元＋線上學習時數" : "要管理密碼";
+    } else if(t.id === "meeting") sub = MEET && MEET.meeting ? `${MEET.meeting.date}${MEET.meeting.closed ? "・已結案" : ""}` : "雙週報告・待辦・紀錄";
+    else sub = seeNames() ? "完成單元＋線上學習時數" : "要管理密碼";
     return `<a class="tab${t.id === tabId ? " cur" : ""}" href="#${t.id}"><b>${t.name}</b><small>${sub}</small></a>`;
   }).join("");
   let html;
-  if(tab.id === "people"){
+  if(tab.id === "meeting"){
+    html = meetingView(rows);
+  } else if(tab.id === "people"){
     html = historyHtml(rows);
     const orphan = rows.filter(r => !known.has(r.episode));
     if(orphan.length){
@@ -823,7 +1016,17 @@ function render(){
   } else {
     html = seriesView(tab, EPISODES.filter(e => e.series === tab.series), byLabel, unit);
   }
+  // 例會頁：重畫前先記住還沒存的輸入（存了一個據點的報告，別的格子正在打的字不會被洗掉）
+  const fieldKey = (el) => el.id || (el.dataset.rf ? el.dataset.rf + "|" + el.dataset.region : "");
+  const drafts = tab.id === "meeting" ? [...$("view").querySelectorAll("[data-dirty]")].map(el => [fieldKey(el), el.value]).filter(x => x[0]) : [];
   $("view").innerHTML = html;
+  if(tab.id === "meeting"){
+    $("view").querySelectorAll("textarea, input:not([type=checkbox])").forEach(el => {
+      const d = drafts.find(x => x[0] === fieldKey(el));
+      if(d && el.value !== d[1]){ el.value = d[1]; el.dataset.dirty = "1"; meetDirty = true; }
+    });
+    bindMeeting();
+  }
   const hc = $("historyCsv");
   if(hc) hc.onclick = downloadHistoryCsv;
 }
@@ -892,7 +1095,7 @@ function renderAdminBox(){
     + `<button type="button" id="adminOut">登出</button>`;
   $("hideNames").onchange = (e) => document.body.classList.toggle("hideNames", e.target.checked);
   $("adminOut").onclick = () => { // 登出時名單也從畫面清掉
-    setAdminKey(""); allRows = []; adminMode = false; leadRegion = ""; ROSTER = []; ROSTER_ROWS = [];
+    setAdminKey(""); allRows = []; adminMode = false; leadRegion = ""; MEET = null; ROSTER = []; ROSTER_ROWS = [];
     document.body.classList.remove("leadMode"); $("leadBox").innerHTML = "";
     $("rosterText").value = ""; $("rosterSummary").textContent = rosterSummaryText(); showGate("已登出");
   };
@@ -940,7 +1143,10 @@ try{ $("expected").value = localStorage.getItem("expected-count") || ""; }catch(
 $("expected").addEventListener("input", () => { try{ localStorage.setItem("expected-count", $("expected").value); }catch(e){} render(); });
 $("reflectCsv").onclick = downloadReflectCsv;
 $("rosterSave").onclick = saveRoster;
-$("reload").onclick = load;
+$("reload").onclick = () => {
+  if(route().tab === "meeting"){ if(meetDirty && !confirm("還有沒儲存的內容，確定要重新整理？")) return; MEET = null; }
+  load();
+};
 $("csv").onclick = downloadCsv;
 $("gate").addEventListener("submit", () => {
   const v = $("gateKey").value.trim();
@@ -949,7 +1155,7 @@ $("gate").addEventListener("submit", () => {
   setAdminKey(v); load();
 });
 load();
-setInterval(() => { if($("gate").hidden) load(); }, 60000); // 開著放在投影幕上時，每分鐘自動更新
+setInterval(() => { if($("gate").hidden && route().tab !== "meeting") load(); }, 60000); // 開著放在投影幕上時，每分鐘自動更新
 </script>
 </body>
 </html>

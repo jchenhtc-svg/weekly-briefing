@@ -17,6 +17,12 @@
  *                    只存 SHA-256 雜湊，GET 只回「哪些據點設好了」，不回密碼
  *   GET  /lead/data  據點長用自己的密碼（X-Lead-Key）登入：只回自己據點的名單與真名；
  *                    其他據點的人換成代號（台南-A…），名單外的具名紀錄拿掉名字——其他據點的真名不會送到據點長的瀏覽器
+ *   GET  /meeting/state  據點長例會（南部據點長②）：例會清單、某一場的各據點報告／臨時動議、全部待辦；
+ *                    要帶管理密碼（X-Admin-Key）或據點長密碼（X-Lead-Key）
+ *   POST /meeting/save   寫入例會資料（type = meeting｜report｜motion｜todo）：
+ *                    例會本身（日期、出席、決議、紀錄）只有主辦人能改；據點長只能寫自己據點的報告、
+ *                    自己提的臨時動議、自己據點待辦的狀態
+ *   POST /meeting/todo   新增／修改／刪除待辦（主辦人全部可改；據點長只能改自己據點待辦的狀態與備註）
  *   GET  /respond    手機掃 QR Code 進來看到的簡易回應頁面
  *                    （?ep=<episode>&q=<question> 帶入要回答的問題）
  *
@@ -128,6 +134,41 @@ async function putSetting(env, key, value) {
   ).bind(key, value).run();
 }
 const CODE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+// ==== 據點長例會（南部據點長②）：存在 D1 的 meeting_kv（一筆一個 key，各據點各寫各的，不會互相蓋掉）====
+//   meeting:<日期>          {date, attendance, decisions, note, minutes, closed}（主辦人）
+//   report:<日期>:<據點>     {work, issues, staff, needs}（該據點長或主辦人）
+//   motion:<日期>:<id>      {region, text, at}（提案的據點長或主辦人）
+//   todo:<id>               {text, region, due, status, note, from}（主辦人建；負責據點長可改狀態與備註）
+const MEET_DDL = "CREATE TABLE IF NOT EXISTS meeting_kv (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)";
+const TODO_STATUS = ["未開始", "進行中", "完成", "延期"];
+const clip = (v, n) => String(v ?? "").slice(0, n);
+const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ""));
+async function whoIs(request, env) {
+  const ak = request.headers.get("X-Admin-Key");
+  if (ak && env.ADMIN_KEY && ak === env.ADMIN_KEY) return { admin: true, region: "" };
+  const lk = request.headers.get("X-Lead-Key") || "";
+  if (!lk) return null;
+  const leads = JSON.parse((await getSetting(env, "site_leads")) || "{}");
+  for (const r of Object.keys(leads)) {
+    if ((await leadHash(r, lk)) === leads[r]) return { admin: false, region: r };
+  }
+  return null;
+}
+async function kvGet(env, key) {
+  const row = await env.DB.prepare("SELECT value FROM meeting_kv WHERE key = ?").bind(key).first();
+  return row ? JSON.parse(row.value) : null;
+}
+async function kvPut(env, key, value) {
+  await env.DB.prepare(
+    "INSERT INTO meeting_kv (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
+  ).bind(key, JSON.stringify(value), new Date().toISOString()).run();
+}
+async function kvPrefix(env, prefix) {
+  const { results } = await env.DB.prepare("SELECT key, value, updated_at FROM meeting_kv WHERE key >= ? AND key < ? ORDER BY key")
+    .bind(prefix, prefix + "\uffff").all();
+  return results.map((r) => ({ key: r.key, updated_at: r.updated_at, ...JSON.parse(r.value) }));
+}
 
 export default {
   async fetch(request, env) {
@@ -318,6 +359,115 @@ export default {
         return Object.assign({}, r, { name: k < 0 ? null : shown[k].name });
       });
       return json({ region, roster: shown, responses: rows });
+    }
+
+    if (url.pathname === "/meeting/state" && request.method === "GET") {
+      const who = await whoIs(request, env);
+      if (!who) return json({ error: "unauthorized" }, 401);
+      await env.DB.prepare(MEET_DDL).run();
+      const meetings = (await kvPrefix(env, "meeting:")).sort((a, b) => b.date.localeCompare(a.date));
+      const want = url.searchParams.get("date");
+      const cur = meetings.find((m) => m.date === want) || meetings[0] || null;
+      const reports = {}, motions = [];
+      if (cur) {
+        (await kvPrefix(env, `report:${cur.date}:`)).forEach((r) => { reports[r.key.split(":")[2]] = r; });
+        (await kvPrefix(env, `motion:${cur.date}:`)).forEach((m) => motions.push({ id: m.key.split(":")[2], ...m }));
+      }
+      const todos = (await kvPrefix(env, "todo:")).map((t) => ({ id: t.key.slice(5), ...t }));
+      return json({ admin: who.admin, region: who.region, dates: meetings.map((m) => m.date), meeting: cur, reports, motions, todos });
+    }
+
+    if (url.pathname === "/meeting/save" && request.method === "POST") {
+      const who = await whoIs(request, env);
+      if (!who) return json({ error: "unauthorized" }, 401);
+      let b;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ error: "invalid json" }, 400);
+      }
+      await env.DB.prepare(MEET_DDL).run();
+      const date = String(b.date || "");
+      const meeting = isDate(date) ? await kvGet(env, `meeting:${date}`) : null;
+      const forbid = () => json({ error: "forbidden" }, 403);
+      if (b.type === "meeting") {
+        if (!who.admin) return forbid();
+        if (!isDate(date)) return json({ error: "bad date" }, 400);
+        if (b.delete) {
+          await env.DB.prepare("DELETE FROM meeting_kv WHERE key = ? OR key LIKE ? OR key LIKE ?")
+            .bind(`meeting:${date}`, `report:${date}:%`, `motion:${date}:%`).run();
+          return json({ ok: true });
+        }
+        const m = Object.assign({ date, attendance: [], decisions: [], note: "", minutes: "", closed: false }, meeting || {});
+        if (Array.isArray(b.attendance)) m.attendance = b.attendance.slice(0, 20).map((x) => clip(x, 20));
+        if (Array.isArray(b.decisions)) m.decisions = b.decisions.slice(0, 100).map((d) => ({ id: clip(d.id, 20), text: clip(d.text, 1000), todo: clip(d.todo, 20) }));
+        if ("note" in b) m.note = clip(b.note, 5000);
+        if ("minutes" in b) m.minutes = clip(b.minutes, 50000);
+        if ("closed" in b) m.closed = !!b.closed;
+        await kvPut(env, `meeting:${date}`, m);
+        return json({ ok: true, meeting: m });
+      }
+      if (!meeting) return json({ error: "no such meeting" }, 404);
+      if (b.type === "report") {
+        const region = who.admin ? clip(b.region, 20) : who.region;
+        if (!region) return json({ error: "region required" }, 400);
+        if (meeting.closed && !who.admin) return json({ error: "closed" }, 409);
+        const r = { work: clip(b.work, 3000), issues: clip(b.issues, 3000), staff: clip(b.staff, 3000), needs: clip(b.needs, 3000) };
+        await kvPut(env, `report:${date}:${region}`, r);
+        return json({ ok: true });
+      }
+      if (b.type === "motion") {
+        if (b.delete) {
+          const old = await kvGet(env, `motion:${date}:${clip(b.id, 20)}`);
+          if (!old) return json({ ok: true });
+          if (!who.admin && old.region !== who.region) return forbid();
+          await env.DB.prepare("DELETE FROM meeting_kv WHERE key = ?").bind(`motion:${date}:${clip(b.id, 20)}`).run();
+          return json({ ok: true });
+        }
+        const text = clip(b.text, 1000).trim();
+        if (!text) return json({ error: "empty" }, 400);
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        await kvPut(env, `motion:${date}:${id}`, { region: who.admin ? clip(b.region || "主辦人", 20) : who.region, text, at: new Date().toISOString() });
+        return json({ ok: true, id });
+      }
+      return json({ error: "unknown type" }, 400);
+    }
+
+    if (url.pathname === "/meeting/todo" && request.method === "POST") {
+      const who = await whoIs(request, env);
+      if (!who) return json({ error: "unauthorized" }, 401);
+      let b;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ error: "invalid json" }, 400);
+      }
+      await env.DB.prepare(MEET_DDL).run();
+      const id = clip(b.id, 20);
+      const old = id ? await kvGet(env, `todo:${id}`) : null;
+      if (b.delete) {
+        if (!who.admin) return json({ error: "forbidden" }, 403);
+        await env.DB.prepare("DELETE FROM meeting_kv WHERE key = ?").bind(`todo:${id}`).run();
+        return json({ ok: true });
+      }
+      const status = TODO_STATUS.includes(b.status) ? b.status : (old && old.status) || "未開始";
+      if (!who.admin) {
+        // 據點長只能改自己據點待辦的狀態和備註
+        if (!old || old.region !== who.region) return json({ error: "forbidden" }, 403);
+        await kvPut(env, `todo:${id}`, Object.assign(old, { status, note: clip(b.note ?? old.note, 1000) }));
+        return json({ ok: true });
+      }
+      const t = Object.assign({ text: "", region: "", due: "", status: "未開始", note: "", from: "" }, old || {});
+      if ("text" in b) t.text = clip(b.text, 1000).trim();
+      if ("region" in b) t.region = clip(b.region, 20);
+      if ("due" in b) t.due = isDate(b.due) ? b.due : "";
+      if ("note" in b) t.note = clip(b.note, 1000);
+      if ("from" in b && !old) t.from = isDate(b.from) ? b.from : "";
+      t.status = status;
+      if (!t.text) return json({ error: "empty" }, 400);
+      const newId = id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      await kvPut(env, `todo:${newId}`, t);
+      return json({ ok: true, id: newId });
     }
 
     if (url.pathname === "/admin/responses" && request.method === "GET") {
