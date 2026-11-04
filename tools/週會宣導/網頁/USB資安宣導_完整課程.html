@@ -1084,8 +1084,9 @@ function stopClip(){ clipEl.onended = clipEl.ontimeupdate = clipEl.onerror = nul
 })();
 function playClip(src, role, onprogress, onend, fallback){
   const c = cfg[role] || {pitch: 1};
-  // 試做只有一個範例聲音：音調設得比較低的角色（男聲）放慢一點、不保留音高，聽起來比較低沉好分辨
-  const low = (c.pitch || 1) < 0.95;
+  // 只有一個範例聲音的引擎（BreezyVoice 試做）：音調設得比較低的角色（男聲）放慢一點、不保留音高，聽起來比較低沉好分辨；
+  // 每個角色本來就是不同聲音的（Azure，multiVoice）照原樣播
+  const low = !(VOICE_CLIPS && VOICE_CLIPS.multiVoice) && (c.pitch || 1) < 0.95;
   clipEl.src = src;
   clipEl.preservesPitch = clipEl.mozPreservesPitch = clipEl.webkitPreservesPitch = !low;
   clipEl.playbackRate = Math.min(2, Math.max(0.5, (+rate.value) * (low ? 0.88 : 1)));

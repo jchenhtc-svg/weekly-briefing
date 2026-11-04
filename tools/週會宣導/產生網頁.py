@@ -45,7 +45,7 @@ def js(value):
     return json.dumps(value, ensure_ascii=False)
 
 
-VOICE_DIR = HERE / "語音"  # 預錄語音（BreezyVoice）：語音/<代號>/000.mp3…、quote.mp3、台詞.json
+VOICE_DIR = HERE / "語音"  # 預錄語音（Azure 語音／BreezyVoice）：語音/<代號>/000.mp3…、quote.mp3、台詞.json
 
 
 def voice_clips(ep):
@@ -63,7 +63,9 @@ def voice_clips(ep):
     quote = uri("quote") if recorded.get("quote") == ep["golden_quote"] and (folder / "quote.mp3").exists() else None
     if not clips and not quote:
         return None
-    return {"engine": json.loads(manifest.read_text(encoding="utf-8")).get("engine", ""), "lines": clips, "quote": quote}
+    info = json.loads(manifest.read_text(encoding="utf-8"))
+    # multi_voice：每個角色本來就是不同聲音（Azure），播放時不用再把男聲放慢降調
+    return {"engine": info.get("engine", ""), "lines": clips, "quote": quote, **({"multiVoice": True} if info.get("multi_voice") else {})}
 
 
 def build_data_block(ep):

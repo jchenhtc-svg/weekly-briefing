@@ -267,7 +267,28 @@ AI 素養系列的情境改用同仁每天在修的設備：第一堂超商收�
 - **開放管理**（2026-10-20 起）：後台的「📂 開放管理」可以手動開啟／關閉入口網站上任何一集（52 週、AI 素養），不用等排程。每集三個選項：「依排程」（照網頁原本的開放日期）、「開放」、「關閉」（後兩個會蓋過排程，直到改回依排程）。設定存在 Worker 的 D1 `settings` 表（第一次按的時候自動建表），主題頁載入時讀 `/open-state` 決定卡片能不能點；`產生網頁.py --cloud` 會輸出填好 Worker 網址的主題頁到 `網頁-雲端版/主題頁/`，CI 部署的是這一份（本機版主題頁不連網，只照預設）
 - 線上學習時數的算法：同一人的作答依時間排序，間隔超過 30 分鐘算新的一段；每段取「第一筆到最後一筆的實際時間差」與「這段碰到的集數／單元，內容用 **1.5 倍速**播完的長度」較大者（現場看投影、只用手機作答的人才不會算太少）。1.5 倍速長度由 `產生網頁.py` 依腳本字數估算（`SPEECH_CHARS_PER_SEC` 等常數），情境卡每張 30 秒、結訓測驗每題 30 秒
 
-## 預錄語音（BreezyVoice，2026-10-22 起試做）
+## 預錄語音：Azure 語音（2026-11-04 起，正式採用）
+
+比 BreezyVoice 自然的台灣口音神經語音，由 GitHub Actions 自動產生，不用顯卡、筆電不用裝東西。
+
+- **聲音**：照腳本角色的 `voicePref` 對到 Azure 的 zh-TW 神經語音：
+  - 曉臻 → `zh-TW-HsiaoChenNeural`（主持人）
+  - 雲哲 → `zh-TW-YunJheNeural`（阿凱）
+  - 曉雨 → `zh-TW-HsiaoYuNeural`（主管、客戶）
+  
+  角色的 `pitch`／`rate` 會換成 SSML 的語調、語速，所以同一個聲音的主管和客戶聽得出差別。金句由主持人唸。
+- **產生方式**：
+  1. 在 `預錄語音/azure要產生.txt` 寫集數代號（一行一個，例如 `14`、`ai01`）。
+  2. push 到 GitHub，`.github/workflows/azure-tts.yml` 就會用 repo secret 的金鑰呼叫 Azure，把 mp3 存到 `語音/<代號>/`，重新產生網頁，自動 commit 回同一個分支。
+  3. Claude 接著 pull 下來，同步到 weekly-briefing（`語音/` 資料夾也要同步，因為 weekly-briefing 的 CI 會重新產生雲端版網頁）。
+- **金鑰**：repo 的 Settings → Secrets and variables → Actions 設 `AZURE_SPEECH_KEY`、`AZURE_SPEECH_REGION`。由使用者自己設定，Claude 不經手，也不會寫進任何檔案或 log。
+- **省額度**：`台詞.json` 記每句的簽章（台詞＋聲音設定）。沒變的句子沿用舊音檔；腳本改了哪句就只重做那句；刪掉的句子會連音檔一起清掉。
+  - Azure 免費方案（F0）每月 50 萬字神經語音，一集約 1,000 字。
+- **播放**：網頁一樣是單一檔案，mp3 內嵌。語音面板可以切回瀏覽器語音；腳本改過、還沒重新產生的句子會自動改用瀏覽器唸。
+  - 播放引擎看到 `multiVoice` 就照原樣播。BreezyVoice 試做時只有一個範例聲音，男聲角色要放慢降調，Azure 不需要。
+- **自己跑**（需要金鑰）：`AZURE_SPEECH_KEY=… AZURE_SPEECH_REGION=eastasia python3 預錄語音/azure_tts.py 14`
+
+## 預錄語音（BreezyVoice，2026-10-22 起試做，已改用 Azure）
 瀏覽器內建語音每支手機不一樣；改用聯發創新基地開源的 [BreezyVoice](https://github.com/mtkresearch/BreezyVoice)（Apache 2.0，台灣華語、可用注音修正破音字）先把每句台詞錄成 mp3，內嵌進網頁。
 1. `python3 預錄語音/匯出Kaggle筆記本.py 11` → `預錄語音/輸出/11/BreezyVoice_11.ipynb`
 2. Kaggle → New Notebook → File → Import Notebook 上傳；右側 Settings：Accelerator 選 GPU、Internet 打開；Run All；下載 `/kaggle/working/11_語音.zip`
