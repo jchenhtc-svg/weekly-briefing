@@ -68,6 +68,17 @@ def voice_clips(ep):
     return {"engine": info.get("engine", ""), "lines": clips, "quote": quote, **({"multiVoice": True} if info.get("multi_voice") else {})}
 
 
+def same_best_position(ep):
+    """情境卡的建議做法（分數總和最高、沒有平手）是不是全都在同一個位置；是的話回傳那個字母。"""
+    cards = ep.get("scenario_cards", []) + [c for ch in ep.get("chapters", []) for c in ch.get("scenarios", [])]
+    pos = set()
+    for c in cards:
+        totals = [sum(o.get("score", {}).values()) for o in c["options"]]
+        if totals.count(max(totals)) == 1:
+            pos.add(totals.index(max(totals)))
+    return "ABCDE"[pos.pop()] if len(cards) >= 2 and len(pos) == 1 else ""
+
+
 def build_data_block(ep):
     roles = ep["roles"]
 
@@ -376,6 +387,9 @@ def main(argv):
         dest.write_text(render(ep, template), encoding="utf-8")
         n = sum(len(s["lines"]) for s in ep["scenes"])
         print(f"✅ {path.name} → 網頁/{dest.name}（{len(ep['scenes'])} 幕 / {n} 段對話）")
+        warn = same_best_position(ep)
+        if warn:
+            print(f"   ⚠️ 這集情境卡的建議做法都在 {warn}，學員會猜到；還沒有人作答的話，跑 python3 打亂情境卡選項.py {path.parent.name}/{path.name}")
 
     print("\n產生完成。雙擊「網頁」資料夾裡的 .html 就能播放，不需要安裝任何東西。")
 
