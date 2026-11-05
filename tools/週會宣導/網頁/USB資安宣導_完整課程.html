@@ -741,6 +741,7 @@ const CHAPTERS = [{"title": "為什麼要管理 USB", "short": "為何管理", "
 const EXAM = {"pass_score": 80, "require_all_chapters": true, "questions": [{"q": "個人 USB 是否可接入客戶設備？", "options": ["可以", "不可以"], "answer": [1], "explain": "個人 USB 無法確認是否已完成掃毒，一律不得接入客戶設備。"}, {"q": "USB 至少多久掃毒一次？", "options": ["30 天", "365 天"], "answer": [0], "explain": "定期掃毒至少每 30 天一次。"}, {"q": "客戶專屬 USB 的目的是什麼？", "options": ["美觀", "避免交叉污染"], "answer": [1], "explain": "一客戶一 USB，避免把 A 客戶的資料或病毒帶到 B 客戶。"}, {"q": "USB 遺失的第一步是？", "options": ["自己找", "通知主管"], "answer": [1], "explain": "立即通報才能及早評估外洩範圍。"}, {"q": "BitLocker 的作用是什麼？", "options": ["加密", "提升速度"], "answer": [0], "explain": "BitLocker 用於加密 USB，遺失時內容無法被直接讀取。"}, {"q": "公司 USB 忘了帶，可否先用個人 USB？", "options": ["可以，臨時一次", "不可以"], "answer": [1], "explain": "任何情況都不得以個人 USB 代替。"}, {"q": "同一支 USB 可以跑多個客戶嗎？", "options": ["可以，掃過毒就好", "不可以"], "answer": [1], "explain": "跨客戶共用會造成交叉污染，必須使用客戶專屬 USB。"}, {"q": "Log 備份後應該怎麼處理？", "options": ["留在 USB 備用", "依規範保存後刪除"], "answer": [1], "explain": "Log 依規範保存後，USB 上的敏感資料應刪除。"}, {"q": "45 天未掃毒的 USB 可以直接使用嗎？", "options": ["可以", "不可以"], "answer": [1], "explain": "已超過 30 天，必須先掃毒並留存證據。"}, {"q": "PE USB 兩年未更新，適合使用嗎？", "options": ["適合", "不適合"], "answer": [1], "explain": "久未更新的工具 USB 可能帶有過時或有風險的內容。"}, {"q": "有掃毒但沒留證據，可能被視同未執行嗎？", "options": ["是", "否"], "answer": [0], "explain": "稽核只看可驗證的證據，沒有證據就無法證明有做。"}, {"q": "存有客戶資料的 USB 需要加密嗎？", "options": ["需要", "不需要"], "answer": [0], "explain": "未加密的 USB 遺失時，內容可被直接讀取。"}, {"q": "USB 遺失是否需要通報？", "options": ["需要", "找不到才需要"], "answer": [0], "explain": "不論是否找回，遺失當下就要通報。"}, {"q": "掃毒記錄可以只存在個人手機嗎？", "options": ["可以", "不建議，應依制度留存"], "answer": [1], "explain": "個人手機的紀錄難以追溯與查核，應依制度集中留存。"}, {"q": "客戶要求掃毒證據時，應提供什麼？", "options": ["口頭說明當時有掃", "事前留存的掃毒證據"], "answer": [1], "explain": "提供事前依制度留存的掃毒證據。"}, {"q": "哪些屬於有效掃毒證據？", "options": ["掃毒截圖（有日期時間、未修改）", "Defender 報告", "USB 編號", "掃描日期", "組長查核紀錄", "事後補做截圖"], "answer": [0, 1, 2, 3, 4], "multi": true, "explain": "前五項都是有效證據；事後補做截圖不能證明當時狀態。"}, {"q": "哪些「不是」有效證據？", "options": ["LINE 通知", "口頭說明", "事後補做截圖", "掃描日期"], "answer": [0, 1, 2], "multi": true, "explain": "LINE 通知、口頭說明、事後補做截圖都不是有效證據；掃描日期是。"}, {"q": "客戶要求掃毒證據，工程師重新掃毒後補截圖。這能證明什麼？", "options": ["可以證明當時有掃毒", "只能證明現在有掃毒"], "answer": [1], "must": true, "explain": "事後補掃毒不能證明使用前已掃毒，也不能證明事件發生前已完成控制，因此不屬於有效稽核證據。"}]};
 const VOICE_CLIPS = null;
 const OPEN_QUESTION = null;
+const TAKEAWAY_KEYWORDS = [];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -1255,6 +1256,7 @@ async function submitResponse(){
       resetForm();
       note.textContent = "已送出，感謝分享！（已同步到雲端）";
       loadCommunityResponses(); // 馬上刷新一次，讓自己的回應立刻反映在下面的統計裡
+      if(hasReflectR()) runReflectAnalysis();
       return;
     } catch(e){
       // 連不上（離線、被擋、Worker 掛了……）就退回本機下載，不讓回應憑空消失
@@ -1502,6 +1504,7 @@ async function submitReflection(){
   try{ localStorage.setItem(reflectSentKey(), new Date().toISOString()); }catch(e){}
   const box = document.getElementById("reflectBox");
   if(box) box.outerHTML = `<div class="reflectBox done">✓ 已送出學習心得，謝謝！${RESPONSE_API_BASE ? "" : "（本機版不會上傳，已存成檔案）"}</div>`;
+  if(hasReflectR()) runReflectAnalysis(); // 送出後自動跑全場心得分析
 }
 // ==== 開放題「哪一句話讓你最有感受？」＋ 全場回答用 R 分析（webR：R 編譯成 WebAssembly，直接在瀏覽器裡跑）====
 const OPEN_Q_KEY = "最有感的一句";
@@ -1540,7 +1543,7 @@ function openCandidates(){
   if(GOLDEN_QUOTE) out.push({who: "金句", text: GOLDEN_QUOTE.replace(/<[^>]+>/g, "")});
   return out;
 }
-const R_ANALYZE = "# 「哪一句話讓你最有感受？」——比對每則回答最像哪一句台詞，統計排行與常見詞\nanalyze <- function(resp, lines) {\n  clean <- function(x) gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x)\n  bigrams <- function(s) {\n    ch <- strsplit(s, \"\")[[1]]\n    if (length(ch) < 2) return(character(0))\n    unique(paste0(ch[-length(ch)], ch[-1]))\n  }\n  rc <- clean(resp)\n  lb <- lapply(clean(lines), bigrams)\n  # 相似度＝台詞的二字組有幾成出現在回答裡；0.4 以上才算「引用了這句」\n  best <- vapply(rc, function(r) {\n    rb <- bigrams(r)\n    if (!length(rb)) return(NA_integer_)\n    sc <- vapply(lb, function(b) if (length(b)) length(intersect(b, rb)) / length(b) else 0, numeric(1))\n    if (max(sc) >= 0.4) which.max(sc) else NA_integer_\n  }, integer(1), USE.NAMES = FALSE)\n  tab <- table(factor(best, levels = seq_along(lines)))\n  tab <- sort(tab[tab > 0], decreasing = TRUE)\n  # 常見詞：只看大家自己寫的「為什麼」——先扣掉引用的那句台詞，再數二字組（每則只算一次），去掉含虛詞的組合\n  stop <- strsplit(\"的了是我你他她在就也都很會要有這那一個不說為什麼讓感覺得句話最們著和與及而但所以可以如果因此還被把給到嗎呢吧啊喔\", \"\")[[1]]\n  own <- lapply(seq_along(rc), function(i) {\n    rb <- bigrams(rc[i])\n    if (is.na(best[i])) rb else setdiff(rb, lb[[best[i]]])\n  })\n  allb <- unlist(own)\n  allb <- allb[!vapply(strsplit(allb, \"\"), function(p) any(p %in% stop), logical(1))]\n  wt <- sort(table(allb), decreasing = TRUE)\n  wt <- wt[wt >= ifelse(length(resp) >= 5, 2, 1)]\n  wt <- head(wt, 8)\n  c(sprintf(\"S\\t%d\\t%d\\t%.1f\", length(resp), sum(!is.na(best)), mean(nchar(rc))),\n    if (length(tab)) sprintf(\"T\\t%s\\t%d\", names(tab), as.integer(tab)),\n    if (length(wt)) sprintf(\"W\\t%s\\t%d\", names(wt), as.integer(wt)))\n}\n";
+const R_ANALYZE = "# 「哪一句話讓你最有感受？」——比對每則回答最像哪一句台詞，統計排行與常見詞\nanalyze <- function(resp, lines) {\n  clean <- function(x) gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x)\n  bigrams <- function(s) {\n    ch <- strsplit(s, \"\")[[1]]\n    if (length(ch) < 2) return(character(0))\n    unique(paste0(ch[-length(ch)], ch[-1]))\n  }\n  rc <- clean(resp)\n  lb <- lapply(clean(lines), bigrams)\n  # 相似度＝台詞的二字組有幾成出現在回答裡；0.4 以上才算「引用了這句」\n  best <- vapply(rc, function(r) {\n    rb <- bigrams(r)\n    if (!length(rb)) return(NA_integer_)\n    sc <- vapply(lb, function(b) if (length(b)) length(intersect(b, rb)) / length(b) else 0, numeric(1))\n    if (max(sc) >= 0.4) which.max(sc) else NA_integer_\n  }, integer(1), USE.NAMES = FALSE)\n  tab <- table(factor(best, levels = seq_along(lines)))\n  tab <- sort(tab[tab > 0], decreasing = TRUE)\n  # 常見詞：只看大家自己寫的「為什麼」——先扣掉引用的那句台詞，再數二字組（每則只算一次），去掉含虛詞的組合\n  stop <- strsplit(\"的了是我你他她在就也都很會要有這那一個不說為什麼讓感覺得句話最們著和與及而但所以可以如果因此還被把給到嗎呢吧啊喔\", \"\")[[1]]\n  own <- lapply(seq_along(rc), function(i) {\n    rb <- bigrams(rc[i])\n    if (is.na(best[i])) rb else setdiff(rb, lb[[best[i]]])\n  })\n  allb <- unlist(own)\n  allb <- allb[!vapply(strsplit(allb, \"\"), function(p) any(p %in% stop), logical(1))]\n  wt <- sort(table(allb), decreasing = TRUE)\n  wt <- wt[wt >= ifelse(length(resp) >= 5, 2, 1)]\n  wt <- head(wt, 8)\n  c(sprintf(\"S\\t%d\\t%d\\t%.1f\", length(resp), sum(!is.na(best)), mean(nchar(rc))),\n    if (length(tab)) sprintf(\"T\\t%s\\t%d\", names(tab), as.integer(tab)),\n    if (length(wt)) sprintf(\"W\\t%s\\t%d\", names(wt), as.integer(wt)))\n}\n\n# 學習心得 × 這集的三件事：一則心得只要出現某一點的任一個「相近說法」，就算有提到那一點\n# kw 每個元素是「第幾點<Tab>說法」；回傳 S＝心得數、哪一點都沒提到的則數；K＝每一點被幾則提到\nanalyze_reflect <- function(resp, kw) {\n  clean <- function(x) tolower(gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x))\n  rc <- clean(resp)\n  parts <- strsplit(kw, \"\\t\", fixed = TRUE)\n  idx <- as.integer(vapply(parts, `[`, \"\", 1))\n  words <- clean(vapply(parts, `[`, \"\", 2))\n  k <- sort(unique(idx))\n  hit <- sapply(k, function(j) vapply(rc, function(r)\n    any(vapply(words[idx == j], function(w) nchar(w) > 0 && grepl(w, r, fixed = TRUE), logical(1))), logical(1)))\n  hit <- matrix(hit, nrow = length(rc))\n  c(sprintf(\"S\\t%d\\t%d\", length(rc), sum(rowSums(hit) == 0)), sprintf(\"K\\t%d\\t%d\", k, colSums(hit)))\n}\n";
 let rState = "idle", rResult = null, rError = "", webRPromise = null;
 // webR 從 jsdelivr 載入（第一次約 20MB，之後瀏覽器會快取）；jsdelivr 不通再改用 webR 官方站
 // （npm 套件裡瀏覽器用的是 webr.js；webr.mjs 是給 Node 用的）
@@ -1604,6 +1607,48 @@ async function runRAnalysis(){
   } catch(e){ rState = "error"; rError = e.message || String(e); }
   rRender();
 }
+// ==== 全場學習心得 × 這集的三件事（R 分析）：每一點被幾則心得提到、哪一點還沒人提到 ====
+// 只顯示統計，不顯示任何人的心得原文或名字
+let rfState = "idle", rfResult = null, rfError = "";
+const hasReflectR = () => !!RESPONSE_API_BASE && TAKEAWAY_KEYWORDS.length === TAKEAWAYS.length && TAKEAWAYS.length > 0 && ACT.chapter < 0;
+function reflectRBoxHtml(){ return hasReflectR() ? `<div class="rBox" id="rfBox">${rfInner()}</div>` : ""; }
+function rfInner(){
+  const head = `<div class="rHead"><span class="rLogo">R</span>全場學習心得 × 這集的${TAKEAWAYS.length === 3 ? "三件事" : "重點"}`
+    + (rfState !== "loading" ? `<button type="button" class="scnLink" onclick="runReflectAnalysis()">${rfResult ? "重新分析" : "用 R 分析全場心得"}</button>` : "") + `</div>`;
+  if(rfState === "loading") return head + `<div class="rSum">⏳ 正在載入 R 並分析（第一次約 10～20 秒）</div>`;
+  if(rfState === "error") return head + `<div class="rSum">分析失敗：${escapeHtml(rfError)}</div>`;
+  if(!rfResult) return head + `<div class="rSum">送出學習心得後會自動分析；也可以直接按上面的按鈕看大家的心得提到了哪些重點。</div>`;
+  const R = rfResult;
+  if(!R.n) return head + `<div class="rSum">還沒有人寫學習心得。</div>`;
+  const missing = R.points.filter(x => !x.n);
+  return head + `<div class="rSum">共 ${R.n} 則學習心得，每一點有幾則提到（一則可以提到好幾點）：</div>`
+    + R.points.map((x, k) => `<div class="rBar"><div class="t">${"①②③④⑤"[k] || ""} ${escapeHtml(x.text)}</div>`
+      + `<div class="track"><i style="width:${Math.round(x.n / R.n * 80)}%"></i><b>${x.n} 則・${Math.round(x.n / R.n * 100)}%</b></div></div>`).join("")
+    + (missing.length ? `<div class="rSum">💡 還沒有人提到：${missing.map(x => "「" + escapeHtml(x.text) + "」").join("、")}——可以在例會上補一句。</div>` : "")
+    + (R.none ? `<div class="rSum">另外 ${R.none} 則沒有對上任何一點（多半是寫自己的經驗或其他心得）</div>` : "")
+    + `<details><summary>看 R 怎麼算的</summary><pre>${escapeHtml("# 每一點的相近說法\n" + TAKEAWAYS.map((t, k) => `${k + 1}. ${t}：${TAKEAWAY_KEYWORDS[k].join("、")}`).join("\n") + "\n\n" + R_ANALYZE)}</pre></details>`;
+}
+function rfRender(){ const el = document.getElementById("rfBox"); if(el) el.innerHTML = rfInner(); }
+async function runReflectAnalysis(){
+  if(!hasReflectR()) return;
+  rfState = "loading"; rfRender();
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), { headers: { "X-Site-Key": RESPONSE_SITE_KEY } });
+    if(!res.ok) throw new Error("讀不到全場心得（HTTP " + res.status + "）");
+    const resp = ((await res.json()).responses || []).filter(r => r.question === REFLECT_Q && r.response).map(r => r.response);
+    const R = {n: 0, none: 0, points: TAKEAWAYS.map(t => ({text: t, n: 0}))};
+    if(resp.length){
+      const webR = await getWebR();
+      await webR.objs.globalEnv.bind("resp", resp);
+      await webR.objs.globalEnv.bind("kw", TAKEAWAY_KEYWORDS.flatMap((ws, k) => ws.map(w => `${k + 1}\t${w}`)));
+      (await (await webR.evalR("analyze_reflect(resp, kw)")).toJs()).values.forEach(line => { const f = line.split("\t");
+        if(f[0] === "S"){ R.n = +f[1]; R.none = +f[2]; }
+        else if(f[0] === "K" && R.points[+f[1] - 1]) R.points[+f[1] - 1].n = +f[2]; });
+    }
+    rfResult = R; rfState = "done";
+  } catch(e){ rfState = "error"; rfError = e.message || String(e); }
+  rfRender();
+}
 // 送出一筆心得：雲端版送 Worker，失敗或本機版就存成本機檔案；回傳是否送上雲端
 async function sendReflection(payload){
   if(RESPONSE_API_BASE){
@@ -1658,7 +1703,7 @@ function renderScenario(){
       + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
       + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
       + `<div class="endQuestion">${ACT.question}</div>`
-      + (ACT.chapter < 0 ? openBoxHtml() + reflectBoxHtml() : "") // 課程模式（USB）不問
+      + (ACT.chapter < 0 ? openBoxHtml() + reflectBoxHtml() + reflectRBoxHtml() : "") // 課程模式（USB）不問
       + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
       + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`
       + chapterNextHtml();
@@ -1946,7 +1991,7 @@ function showEndCard(opts = {}){
   speechBubble.innerHTML = `<div class="quoteLine">${ACT.quote}</div><div class="endQuestion">${ACT.question}</div>`
     + `<div class="responseBox">${NAME_EVERYWHERE ? nameBoxHtml("respName") : ""}${choiceBlock}<div class="reflectHead"><span class="mustTag inline">必答</span>${REFLECT_PROMPT}</div><textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
     + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
-    + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
+    + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}${reflectRBoxHtml()}</div>`;
   who.textContent = "播放完畢 — 今日金句與主管互動問題（再按一次執行播放可從頭重播）";
   bar.style.width = "100%";
   if(!opts.silent) speakGoldenQuote();

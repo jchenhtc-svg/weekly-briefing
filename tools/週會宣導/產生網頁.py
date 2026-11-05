@@ -128,7 +128,8 @@ def build_data_block(ep):
         + "const CHAPTERS = " + js(ep.get("chapters", [])) + ";\n"
         + "const EXAM = " + js(ep.get("exam")) + ";\n"
         + "const VOICE_CLIPS = " + js(voice_clips(ep)) + ";\n"
-        + "const OPEN_QUESTION = " + js(ep.get("open_question")) + ";\n\n"
+        + "const OPEN_QUESTION = " + js(ep.get("open_question")) + ";\n"
+        + "const TAKEAWAY_KEYWORDS = " + js(ep.get("takeaway_keywords", [])) + ";\n\n"
     )
 
 

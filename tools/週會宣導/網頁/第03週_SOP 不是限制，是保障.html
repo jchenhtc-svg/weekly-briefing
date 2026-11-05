@@ -563,6 +563,7 @@ const CHAPTERS = [];
 const EXAM = null;
 const VOICE_CLIPS = null;
 const OPEN_QUESTION = null;
+const TAKEAWAY_KEYWORDS = [["跳過", "確認", "檢查", "步驟", "SOP", "sop"], ["紀錄", "記錄", "異常", "記下"], ["提出", "改善", "建議", "反應", "不合理", "討論"]];
 
 // flatten SCRIPT into d[] (dialogue) + PANELS[] (per-line HUD metadata) + ICONS[] (per-scene icon)
 const d = [];
@@ -1077,6 +1078,7 @@ async function submitResponse(){
       resetForm();
       note.textContent = "已送出，感謝分享！（已同步到雲端）";
       loadCommunityResponses(); // 馬上刷新一次，讓自己的回應立刻反映在下面的統計裡
+      if(hasReflectR()) runReflectAnalysis();
       return;
     } catch(e){
       // 連不上（離線、被擋、Worker 掛了……）就退回本機下載，不讓回應憑空消失
@@ -1324,6 +1326,7 @@ async function submitReflection(){
   try{ localStorage.setItem(reflectSentKey(), new Date().toISOString()); }catch(e){}
   const box = document.getElementById("reflectBox");
   if(box) box.outerHTML = `<div class="reflectBox done">✓ 已送出學習心得，謝謝！${RESPONSE_API_BASE ? "" : "（本機版不會上傳，已存成檔案）"}</div>`;
+  if(hasReflectR()) runReflectAnalysis(); // 送出後自動跑全場心得分析
 }
 // ==== 開放題「哪一句話讓你最有感受？」＋ 全場回答用 R 分析（webR：R 編譯成 WebAssembly，直接在瀏覽器裡跑）====
 const OPEN_Q_KEY = "最有感的一句";
@@ -1362,7 +1365,7 @@ function openCandidates(){
   if(GOLDEN_QUOTE) out.push({who: "金句", text: GOLDEN_QUOTE.replace(/<[^>]+>/g, "")});
   return out;
 }
-const R_ANALYZE = "# 「哪一句話讓你最有感受？」——比對每則回答最像哪一句台詞，統計排行與常見詞\nanalyze <- function(resp, lines) {\n  clean <- function(x) gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x)\n  bigrams <- function(s) {\n    ch <- strsplit(s, \"\")[[1]]\n    if (length(ch) < 2) return(character(0))\n    unique(paste0(ch[-length(ch)], ch[-1]))\n  }\n  rc <- clean(resp)\n  lb <- lapply(clean(lines), bigrams)\n  # 相似度＝台詞的二字組有幾成出現在回答裡；0.4 以上才算「引用了這句」\n  best <- vapply(rc, function(r) {\n    rb <- bigrams(r)\n    if (!length(rb)) return(NA_integer_)\n    sc <- vapply(lb, function(b) if (length(b)) length(intersect(b, rb)) / length(b) else 0, numeric(1))\n    if (max(sc) >= 0.4) which.max(sc) else NA_integer_\n  }, integer(1), USE.NAMES = FALSE)\n  tab <- table(factor(best, levels = seq_along(lines)))\n  tab <- sort(tab[tab > 0], decreasing = TRUE)\n  # 常見詞：只看大家自己寫的「為什麼」——先扣掉引用的那句台詞，再數二字組（每則只算一次），去掉含虛詞的組合\n  stop <- strsplit(\"的了是我你他她在就也都很會要有這那一個不說為什麼讓感覺得句話最們著和與及而但所以可以如果因此還被把給到嗎呢吧啊喔\", \"\")[[1]]\n  own <- lapply(seq_along(rc), function(i) {\n    rb <- bigrams(rc[i])\n    if (is.na(best[i])) rb else setdiff(rb, lb[[best[i]]])\n  })\n  allb <- unlist(own)\n  allb <- allb[!vapply(strsplit(allb, \"\"), function(p) any(p %in% stop), logical(1))]\n  wt <- sort(table(allb), decreasing = TRUE)\n  wt <- wt[wt >= ifelse(length(resp) >= 5, 2, 1)]\n  wt <- head(wt, 8)\n  c(sprintf(\"S\\t%d\\t%d\\t%.1f\", length(resp), sum(!is.na(best)), mean(nchar(rc))),\n    if (length(tab)) sprintf(\"T\\t%s\\t%d\", names(tab), as.integer(tab)),\n    if (length(wt)) sprintf(\"W\\t%s\\t%d\", names(wt), as.integer(wt)))\n}\n";
+const R_ANALYZE = "# 「哪一句話讓你最有感受？」——比對每則回答最像哪一句台詞，統計排行與常見詞\nanalyze <- function(resp, lines) {\n  clean <- function(x) gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x)\n  bigrams <- function(s) {\n    ch <- strsplit(s, \"\")[[1]]\n    if (length(ch) < 2) return(character(0))\n    unique(paste0(ch[-length(ch)], ch[-1]))\n  }\n  rc <- clean(resp)\n  lb <- lapply(clean(lines), bigrams)\n  # 相似度＝台詞的二字組有幾成出現在回答裡；0.4 以上才算「引用了這句」\n  best <- vapply(rc, function(r) {\n    rb <- bigrams(r)\n    if (!length(rb)) return(NA_integer_)\n    sc <- vapply(lb, function(b) if (length(b)) length(intersect(b, rb)) / length(b) else 0, numeric(1))\n    if (max(sc) >= 0.4) which.max(sc) else NA_integer_\n  }, integer(1), USE.NAMES = FALSE)\n  tab <- table(factor(best, levels = seq_along(lines)))\n  tab <- sort(tab[tab > 0], decreasing = TRUE)\n  # 常見詞：只看大家自己寫的「為什麼」——先扣掉引用的那句台詞，再數二字組（每則只算一次），去掉含虛詞的組合\n  stop <- strsplit(\"的了是我你他她在就也都很會要有這那一個不說為什麼讓感覺得句話最們著和與及而但所以可以如果因此還被把給到嗎呢吧啊喔\", \"\")[[1]]\n  own <- lapply(seq_along(rc), function(i) {\n    rb <- bigrams(rc[i])\n    if (is.na(best[i])) rb else setdiff(rb, lb[[best[i]]])\n  })\n  allb <- unlist(own)\n  allb <- allb[!vapply(strsplit(allb, \"\"), function(p) any(p %in% stop), logical(1))]\n  wt <- sort(table(allb), decreasing = TRUE)\n  wt <- wt[wt >= ifelse(length(resp) >= 5, 2, 1)]\n  wt <- head(wt, 8)\n  c(sprintf(\"S\\t%d\\t%d\\t%.1f\", length(resp), sum(!is.na(best)), mean(nchar(rc))),\n    if (length(tab)) sprintf(\"T\\t%s\\t%d\", names(tab), as.integer(tab)),\n    if (length(wt)) sprintf(\"W\\t%s\\t%d\", names(wt), as.integer(wt)))\n}\n\n# 學習心得 × 這集的三件事：一則心得只要出現某一點的任一個「相近說法」，就算有提到那一點\n# kw 每個元素是「第幾點<Tab>說法」；回傳 S＝心得數、哪一點都沒提到的則數；K＝每一點被幾則提到\nanalyze_reflect <- function(resp, kw) {\n  clean <- function(x) tolower(gsub(\"[[:space:][:punct:]，。！？、：；「」『』（）《》…—～·]\", \"\", x))\n  rc <- clean(resp)\n  parts <- strsplit(kw, \"\\t\", fixed = TRUE)\n  idx <- as.integer(vapply(parts, `[`, \"\", 1))\n  words <- clean(vapply(parts, `[`, \"\", 2))\n  k <- sort(unique(idx))\n  hit <- sapply(k, function(j) vapply(rc, function(r)\n    any(vapply(words[idx == j], function(w) nchar(w) > 0 && grepl(w, r, fixed = TRUE), logical(1))), logical(1)))\n  hit <- matrix(hit, nrow = length(rc))\n  c(sprintf(\"S\\t%d\\t%d\", length(rc), sum(rowSums(hit) == 0)), sprintf(\"K\\t%d\\t%d\", k, colSums(hit)))\n}\n";
 let rState = "idle", rResult = null, rError = "", webRPromise = null;
 // webR 從 jsdelivr 載入（第一次約 20MB，之後瀏覽器會快取）；jsdelivr 不通再改用 webR 官方站
 // （npm 套件裡瀏覽器用的是 webr.js；webr.mjs 是給 Node 用的）
@@ -1426,6 +1429,48 @@ async function runRAnalysis(){
   } catch(e){ rState = "error"; rError = e.message || String(e); }
   rRender();
 }
+// ==== 全場學習心得 × 這集的三件事（R 分析）：每一點被幾則心得提到、哪一點還沒人提到 ====
+// 只顯示統計，不顯示任何人的心得原文或名字
+let rfState = "idle", rfResult = null, rfError = "";
+const hasReflectR = () => !!RESPONSE_API_BASE && TAKEAWAY_KEYWORDS.length === TAKEAWAYS.length && TAKEAWAYS.length > 0 && ACT.chapter < 0;
+function reflectRBoxHtml(){ return hasReflectR() ? `<div class="rBox" id="rfBox">${rfInner()}</div>` : ""; }
+function rfInner(){
+  const head = `<div class="rHead"><span class="rLogo">R</span>全場學習心得 × 這集的${TAKEAWAYS.length === 3 ? "三件事" : "重點"}`
+    + (rfState !== "loading" ? `<button type="button" class="scnLink" onclick="runReflectAnalysis()">${rfResult ? "重新分析" : "用 R 分析全場心得"}</button>` : "") + `</div>`;
+  if(rfState === "loading") return head + `<div class="rSum">⏳ 正在載入 R 並分析（第一次約 10～20 秒）</div>`;
+  if(rfState === "error") return head + `<div class="rSum">分析失敗：${escapeHtml(rfError)}</div>`;
+  if(!rfResult) return head + `<div class="rSum">送出學習心得後會自動分析；也可以直接按上面的按鈕看大家的心得提到了哪些重點。</div>`;
+  const R = rfResult;
+  if(!R.n) return head + `<div class="rSum">還沒有人寫學習心得。</div>`;
+  const missing = R.points.filter(x => !x.n);
+  return head + `<div class="rSum">共 ${R.n} 則學習心得，每一點有幾則提到（一則可以提到好幾點）：</div>`
+    + R.points.map((x, k) => `<div class="rBar"><div class="t">${"①②③④⑤"[k] || ""} ${escapeHtml(x.text)}</div>`
+      + `<div class="track"><i style="width:${Math.round(x.n / R.n * 80)}%"></i><b>${x.n} 則・${Math.round(x.n / R.n * 100)}%</b></div></div>`).join("")
+    + (missing.length ? `<div class="rSum">💡 還沒有人提到：${missing.map(x => "「" + escapeHtml(x.text) + "」").join("、")}——可以在例會上補一句。</div>` : "")
+    + (R.none ? `<div class="rSum">另外 ${R.none} 則沒有對上任何一點（多半是寫自己的經驗或其他心得）</div>` : "")
+    + `<details><summary>看 R 怎麼算的</summary><pre>${escapeHtml("# 每一點的相近說法\n" + TAKEAWAYS.map((t, k) => `${k + 1}. ${t}：${TAKEAWAY_KEYWORDS[k].join("、")}`).join("\n") + "\n\n" + R_ANALYZE)}</pre></details>`;
+}
+function rfRender(){ const el = document.getElementById("rfBox"); if(el) el.innerHTML = rfInner(); }
+async function runReflectAnalysis(){
+  if(!hasReflectR()) return;
+  rfState = "loading"; rfRender();
+  try{
+    const res = await fetch(RESPONSE_API_BASE + "/responses?episode=" + encodeURIComponent(EPISODE_LABEL), { headers: { "X-Site-Key": RESPONSE_SITE_KEY } });
+    if(!res.ok) throw new Error("讀不到全場心得（HTTP " + res.status + "）");
+    const resp = ((await res.json()).responses || []).filter(r => r.question === REFLECT_Q && r.response).map(r => r.response);
+    const R = {n: 0, none: 0, points: TAKEAWAYS.map(t => ({text: t, n: 0}))};
+    if(resp.length){
+      const webR = await getWebR();
+      await webR.objs.globalEnv.bind("resp", resp);
+      await webR.objs.globalEnv.bind("kw", TAKEAWAY_KEYWORDS.flatMap((ws, k) => ws.map(w => `${k + 1}\t${w}`)));
+      (await (await webR.evalR("analyze_reflect(resp, kw)")).toJs()).values.forEach(line => { const f = line.split("\t");
+        if(f[0] === "S"){ R.n = +f[1]; R.none = +f[2]; }
+        else if(f[0] === "K" && R.points[+f[1] - 1]) R.points[+f[1] - 1].n = +f[2]; });
+    }
+    rfResult = R; rfState = "done";
+  } catch(e){ rfState = "error"; rfError = e.message || String(e); }
+  rfRender();
+}
 // 送出一筆心得：雲端版送 Worker，失敗或本機版就存成本機檔案；回傳是否送上雲端
 async function sendReflection(payload){
   if(RESPONSE_API_BASE){
@@ -1480,7 +1525,7 @@ function renderScenario(){
       + (RESPONSE_API_BASE && !scnRespondMode ? `<button type="button" class="scnLink" onclick="scnShowStats(true)">只看全場統計</button>` : "")
       + `</div>${rows}<div class="scnNote">${note}<br>情境沒有唯一正解，重點是知道自己在取捨什麼。</div>`
       + `<div class="endQuestion">${ACT.question}</div>`
-      + (ACT.chapter < 0 ? openBoxHtml() + reflectBoxHtml() : "") // 課程模式（USB）不問
+      + (ACT.chapter < 0 ? openBoxHtml() + reflectBoxHtml() + reflectRBoxHtml() : "") // 課程模式（USB）不問
       + `<div class="scnNav"><button type="button" class="ghost" onclick="scnGo(-1)">← 上一張</button>`
       + `<button type="button" onclick="scnRestart()">再玩一次</button></div>`
       + chapterNextHtml();
@@ -1768,7 +1813,7 @@ function showEndCard(opts = {}){
   speechBubble.innerHTML = `<div class="quoteLine">${ACT.quote}</div><div class="endQuestion">${ACT.question}</div>`
     + `<div class="responseBox">${NAME_EVERYWHERE ? nameBoxHtml("respName") : ""}${choiceBlock}<div class="reflectHead"><span class="mustTag inline">必答</span>${REFLECT_PROMPT}</div><textarea id="responseInput" class="responseInput" placeholder="${placeholder}" maxlength="300"></textarea>`
     + `<button type="button" class="responseSubmit" onclick="submitResponse()">送出回應</button>`
-    + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}</div>`;
+    + `<div class="responseNote" id="responseNote"></div>${qrBlock}${communityBlock}${reflectRBoxHtml()}</div>`;
   who.textContent = "播放完畢 — 今日金句與主管互動問題（再按一次執行播放可從頭重播）";
   bar.style.width = "100%";
   if(!opts.silent) speakGoldenQuote();
