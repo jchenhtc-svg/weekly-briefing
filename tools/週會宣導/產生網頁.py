@@ -348,7 +348,11 @@ def build_dashboard(cloud_config):
                    if ep.get("id") else "EP " + ep_num(ep),
             "title": ep["title"],
             "takeaways": ep.get("takeaways", []),
-            **({"openQ": "最有感的一句"} if ep.get("open_question") else {}),
+            **({"openQ": "最有感的一句",
+                # 後台 R 分析用的候選台詞：每句對白＋金句（跟播放頁 openCandidates() 一樣）
+                "openLines": [{"who": l[0], "text": l[1]} for l in lines]
+                             + [{"who": "金句", "text": re.sub(r"<[^>]+>", "", ep["golden_quote"])}]}
+               if ep.get("open_question") else {}),
             "chapters": [ch.get("short") or ch["title"] for ch in ep.get("chapters", [])],
             "scenarios": [
                 {"situation": c["situation"], "options": [o["text"] for o in c["options"]]}
@@ -364,6 +368,9 @@ def build_dashboard(cloud_config):
     for name, value in (("API_BASE", cloud_config["apiBase"]), ("SITE_KEY", cloud_config["siteKey"])):
         html = re.sub(rf'const {name} = ".*?";', lambda _: f"const {name} = {js(value)};", html, count=1)
     html = html.replace("const EPISODES = [];", f"const EPISODES = {js(eps)};", 1)
+    # 開放題的 R 分析程式：直接用播放引擎裡那一份，兩邊算法才會一致
+    r_code = re.search(r"^const R_ANALYZE = (.*);$", TEMPLATE.read_text(encoding="utf-8"), re.M).group(1)
+    html = html.replace('const R_ANALYZE = "";', f"const R_ANALYZE = {r_code};", 1)
     return html
 
 
