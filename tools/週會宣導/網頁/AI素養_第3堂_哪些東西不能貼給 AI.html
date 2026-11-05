@@ -913,11 +913,12 @@ function speechText(text){
 const clipEl = new Audio();
 let useClips = !!VOICE_CLIPS;
 try{ if(localStorage.getItem("use-clips") === "0") useClips = false; }catch(e){}
-function stopClip(){ clipEl.onended = clipEl.ontimeupdate = clipEl.onerror = null; clipEl.pause(); }
+let clipToken = 0; // 停止／暫停就換號：句子之間那段空檔裡按了暫停，原本排好的「接下一句」就不會再觸發
+function stopClip(){ clipToken++; clipEl.onended = clipEl.ontimeupdate = clipEl.onerror = null; clipEl.pause(); }
 (function(){ // 原本所有「停止／暫停」都呼叫 speechSynthesis.cancel()／pause()，順便把音檔也停掉
   const cancel = speechSynthesis.cancel.bind(speechSynthesis), pauseFn = speechSynthesis.pause.bind(speechSynthesis);
   speechSynthesis.cancel = () => { stopClip(); cancel(); };
-  speechSynthesis.pause = () => { clipEl.pause(); pauseFn(); };
+  speechSynthesis.pause = () => { clipToken++; clipEl.pause(); pauseFn(); };
 })();
 function playClip(src, role, onprogress, onend, fallback){
   const c = cfg[role] || {pitch: 1};
@@ -928,14 +929,16 @@ function playClip(src, role, onprogress, onend, fallback){
   clipEl.preservesPitch = clipEl.mozPreservesPitch = clipEl.webkitPreservesPitch = !low;
   clipEl.playbackRate = Math.min(2, Math.max(0.5, (+rate.value) * (low ? 0.88 : 1)));
   clipEl.ontimeupdate = () => { if(clipEl.duration) onprogress(clipEl.currentTime / clipEl.duration); };
-  clipEl.onended = () => { stopClip(); onend(); };
+  clipEl.onended = () => { stopClip(); const my = clipToken; setTimeout(() => { if(my === clipToken) onend(); }, 120); }; // 句子之間留一點空檔，加速時才不會一句黏著一句
   clipEl.onerror = () => { stopClip(); fallback(); };
   const p = clipEl.play();
   if(p && p.catch) p.catch(() => { stopClip(); fallback(); }); // 被瀏覽器擋自動播放就退回瀏覽器語音
 }
 
-function speakCurrent(onend){
-  speechSynthesis.cancel();
+// chained＝自動播放接下一句：不呼叫 cancel()。Edge／手機的線上語音加速時，「唸完」的通知常比聲音早到，
+// 這時 cancel 會把上一句最後幾個字切掉；改成直接排進佇列，上一句真的唸完才接下一句
+function speakCurrent(onend, chained){
+  if(chained) stopClip(); else speechSynthesis.cancel();
   const role = d[i][0], c = cfg[role];
   const displayText = d[i][1];
   const clip = useClips && VOICE_CLIPS && VOICE_CLIPS.lines[i];
@@ -962,6 +965,8 @@ if(VOICE_CLIPS){
   };
   speakerRows.parentNode.insertBefore(box, speakerRows);
 }
+// 瀏覽器語音的最高語速：調到 1.5 倍時，本來就比較快的角色（客戶 ×1.2）會到 1.8 倍，線上語音容易把句尾吃掉
+const TTS_MAX_RATE = 1.65;
 function speakWithBrowser(onend){
   const role = d[i][0], c = cfg[role];
   const displayText = d[i][1];
@@ -969,7 +974,7 @@ function speakWithBrowser(onend){
   const u = new SpeechSynthesisUtterance(spokenText);
   u.lang = "zh-TW";
   u.pitch = c.pitch;
-  u.rate = Math.min(2, Math.max(0.4, (+rate.value) * c.rateMul));
+  u.rate = Math.min(TTS_MAX_RATE, Math.max(0.4, (+rate.value) * c.rateMul));
   if(c.voiceIdx >= 0 && zhVoices[c.voiceIdx]) u.voice = zhVoices[c.voiceIdx];
   u.onboundary = (e) => {
     const ratio = Math.min(1, e.charIndex / Math.max(1, spokenText.length));
@@ -990,7 +995,8 @@ function flashRender(cb){
 // speak the closing golden quote (the manager's discussion question is meant to be
 // posed live in the room, so it stays silent — only the quote gets narration)
 function speakGoldenQuote(){
-  speechSynthesis.cancel();
+  // 不呼叫 cancel()：自動播到最後一句時，句尾可能還在唸，直接排在後面（手動按「下一段」跳到結尾時，next() 已經先 cancel 過）
+  stopClip();
   const role = ROLES["主持人"] ? "主持人" : d[d.length-1][0];
   // 課程模式每章各有金句，預錄的只有整集那一句，所以只在一般集數用
   if(useClips && VOICE_CLIPS && VOICE_CLIPS.quote && !CHAPTERS.length){
@@ -1007,7 +1013,7 @@ function speakGoldenQuote(){
   const u = new SpeechSynthesisUtterance(spoken);
   u.lang = "zh-TW";
   u.pitch = c.pitch;
-  u.rate = Math.min(2, Math.max(0.4, (+rate.value) * c.rateMul));
+  u.rate = Math.min(TTS_MAX_RATE, Math.max(0.4, (+rate.value) * c.rateMul));
   if(c.voiceIdx >= 0 && zhVoices[c.voiceIdx]) u.voice = zhVoices[c.voiceIdx];
   speechSynthesis.speak(u);
 }
@@ -1795,7 +1801,7 @@ function playFrom(){
   const step = () => {
     if(auto && i < d.length-1 && !(CHAPTERS.length && isChapterEnd(i))){ // 課程模式：每章最後一行停下來玩情境卡
       i++;
-      flashRender(() => speakCurrent(step));
+      flashRender(() => speakCurrent(step, true));
     } else if(!onEndCard){
       auto = false;
       onEndCard = true; // set immediately, not just inside showEndCard() — otherwise a
