@@ -1,0 +1,6 @@
+# 要改用 F5-TTS 配音、取代網站上 Azure 語音的集數代號，一行一個；# 開頭是註解。
+# push 後 GitHub Actions（.github/workflows/f5-preview.yml）會在雲端 CPU 上跑（一集約 75 分鐘），
+# 每句長度對齊原本 Azure 版，音檔直接換掉 語音/<代號>/，網頁一起重新產生，commit 回來。
+# 參考音＝第十四篇各角色的 Azure 語音。之後 azure_tts.py 看到這集已經是 F5 就會跳過。
+# 2026-11-17 使用者要求：第十五篇改用 F5。
+15

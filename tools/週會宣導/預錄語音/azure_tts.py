@@ -73,6 +73,9 @@ def build(ep, key, endpoint):
     folder.mkdir(parents=True, exist_ok=True)
     manifest_path = folder / "台詞.json"
     old = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+    if old.get("engine", "").startswith("F5"):  # 這集改用 F5-TTS（f5_試聽.py），不要用 Azure 蓋掉
+        print(f"⏭ {code}：已經改用 {old['engine']}，跳過（要換回 Azure 就先刪掉 語音/{code}/台詞.json）")
+        return
     old_sig = old.get("sig", {}) if old.get("engine") == ENGINE else {}
     roles = {r["name"]: role_voice(r) for r in ep["roles"]}
     lines = [l for sc in ep["scenes"] for l in sc["lines"]]
