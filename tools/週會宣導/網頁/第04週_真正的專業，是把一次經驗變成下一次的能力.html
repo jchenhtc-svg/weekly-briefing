@@ -225,6 +225,9 @@ button.exGo{display:inline-block;margin:4px 6px 0 0;padding:4px 10px;font-size:1
 .charWrap{position:relative;flex:1;display:flex;align-items:flex-end;justify-content:center;padding:10px 20px 20px;left:auto;bottom:auto;transform:none}
 .charSvg{width:180px;height:204px;display:block;filter:none;animation:charBob 2.6s ease-in-out infinite}
 @keyframes charBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.char3d{display:none;width:230px;height:260px}
+.charWrap.is3d .char3d{display:block}
+.charWrap.is3d .charSvg{display:none}
 
 .roleLabel{position:absolute;bottom:16px;font-weight:800;font-size:12.5px;padding:5px 14px;color:#fff;border-radius:999px;z-index:5;left:50%;transform:translateX(-50%);right:auto;clip-path:none}
 
@@ -299,6 +302,7 @@ select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px
   .controlsCard .progress{margin:10px 0 0}
   .speechBubble{font-size:32px}
   .charSvg{width:250px;height:283px}
+  .char3d{width:300px;height:340px}
   .speechBubble.final .quoteLine{font-size:30px}
   .speechBubble.final .endQuestion{font-size:23px}
   .responseInput{font-size:16px}
@@ -313,6 +317,7 @@ select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px
   .chip{flex:none}
   .panelWrap{min-height:440px}
   .charSvg{width:140px;height:158px}
+  .char3d{width:180px;height:204px}
   .speechBubble{font-size:20px}
   .speechBubble.final .quoteLine{font-size:20px}
   .speechBubble.final .endQuestion{font-size:16px}
@@ -449,6 +454,7 @@ select.voice-select{width:100%;font-size:12px;padding:8px 10px;border-radius:8px
         <div class="iconRow right" id="iconRowRight"></div>
         <div class="charWrap center" id="charWrap">
           <svg id="charSvg" class="charSvg" viewBox="0 0 150 170"></svg>
+          <canvas id="char3d" class="char3d" aria-hidden="true"></canvas>
         </div>
         <div class="reactionMark" id="reactionMark"></div>
         <div class="roleLabel center" id="roleLabel"></div>
@@ -754,6 +760,305 @@ function faceSVGWrapped(role, expr){
   return `<svg viewBox="0 0 150 170" width="150" height="170" xmlns="http://www.w3.org/2000/svg">${faceSVG(role, expr)}</svg>`;
 }
 
+// ==== 立體角色（three.js）====
+// 原本的 SVG 平面頭像保留當備案：three.js 載不到、瀏覽器不支援 WebGL、網址加 ?flat=1 時都維持平面。
+// 角色用基本幾何體拼出來（不需要外部模型檔）：頭、頭髮、身體、可彎的手臂，五官跟著表情變，
+// 外框用「放大一點的背面黑色殼」做出跟平面版一樣的漫畫線稿感。
+// 換角色時從平面（z 方向壓扁）轉成立體登場；講話時嘴巴開合、平常會呼吸、眨眼、輕微擺頭。
+const CHAR3D = (function(){
+  const BASES = window.THREE_BASES_OVERRIDE || [
+    "https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js",
+    "https://unpkg.com/three@0.149.0/build/three.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+  ];
+  const SKIN = 0xffe0c2, INK = 0x1a1a1a;
+  const LOOK = { // 四個代表角色＋AI：髮型、髮色、配件
+    host: {hair:"bob",    hairColor:0x3b2a20, acc:["headset"]},
+    eng:  {hair:"short",  hairColor:0x1f1f1f, acc:["helmet","vest"]},
+    mgr:  {hair:"side",   hairColor:0x2b2b2b, acc:["glasses","tie"]},
+    cli:  {hair:"bun",    hairColor:0x5a3a28, acc:["apron"]},
+    ai:   {robot:true}
+  };
+  // 手臂姿勢：[肩 x, 肩 z, 肘 x, 肘 z]（右手；左手鏡像）。肩 x 負＝往前抬，肩 z 正＝往外張
+  const POSE = {
+    neutral:  {R:[0, .14, -.25, 0],     L:[0, .14, -.25, 0]},
+    calm:     {R:[-.35, .06, -1.25, -.75], L:[-.35, .06, -1.25, -.75]}, // 雙手輕輕交握在前
+    confident:{R:[-.35, .55, -2.2, 0],  L:[0, .14, -.25, 0]},       // 單手握拳／比讚
+    sheepish: {R:[-.4, 2.2, -2.3, 0],   L:[0, .14, -.25, 0]},       // 手抓後腦
+    shocked:  {R:[-1.0, .35, -1.9, .2], L:[-1.0, .35, -1.9, .2]},   // 雙手舉到臉旁
+    angry:    {R:[.25, .65, -.4, -1.7], L:[.25, .65, -.4, -1.7]},   // 叉腰
+    stern:    {R:[.25, .65, -.4, -1.7], L:[.25, .65, -.4, -1.7]},
+    spark:    {R:[-2.7, .25, -.15, 0],  L:[0, .14, -.25, 0]}        // 舉手指天：想到了
+  };
+  const FACE = { // 眉毛（高度、角度）、眼睛大小、嘴型（-1 下彎～1 上揚）、張嘴、臉紅
+    neutral:  {by:0,    br:0,    eye:1,   smile:.35, open:0,   blush:0},
+    calm:     {by:0,    br:0,    eye:.85, smile:.5,  open:0,   blush:.3},
+    confident:{by:.03,  br:-.25, eye:1,   smile:1,   open:.15, blush:0},
+    sheepish: {by:.02,  br:.35,  eye:.8,  smile:-.2, open:0,   blush:1},
+    shocked:  {by:.08,  br:.15,  eye:1.5, smile:0,   open:1,   blush:0},
+    angry:    {by:-.04, br:-.55, eye:.9,  smile:-1,  open:.7,  blush:0},
+    stern:    {by:-.03, br:-.3,  eye:.85, smile:-.3, open:0,   blush:0},
+    spark:    {by:.05,  br:0,    eye:1.15,smile:.9,  open:.35, blush:.4}
+  };
+
+  let THREE = null, renderer, scene, camera, canvas, wrap, svgEl;
+  let state = "idle"; // idle → loading → ready / failed
+  let current = null, pending = null, cache = {}, outlineMat;
+  let enterT = 1, restYaw = 0, lastFrame = 0, blinkAt = 2, blinkT = 0, visible = true;
+
+  function wanted(){
+    try { if(/[?&]flat=1/.test(location.search)) return false; } catch(e){}
+    try { const c = document.createElement("canvas"); return !!(c.getContext("webgl") || c.getContext("experimental-webgl")); }
+    catch(e){ return false; }
+  }
+  function load(i){
+    if(window.THREE){ THREE = window.THREE; return init(); }
+    if(i >= BASES.length){ state = "failed"; return; }
+    const s = document.createElement("script");
+    s.src = BASES[i]; s.async = true;
+    s.onload = () => { if(window.THREE){ THREE = window.THREE; init(); } else load(i+1); };
+    s.onerror = () => load(i+1);
+    document.head.appendChild(s);
+  }
+  function init(){
+    try {
+      canvas = document.getElementById("char3d");
+      wrap = document.getElementById("charWrap");
+      svgEl = document.getElementById("charSvg");
+      renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(26, 150/170, .1, 50);
+      camera.position.set(0, .7, 6.3);
+      camera.lookAt(0, .55, 0);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, .75));
+      const key = new THREE.DirectionalLight(0xffffff, .65); key.position.set(2.5, 4, 5); scene.add(key);
+      const rim = new THREE.DirectionalLight(0xbfe8ff, .35); rim.position.set(-3, 2, -3); scene.add(rim);
+      outlineMat = new THREE.MeshBasicMaterial({color:INK, side:THREE.BackSide});
+      if("IntersectionObserver" in window){
+        new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(canvas);
+      }
+      state = "ready";
+      wrap.classList.add("is3d");
+      resize();
+      window.addEventListener("resize", resize);
+      if(pending){ const p = pending; pending = null; show(p.role, p.expr, p.meta); }
+      requestAnimationFrame(loop);
+    } catch(e){ state = "failed"; if(wrap) wrap.classList.remove("is3d"); }
+  }
+  function resize(){
+    if(!renderer) return;
+    const w = canvas.clientWidth || 180, h = canvas.clientHeight || 204;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+
+  // ---- 零件 ----
+  function mat(color, extra){ return new THREE.MeshLambertMaterial(Object.assign({color}, extra || {})); }
+  function mesh(geo, material, outline){
+    const m = new THREE.Mesh(geo, material);
+    if(outline){
+      const o = new THREE.Mesh(geo, outlineMat);
+      o.scale.setScalar(1 + outline);
+      m.add(o);
+    }
+    return m;
+  }
+  function sphere(r, color, outline, seg){ return mesh(new THREE.SphereGeometry(r, seg || 28, seg || 20), mat(color), outline); }
+  function cyl(rt, rb, h, color, outline){ return mesh(new THREE.CylinderGeometry(rt, rb, h, 20), mat(color), outline); }
+  function box(w, h, d, color, outline){ return mesh(new THREE.BoxGeometry(w, h, d), mat(color), outline); }
+
+  function makeArm(color, side){
+    const shoulder = new THREE.Group();
+    shoulder.position.set(.5 * side, .42, 0);
+    const upper = cyl(.13, .12, .55, color, .07); upper.position.y = -.27; shoulder.add(upper);
+    const elbow = new THREE.Group(); elbow.position.y = -.55; shoulder.add(elbow);
+    const fore = cyl(.12, .11, .48, color, .07); fore.position.y = -.24; elbow.add(fore);
+    const hand = sphere(.12, SKIN, .09, 16); hand.position.y = -.52; elbow.add(hand);
+    return {shoulder, elbow, side};
+  }
+  function torso(color){
+    // 用旋轉曲線做出有肩膀弧度的上半身
+    const pts = [[0,-.75],[.56,-.75],[.58,-.3],[.55,.15],[.46,.42],[.26,.55],[0,.57]].map(p => new THREE.Vector2(p[0], p[1]));
+    const t = mesh(new THREE.LatheGeometry(pts, 32), mat(color), .035);
+    t.scale.z = .72;
+    return t;
+  }
+  function mouthCurve(smile){
+    const w = .17, depth = -.07 * smile;
+    const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-w, 0, 0), new THREE.Vector3(0, depth * 2, .02), new THREE.Vector3(w, 0, 0));
+    return new THREE.TubeGeometry(curve, 16, .022, 6, false);
+  }
+
+  function buildPerson(meta){
+    const look = LOOK[meta.key] || LOOK.host, color = new THREE.Color(meta.color || "#8ecae6").getHex();
+    const root = new THREE.Group(), body = new THREE.Group(), head = new THREE.Group();
+    root.add(body); body.add(head);
+    const chest = torso(color); chest.position.y = -.2; body.add(chest);
+    const neck = cyl(.14, .16, .2, SKIN); neck.position.y = .43; body.add(neck);
+    head.position.y = 1.05;
+    const skull = sphere(.62, SKIN, .035, 36); skull.scale.set(1, 1.02, .93); head.add(skull);
+    [-1, 1].forEach(s => { const ear = sphere(.11, SKIN, .1, 12); ear.position.set(.6 * s, -.02, 0); ear.scale.z = .6; head.add(ear); });
+    // 頭髮
+    const hc = look.hairColor;
+    const cap = mesh(new THREE.SphereGeometry(.66, 36, 20, 0, Math.PI * 2, 0, Math.PI * .52), mat(hc), .03);
+    cap.position.set(0, .02, -.03); cap.rotation.x = -.28; cap.scale.set(1, 1, .98); head.add(cap);
+    if(look.hair === "bob"){
+      [-1, 1].forEach(s => { const side = sphere(.3, hc, .05, 20); side.scale.set(.6, 1.15, .9); side.position.set(.5 * s, -.2, -.1); head.add(side); });
+      const back = sphere(.6, hc, .03); back.scale.set(1, .85, .7); back.position.set(0, -.12, -.25); head.add(back);
+    } else if(look.hair === "short"){
+      for(let k = 0; k < 7; k++){ const sp = mesh(new THREE.ConeGeometry(.1, .24, 8), mat(hc), .06);
+        const a = -0.9 + k * .3; sp.position.set(Math.sin(a) * .45, .5, .25 + Math.cos(a) * .05); sp.rotation.set(.5, 0, -a * .6); head.add(sp); }
+    } else if(look.hair === "side"){
+      const part = sphere(.35, hc, .04); part.scale.set(1.1, .4, .8); part.position.set(-.18, .5, .22); part.rotation.z = .25; head.add(part);
+    } else if(look.hair === "bun"){
+      const bun = sphere(.24, hc, .05); bun.position.set(0, .6, -.32); head.add(bun);
+    }
+    // 五官
+    const face = new THREE.Group(); face.position.z = .52; head.add(face);
+    const eyes = [-1, 1].map(s => { const g = new THREE.Group(); g.position.set(.22 * s, .02, .04);
+      const white = sphere(.1, 0xffffff, 0, 16); white.scale.z = .4; white.visible = false; g.add(white);
+      const pupil = sphere(.075, INK, 0, 16); pupil.scale.z = .45; pupil.position.z = .03; g.add(pupil);
+      const shine = sphere(.022, 0xffffff, 0, 8); shine.position.set(.025, .03, .07); g.add(shine);
+      face.add(g); return {g, white}; });
+    const brows = [-1, 1].map(s => { const b = box(.2, .045, .04, INK); b.position.set(.22 * s, .2, .03); face.add(b); return b; });
+    const blush = [-1, 1].map(s => { const b = mesh(new THREE.CircleGeometry(.08, 16), mat(0xff8fa3, {transparent:true, opacity:0})); b.position.set(.35 * s, -.12, .03); face.add(b); return b; });
+    const mouthLine = new THREE.Mesh(mouthCurve(.35), mat(INK)); mouthLine.position.set(0, -.27, .05); face.add(mouthLine);
+    const mouthOpen = sphere(.11, 0x7a1414, .12, 16); mouthOpen.scale.set(1, .1, .22); mouthOpen.position.set(0, -.28, -.01); face.add(mouthOpen);
+    // 配件
+    if(look.acc.includes("headset")){
+      const band = mesh(new THREE.TorusGeometry(.66, .035, 8, 24, Math.PI), mat(0x263238)); band.position.y = .05; head.add(band);
+      const cup = cyl(.12, .12, .1, 0x263238, .05); cup.rotation.z = Math.PI / 2; cup.position.set(.66, -.02, 0); head.add(cup);
+      const boom = cyl(.018, .018, .45, 0x263238); boom.position.set(.55, -.25, .25); boom.rotation.set(.9, 0, .6); head.add(boom);
+      const mic = sphere(.05, 0x111111); mic.position.set(.38, -.37, .45); head.add(mic);
+    }
+    if(look.acc.includes("helmet")){
+      const hat = mesh(new THREE.SphereGeometry(.7, 32, 16, 0, Math.PI * 2, 0, Math.PI * .5), mat(0xffc107), .035); hat.position.y = .1; hat.rotation.x = -.12; head.add(hat);
+      const brim = cyl(.78, .78, .05, 0xffb300, .04); brim.scale.z = .9; brim.position.set(0, .1, .1); brim.rotation.x = -.12; head.add(brim);
+      const ridge = box(.08, .06, 1.1, 0xffb300); ridge.position.y = .7; ridge.rotation.x = -.12; head.add(ridge);
+      cap.visible = false; head.children.filter(c => c.geometry && c.geometry.type === "ConeGeometry").forEach(c => c.visible = false);
+    }
+    if(look.acc.includes("vest")){
+      [-1, 1].forEach(s => { const stripe = box(.09, .9, .02, 0xd7ff3a); stripe.position.set(.25 * s, -.25, .41); stripe.rotation.z = .12 * s; body.add(stripe); });
+      const band = box(1.05, .07, .02, 0xd7ff3a); band.position.set(0, -.45, .4); body.add(band);
+    }
+    if(look.acc.includes("glasses")){
+      [-1, 1].forEach(s => { const r = mesh(new THREE.TorusGeometry(.13, .018, 8, 24), mat(INK)); r.position.set(.22 * s, .02, .1); face.add(r); });
+      const bridge = box(.14, .02, .02, INK); bridge.position.set(0, .04, .1); face.add(bridge);
+    }
+    if(look.acc.includes("tie")){
+      const collar = [-1, 1].map(s => { const c = box(.2, .12, .03, 0xffffff, .1); c.position.set(.1 * s, .3, .38); c.rotation.z = .5 * s; body.add(c); });
+      const knot = box(.1, .09, .05, 0xc62828); knot.position.set(0, .27, .4); body.add(knot);
+      const tie = mesh(new THREE.ConeGeometry(.09, .55, 4), mat(0xc62828), .05); tie.position.set(0, -.04, .4); tie.rotation.set(Math.PI, Math.PI / 4, 0); tie.scale.z = .35; body.add(tie);
+    }
+    if(look.acc.includes("apron")){
+      const apron = box(.75, .85, .03, 0xfff3e0, .04); apron.position.set(0, -.35, .4); body.add(apron);
+      const pocket = box(.3, .16, .02, 0xffe0b2); pocket.position.set(0, -.5, .42); body.add(pocket);
+      [-1, 1].forEach(s => { const strap = box(.06, .4, .02, 0xfff3e0); strap.position.set(.22 * s, .18, .39); body.add(strap); });
+    }
+    const arms = [makeArm(color, 1), makeArm(color, -1)]; arms.forEach(a => body.add(a.shoulder));
+    return {root, body, head, eyes, brows, blush, mouthLine, mouthOpen, arms, smile:.35, robot:false};
+  }
+  function buildRobot(meta){
+    const color = new THREE.Color(meta.color || "#10b981").getHex(), glow = 0x5ef0c0;
+    const root = new THREE.Group(), body = new THREE.Group(), head = new THREE.Group();
+    root.add(body); body.add(head);
+    const chest = box(1.05, .95, .7, color, .03); chest.position.y = -.3; body.add(chest);
+    const panel = box(.45, .3, .02, 0xe9eef2); panel.position.set(0, -.25, .36); body.add(panel);
+    head.position.y = 1.0;
+    const shell = box(1.25, 1.05, .95, 0xe9eef2, .03); head.add(shell);
+    const screen = box(1.0, .78, .02, 0x13212b); screen.position.z = .48; head.add(screen);
+    const ant = cyl(.025, .025, .35, INK); ant.position.y = .7; head.add(ant);
+    const bulb = sphere(.09, 0xffb020, .1); bulb.position.y = .9; head.add(bulb);
+    const glowMat = new THREE.MeshBasicMaterial({color:glow});
+    const eyes = [-1, 1].map(s => { const g = new THREE.Group(); g.position.set(.24 * s, .08, .5);
+      const e = new THREE.Mesh(new THREE.BoxGeometry(.14, .2, .02), glowMat); g.add(e); head.add(g); return {g, white:null}; });
+    const mouthLine = new THREE.Mesh(mouthCurve(.35), glowMat); mouthLine.position.set(0, -.2, .5); head.add(mouthLine);
+    const mouthOpen = new THREE.Mesh(new THREE.BoxGeometry(.3, .08, .02), glowMat); mouthOpen.position.set(0, -.2, .5); mouthOpen.scale.y = .1; head.add(mouthOpen);
+    const arms = [makeArm(color, 1), makeArm(color, -1)];
+    arms.forEach(a => { a.shoulder.position.x = .62 * a.side; body.add(a.shoulder); });
+    return {root, body, head, eyes, brows:[], blush:[], mouthLine, mouthOpen, arms, smile:.35, robot:true};
+  }
+
+  // ---- 表情與姿勢 ----
+  function applyFace(c, expr){
+    const f = FACE[expr] || FACE.neutral;
+    c.face = f;
+    c.brows.forEach((b, k) => { const s = k ? 1 : -1; b.userData.ty = .2 + f.by; b.userData.tr = f.br * -s; });
+    c.eyes.forEach(e => { if(e.white) e.white.visible = expr === "shocked"; });
+    c.blush.forEach(b => b.material.opacity = f.blush * .55);
+    if(Math.abs(c.smile - f.smile) > .01){ c.mouthLine.geometry.dispose(); c.mouthLine.geometry = mouthCurve(f.smile); c.smile = f.smile; }
+    const pose = POSE[expr] || POSE.neutral;
+    c.arms.forEach(a => { a.target = a.side > 0 ? pose.R : pose.L; });
+  }
+  function lerp(a, b, t){ return a + (b - a) * t; }
+  function isTalking(){
+    try {
+      if(typeof clipEl !== "undefined" && clipEl && !clipEl.paused && !clipEl.ended) return true;
+      return speechSynthesis.speaking && !speechSynthesis.paused;
+    } catch(e){ return false; }
+  }
+
+  function show(role, expr, meta){
+    if(state === "idle"){ if(!wanted()){ state = "failed"; return; } state = "loading"; pending = {role, expr, meta}; load(0); return; }
+    if(state === "loading"){ pending = {role, expr, meta}; return; }
+    if(state !== "ready") return;
+    let c = cache[role];
+    if(!c){ c = cache[role] = meta.key === "ai" ? buildRobot(meta) : buildPerson(meta); }
+    if(current !== c){
+      if(current) scene.remove(current.root);
+      scene.add(c.root); current = c;
+      enterT = 0; // 從平面轉成立體
+      c.arms.forEach(a => { a.cur = null; });
+    }
+    restYaw = meta.side === "left" ? .32 : meta.side === "right" ? -.32 : 0;
+    applyFace(c, expr);
+  }
+
+  function loop(now){
+    requestAnimationFrame(loop);
+    if(!current || !visible || document.hidden) return;
+    if(now - lastFrame < 30) return; // 約 30fps 就夠，省電
+    const dt = Math.min((now - (lastFrame || now)) / 1000, .1); lastFrame = now;
+    const t = now / 1000, c = current;
+    // 登場：z 方向從薄片長回立體，同時從側面轉正
+    if(enterT < 1){ enterT = Math.min(1, enterT + dt / (.55 * (window.CHAR3D_SLOW || 1))); } // CHAR3D_SLOW：錄示範動畫時放慢用
+    const e = 1 - Math.pow(1 - enterT, 3);
+    c.root.scale.set(1, 1, Math.max(.03, e));
+    c.root.rotation.y = lerp(restYaw - 1.2 * (restYaw >= 0 ? 1 : -1), restYaw, e) + Math.sin(t * .7) * .05;
+    c.root.position.y = Math.sin(t * 2.4) * .04 - .05;
+    c.body.scale.x = 1 + Math.sin(t * 2.4) * .01;
+    c.head.rotation.z = Math.sin(t * 1.1) * .04;
+    const talking = isTalking();
+    c.head.rotation.x = talking ? Math.sin(t * 6) * .03 : 0;
+    // 手臂往目標姿勢靠近
+    c.arms.forEach(a => {
+      const tg = a.target || POSE.neutral.R;
+      if(!a.cur) a.cur = tg.slice();
+      for(let k = 0; k < 4; k++) a.cur[k] = lerp(a.cur[k], tg[k], Math.min(1, dt * 8));
+      a.shoulder.rotation.set(a.cur[0], 0, a.cur[1] * a.side);
+      a.elbow.rotation.set(a.cur[2], 0, a.cur[3] * a.side);
+    });
+    // 眉毛
+    c.brows.forEach(b => { b.position.y = lerp(b.position.y, b.userData.ty, .3); b.rotation.z = lerp(b.rotation.z, b.userData.tr, .3); });
+    // 眨眼
+    blinkAt -= dt;
+    if(blinkAt <= 0){ blinkT = .14; blinkAt = 2.5 + Math.random() * 3; }
+    let eyeY = (c.face ? c.face.eye : 1);
+    if(blinkT > 0){ blinkT -= dt; eyeY *= .12; }
+    c.eyes.forEach(ey => { ey.g.scale.set(c.face ? c.face.eye : 1, eyeY, 1); });
+    // 嘴：講話時開合，不講話時維持表情的張嘴程度
+    const base = c.face ? c.face.open : 0;
+    const open = talking ? .35 + Math.abs(Math.sin(t * 13)) * .65 * (.6 + .4 * Math.sin(t * 3.1)) : base;
+    c.mouthOpen.scale.y = lerp(c.mouthOpen.scale.y, Math.max(.1, open), .5);
+    c.mouthLine.visible = !(talking || base > .3) || c.robot && !talking;
+    c.mouthOpen.visible = talking || base > .3;
+    renderer.render(scene, camera);
+  }
+
+  return {show, get active(){ return state === "ready"; }};
+})();
+
 // ==== Cloudflare Worker 設定（回應收集用）====
 // 部署好 Worker 後，把這兩個值換成你的，然後重新跑一次 產生網頁.py 讓全部集數套用。
 // RESPONSE_API_BASE 留空（""）的話，送出回應會直接退回本機下載，不會嘗試連網。
@@ -798,10 +1103,11 @@ function render(){
   dotsRow.innerHTML = SCRIPT.slice(s0, s1+1).map((s,idx) => `<span class="pdot${idx+s0===p.sceneIdx?" active":""}"></span>`).join("");
 
   charSvg.innerHTML = faceSVG(role, p.expr);
+  CHAR3D.show(role, p.expr, meta); // 立體角色；載不到 three.js 就維持上面的平面版
   reactionMark.innerHTML = markSVG(EXPR_MARK[p.expr]);
 
   const side = meta.side;
-  charWrap.className = "charWrap " + side;
+  charWrap.className = "charWrap " + side + (CHAR3D.active ? " is3d" : "");
   roleLabel.className = "roleLabel " + side;
   roleLabel.textContent = role;
   roleLabel.style.background = meta.color;
