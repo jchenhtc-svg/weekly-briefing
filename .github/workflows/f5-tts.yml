@@ -10,15 +10,19 @@ on:
     branches: [main]
     paths:
       - "tools/週會宣導/預錄語音/f5要產生.txt"
-      - ".github/workflows/f5-tts.yml"
   workflow_dispatch:
+    inputs:
+      episodes:
+        description: "只做這幾集（代號用空白分開，例如 17 18）；留空＝照 f5要產生.txt 做還不是 F5 的集數"
+        required: false
 
 permissions:
   contents: write
   actions: write
 
+# 每次執行各自獨立（不排隊）：手動補跑幾集時不用等前一次 2～4 小時跑完；各集寫的是不同資料夾，不會互相蓋掉
 concurrency:
-  group: f5-tts
+  group: f5-tts-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -30,11 +34,14 @@ jobs:
       - uses: actions/checkout@v4
       - id: p
         working-directory: tools/週會宣導
+        env:
+          ONLY: ${{ github.event.inputs.episodes }}
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json, re
           from pathlib import Path
-          want = [w for l in Path("預錄語音/f5要產生.txt").read_text(encoding="utf-8").splitlines()
+          import os
+          want = os.environ.get("ONLY", "").split() or [w for l in Path("預錄語音/f5要產生.txt").read_text(encoding="utf-8").splitlines()
                   if not l.strip().startswith("#") for w in l.split()]
           todo = []
           for ep in want:

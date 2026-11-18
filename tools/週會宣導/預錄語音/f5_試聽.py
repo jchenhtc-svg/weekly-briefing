@@ -81,10 +81,19 @@ def segs_from_episode(code):
     return [(TAGS.get(r, r), t) for r, t in lines]
 
 
+PAUSE = 1.2  # 只有「……」的台詞（停頓）：Azure 給的是空檔，這裡產生這麼長的靜音
+
+
 def duration(path):
+    if not Path(path).exists() or Path(path).stat().st_size == 0:
+        return PAUSE
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
-                         check=True, capture_output=True, text=True).stdout
-    return float(out.strip())
+                         capture_output=True, text=True).stdout.strip()
+    return float(out) if out else PAUSE
+
+
+def speakable(text):
+    return bool(re.search(r"[0-9A-Za-z\u3400-\u9fff]", text))
 
 
 # 開頭靜音剪掉（保留 0.08 秒）：F5 被指定總長度時，多出來的時間常常變成句首的靜音
@@ -137,11 +146,18 @@ def main(argv):
     print(f"[f5] 模型載入 {time.monotonic() - t0:.0f}s", flush=True)
 
     limit = int(os.environ.get("F5_LIMIT") or 0)
-    wavs = []
+    wavs, silent = [], set()
     for i, (tag, text) in enumerate(segs[:limit] if limit else segs):
         ref_wav, ref_text = refs[tag]
         t = time.monotonic()
         wav = work / f"{i + 1:03d}-{tag}.wav"
+        if not speakable(text):  # 純停頓：不叫 F5，直接放一段靜音
+            secs = targets[names[i]] if publish and targets else PAUSE
+            sh("ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", f"{secs:.2f}", str(wav))
+            wavs.append(wav)
+            silent.add(wav)
+            print(f"[f5] {i + 1:03d}/{len(segs)} {tag} 停頓 {secs:.1f}s", flush=True)
+            continue
         fix = None
         if publish and targets:  # 總長度＝參考音＋要講的這句（F5 的 fix_duration 是兩段合計）
             fix = duration(ref_wav) + targets[names[i]]
@@ -164,7 +180,7 @@ def main(argv):
     norm = []  # 先把每句統一成 24kHz 單聲道 wav，concat 才不會出錯
     for wav in wavs:
         n = work / f"n-{wav.name}"
-        sh("ffmpeg", "-y", "-i", str(wav), *(["-af", TRIM_HEAD] if publish else []), "-ar", "24000", "-ac", "1", str(n))
+        sh("ffmpeg", "-y", "-i", str(wav), *(["-af", TRIM_HEAD] if publish and wav not in silent else []), "-ar", "24000", "-ac", "1", str(n))
         norm.append(n)
     for wav, n in zip(wavs, norm):
         sh("ffmpeg", "-y", "-i", str(n), "-ar", "24000", "-ac", "1", "-b:a", "48k", str(out / (wav.stem + ".mp3")))
