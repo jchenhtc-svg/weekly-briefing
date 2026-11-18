@@ -1,6 +1,15 @@
-# 要改用 F5-TTS 配音、取代網站上 Azure 語音的集數代號，一行一個；# 開頭是註解。
-# push 後 GitHub Actions（.github/workflows/f5-preview.yml）會在雲端 CPU 上跑（一集約 75 分鐘），
-# 每句長度對齊原本 Azure 版，音檔直接換掉 語音/<代號>/，網頁一起重新產生，commit 回來。
-# 參考音＝第十四篇各角色的 Azure 語音。之後 azure_tts.py 看到這集已經是 F5 就會跳過。
-# 2026-11-17 使用者要求：第十五篇改用 F5。
+# 要用 F5-TTS 配音、取代網站上 Azure 語音的集數代號，一行一個；# 開頭是註解。
+# 在 weekly-briefing（公開 repo，Actions 不算額度）push 這個檔案到 main，.github/workflows/f5-tts.yml 就會跑：
+# 一集一個 job 同時跑（雲端 CPU，一集 2～4 小時），每句長度對齊原本 Azure 版，取代 語音/<代號>/、重新產生網頁、commit 回 main。
+# 參考音固定在 預錄語音/F5參考音/。已經是 F5 的集數會跳過；azure_tts.py 也會跳過這些集數。
+# 跑完要把 語音/<代號>/ 拉回 my-research-tools。
+# 2026-11-17 使用者要求第十五篇改用 F5；11-18 要求後續集數都改用 F5（第十四篇、AI 第一堂已開放，維持 Azure）。
 15
+16
+17
+18
+19
+20
+ai02
+ai03
+ai04

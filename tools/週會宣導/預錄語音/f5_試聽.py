@@ -9,12 +9,13 @@ GitHub Actions（.github/workflows/f5-preview.yml）會在雲端 CPU 上跑完�
 之後要換成真人錄的參考音，請在自己的電腦上用 media-tool（mediatool dub）跑，參考人聲不要上傳。
 
 流程：
-1. 從 語音/<參考集數>/ 每個角色挑一兩句（5～10 秒）轉成 24kHz 單聲道 wav，文字取自 台詞.json
-2. 讀 預錄語音/輸出/<代號>/第NN篇_F5旁白稿.txt（匯出F5旁白稿.py 產生的）
+1. 參考音：預錄語音/F5參考音/<角色>.mp3（Azure 合成語音剪出來的，5～10 秒），文字在 參考音.json
+2. 讀 預錄語音/輸出/<代號>/第NN篇_F5旁白稿.txt（匯出F5旁白稿.py 產生的）；沒有的話直接從腳本取台詞
 3. 一段一段用 F5TTS_v1_Base 合成 → 每句一個 mp3、整集接起來一個 mp3、
    另外做一個「Azure 一句 → F5 同一句」交錯的比較檔
 
-正式用（F5_PUBLISH=1，或 GitHub 上把代號寫進 預錄語音/f5要產生.txt）：
+正式用（F5_PUBLISH=1；平常是在公開的 weekly-briefing 把代號寫進 預錄語音/f5要產生.txt 再 push，
+由那邊的 .github/workflows/f5-tts.yml 跑，公開 repo 的 Actions 不算額度）：
 每句長度對齊原本 Azure 版的長度（F5 自己估的長度常常講太快），
 結果直接取代 語音/<代號>/ 的音檔，網頁播放的就是 F5 的聲音。
 Azure 原本每句幾秒記在 台詞.json 的 durations，之後重跑也照這個長度。
@@ -32,9 +33,10 @@ ROOT = HERE.parent
 REPO = ROOT.parent.parent
 VOICE_DIR = ROOT / "語音"
 
-# 參考音：角色標籤 → 第十四篇哪幾句（同一個角色、同一組 Azure 聲音設定）
-REF_EP = "14"
-REF_LINES = {"主持人": ["016"], "阿凱": ["018"], "主管": ["009", "010"], "客戶": ["005"]}
+# 參考音：固定放在 預錄語音/F5參考音/<角色標籤>.mp3，文字在 參考音.json
+# （從第十四篇、AI 素養第二堂的 Azure 語音剪出來的；固定一份，集數換成 F5 之後參考音也不會跟著變）
+REF_DIR = HERE / "F5參考音"
+TAGS = {"主持人": "主持人", "阿凱工程師": "阿凱", "主管": "主管", "客戶": "客戶", "AI助理": "AI助理"}
 
 
 def sh(*cmd):
@@ -53,18 +55,30 @@ def parse_script(path):
 
 
 def make_refs(work):
-    manifest = json.loads((VOICE_DIR / REF_EP / "台詞.json").read_text(encoding="utf-8"))["lines"]
+    info = json.loads((REF_DIR / "參考音.json").read_text(encoding="utf-8"))
     refs = {}
-    for tag, names in REF_LINES.items():
+    for tag, item in info.items():
         wav = work / f"ref-{tag}.wav"
-        inputs, filt = [], ""
-        for i, n in enumerate(names):
-            inputs += ["-i", str(VOICE_DIR / REF_EP / f"{n}.mp3")]
-            filt += f"[{i}:a]apad=pad_dur=0.3[a{i}];"
-        filt += "".join(f"[a{i}]" for i in range(len(names))) + f"concat=n={len(names)}:v=0:a=1[out]"
-        sh("ffmpeg", "-y", *inputs, "-filter_complex", filt, "-map", "[out]", "-ar", "24000", "-ac", "1", str(wav))
-        refs[tag] = (str(wav), "".join(manifest[n] for n in names))
+        sh("ffmpeg", "-y", "-i", str(REF_DIR / f"{tag}.mp3"), "-ar", "24000", "-ac", "1", str(wav))
+        refs[tag] = (str(wav), item["text"])
     return refs
+
+
+def segs_from_episode(code):
+    """沒有旁白稿的集數，直接從腳本取台詞（順序跟網頁一樣，最後一段是金句、主持人唸）。"""
+    sys.path.insert(0, str(ROOT))
+    import 產生網頁 as gen
+    ep = next((e for e in (json.loads(p.read_text(encoding="utf-8")) for p in gen.all_script_paths())
+               if gen.ep_key(e) == code), None)
+    if not ep:
+        sys.exit(f"找不到集數 {code}")
+    host = next((r["name"] for r in ep["roles"] if r.get("side") == "center"), ep["roles"][0]["name"])
+    lines = [(l[0], l[1]) for sc in ep["scenes"] for l in sc["lines"]]
+    lines.append((host, gen.plain_text(ep["golden_quote"]).replace(" ", "")))
+    missing = {r for r, _ in lines if TAGS.get(r, r) not in json.loads((REF_DIR / "參考音.json").read_text(encoding="utf-8"))}
+    if missing:
+        sys.exit(f"這些角色沒有參考音：{'、'.join(missing)}（放進 預錄語音/F5參考音/）")
+    return [(TAGS.get(r, r), t) for r, t in lines]
 
 
 def duration(path):
@@ -91,10 +105,8 @@ def target_durations(code, count):
 
 def main(argv):
     code = (argv or ["15"])[0]
-    script = next((HERE / "輸出" / code).glob("*_F5旁白稿.txt"), None)
-    if not script:
-        sys.exit(f"找不到 預錄語音/輸出/{code}/ 的 F5 旁白稿，先跑 匯出F5旁白稿.py")
-    segs = parse_script(script)
+    script = next((HERE / "輸出" / code).glob("*_F5旁白稿.txt"), None) if (HERE / "輸出" / code).is_dir() else None
+    segs = parse_script(script) if script else segs_from_episode(code)
     out = REPO / "內部試聽" / f"F5-第{code}篇"
     work = out / "_work"
     work.mkdir(parents=True, exist_ok=True)
@@ -178,11 +190,11 @@ def main(argv):
     for f in work.iterdir():
         f.unlink()
     work.rmdir()
-    refs_desc = "、".join(k + "=" + "+".join(v) for k, v in REF_LINES.items())
+    refs_desc = "、".join(f"{k}＝{v['來源']}" for k, v in json.loads((REF_DIR / "參考音.json").read_text(encoding="utf-8")).items())
     (out / "說明.txt").write_text(
         f"第{code}篇 F5-TTS 技術預覽（內部試聽，不放網站）\n"
         f"模型：F5TTS_v1_Base（CPU，nfe_step=32，seed=1234）\n"
-        f"參考音：第{REF_EP}篇的 Azure 合成語音，每個角色 {refs_desc}\n"
+        f"參考音：{refs_desc}\n"
         f"第{code}篇_F5整集.mp3：整集接起來\n"
         f"第{code}篇_比較_Azure對F5.mp3：前 6 句，每句先放 Azure、再放 F5\n"
         f"001～：每一句單獨的音檔（最後一個是金句）\n", encoding="utf-8")

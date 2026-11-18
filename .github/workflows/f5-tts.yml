@@ -1,0 +1,114 @@
+name: 用 F5-TTS 產生週會宣導預錄語音
+
+# 觸發方式：改 tools/週會宣導/預錄語音/f5要產生.txt（一行一個集數代號）再 push 到 main；也可以手動執行。
+# 為什麼放在這個公開 repo 跑：F5-TTS 在 CPU 上一集要 2～4 小時，公開 repo 的 Actions 不算額度。
+# 參考音固定在 預錄語音/F5參考音/（Azure 合成語音剪出來的），每句長度對齊原本 Azure 版，結果取代 語音/<代號>/。
+# 已經是 F5 的集數會跳過。一集一個 job 同時跑，最後一起 commit，再觸發 Pages 部署。
+# 開發的家在 my-research-tools（private）：跑完要把 語音/<代號>/ 拉回去那邊。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/週會宣導/預錄語音/f5要產生.txt"
+      - ".github/workflows/f5-tts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: f5-tts
+  cancel-in-progress: false
+
+jobs:
+  pick:
+    runs-on: ubuntu-latest
+    outputs:
+      eps: ${{ steps.p.outputs.eps }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        working-directory: tools/週會宣導
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, re
+          from pathlib import Path
+          want = [w for l in Path("預錄語音/f5要產生.txt").read_text(encoding="utf-8").splitlines()
+                  if not l.strip().startswith("#") for w in l.split()]
+          todo = []
+          for ep in want:
+              m = Path(f"語音/{ep}/台詞.json")
+              if m.exists() and json.loads(m.read_text(encoding="utf-8")).get("engine", "").startswith("F5"):
+                  continue
+              todo.append(ep)
+          print("eps=" + json.dumps(todo))
+          PY
+          cat "$GITHUB_OUTPUT"
+
+  f5:
+    needs: pick
+    if: needs.pick.outputs.eps != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        ep: ${{ fromJson(needs.pick.outputs.eps) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 安裝 ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: 安裝 F5-TTS（CPU 版 PyTorch）
+        run: |
+          pip install -q torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q f5-tts soundfile
+      - name: 模型快取
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-f5tts-v1-base
+      - name: 配音 ${{ matrix.ep }}
+        working-directory: tools/週會宣導
+        env:
+          F5_PUBLISH: "1"
+        run: python3 預錄語音/f5_試聽.py "${{ matrix.ep }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice-${{ matrix.ep }}
+          path: tools/週會宣導/語音/${{ matrix.ep }}/
+
+  commit:
+    needs: [pick, f5]
+    if: always() && needs.pick.outputs.eps != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: _voices
+      - name: 放進 語音/、重新產生網頁、commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls _voices || true
+          done=""
+          for d in _voices/voice-*; do
+            [ -d "$d" ] || continue
+            ep="${d#_voices/voice-}"
+            rm -rf "tools/週會宣導/語音/$ep" && mkdir -p "tools/週會宣導/語音/$ep" && cp "$d"/* "tools/週會宣導/語音/$ep/"
+            done="$done $ep"
+          done
+          rm -rf _voices
+          [ -n "$done" ] || { echo "沒有任何一集成功"; exit 1; }
+          (cd tools/週會宣導 && python3 產生網頁.py >/dev/null)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "tools/週會宣導/語音" "tools/週會宣導/網頁"
+          git diff --cached --quiet && { echo "沒有變動"; exit 0; }
+          git commit -m "F5-TTS：產生配音（$(echo $done | xargs)）" -m "由 .github/workflows/f5-tts.yml 自動產生，參考音＝預錄語音/F5參考音/（Azure 合成語音），每句長度對齊 Azure 版。"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push origin HEAD:main && break; sleep 10; done
+          gh workflow run pages.yml --ref main
