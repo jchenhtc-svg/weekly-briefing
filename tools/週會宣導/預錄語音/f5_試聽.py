@@ -64,14 +64,28 @@ def make_refs(work):
     return refs
 
 
-def segs_from_episode(code):
-    """沒有旁白稿的集數，直接從腳本取台詞（順序跟網頁一樣，最後一段是金句、主持人唸）。"""
+def load_episode(code):
     sys.path.insert(0, str(ROOT))
     import 產生網頁 as gen
     ep = next((e for e in (json.loads(p.read_text(encoding="utf-8")) for p in gen.all_script_paths())
                if gen.ep_key(e) == code), None)
     if not ep:
         sys.exit(f"找不到集數 {code}")
+    return gen, ep
+
+
+def script_lines(code):
+    """台詞.json 的 lines：產生網頁.py 用它核對錄的是不是現在這句（金句存原本含 <br> 的寫法）。"""
+    gen, ep = load_episode(code)
+    lines = [l[1] for sc in ep["scenes"] for l in sc["lines"]]
+    out = {f"{n:03d}": t for n, t in enumerate(lines)}
+    out["quote"] = ep["golden_quote"]
+    return out
+
+
+def segs_from_episode(code):
+    """沒有旁白稿的集數，直接從腳本取台詞（順序跟網頁一樣，最後一段是金句、主持人唸）。"""
+    gen, ep = load_episode(code)
     host = next((r["name"] for r in ep["roles"] if r.get("side") == "center"), ep["roles"][0]["name"])
     lines = [(l[0], l[1]) for sc in ep["scenes"] for l in sc["lines"]]
     lines.append((host, gen.plain_text(ep["golden_quote"]).replace(" ", "")))
@@ -92,6 +106,32 @@ def duration(path):
     return float(out) if out else PAUSE
 
 
+DIGITS = "零一二三四五六七八九"
+
+
+def zh_number(n):
+    """0～9999 的中文念法：20→二十、15→十五、75→七十五、105→一百零五。"""
+    if n < 10:
+        return DIGITS[n]
+    out, zero = "", False
+    for value, unit in ((1000, "千"), (100, "百"), (10, "十"), (1, "")):
+        d = n // value % 10
+        if d:
+            if zero:
+                out += "零"
+            out += ("" if d == 1 and unit == "十" and not out else DIGITS[d]) + unit
+            zero = False
+        elif out:
+            zero = True
+    return out
+
+
+def spoken(text):
+    """給 F5 念的文字：阿拉伯數字換成中文念法。代碼（E-217、跟英文字母黏在一起的）一個一個念。"""
+    text = re.sub(r"(?<=[A-Za-z])-?(\d+)", lambda m: " " + "".join(DIGITS[int(c)] for c in m.group(1)), text)
+    return re.sub(r"\d+", lambda m: zh_number(int(m.group())) if len(m.group()) <= 4 else "".join(DIGITS[int(c)] for c in m.group()), text)
+
+
 def speakable(text):
     return bool(re.search(r"[0-9A-Za-z\u3400-\u9fff]", text))
 
@@ -100,16 +140,30 @@ def speakable(text):
 TRIM_HEAD = "silenceremove=start_periods=1:start_threshold=-40dB:start_silence=0.08"
 
 
-def target_durations(code, count):
-    """每句要講幾秒：用 Azure 版的長度（已經換成 F5 的話，用當初記下來的）。"""
+# 沒有 Azure 版可以對齊時，用台詞字數估每句幾秒：秒數 ≈ 每字秒數×字數 ＋ 每個標點的停頓 ＋ 固定開頭
+# （2026-11-18 用第十四～二十篇、AI 第一～四堂的 Azure 語音回歸出來，平均誤差約 0.2～0.4 秒）
+PACE = {"主持人": (.177, .457, .5), "阿凱": (.186, .181, .531), "主管": (.267, .288, .475),
+        "客戶": (.191, .1, 1.0), "AI助理": (.19, .182, .838)}
+
+
+def estimate(tag, text):
+    if not speakable(text):
+        return PAUSE
+    a, b, c = PACE.get(tag, PACE["主持人"])
+    n = len(re.findall(r"[\u3400-\u9fff0-9]", text)) + 1.5 * len(re.findall(r"[A-Za-z]+", text))
+    pz = len(re.findall(r"[，。、？！：；…,]", text))
+    return round(a * n + b * pz + c, 2)
+
+
+def target_durations(code, segs):
+    """每句要講幾秒：有 Azure 版就用它的長度（已經換成 F5 的話，用當初記下來的），沒有就用字數估。"""
     folder = VOICE_DIR / code
     manifest = json.loads((folder / "台詞.json").read_text(encoding="utf-8")) if (folder / "台詞.json").exists() else {}
     if manifest.get("durations"):
         return manifest["durations"]
-    names = [f"{n:03d}" for n in range(count - 1)] + ["quote"]
-    if not all((folder / f"{n}.mp3").exists() for n in names):
-        return None
-    return {n: round(duration(folder / f"{n}.mp3"), 2) for n in names}
+    names = [f"{n:03d}" for n in range(len(segs) - 1)] + ["quote"]
+    return {n: round(duration(folder / f"{n}.mp3"), 2) if (folder / f"{n}.mp3").exists() else estimate(tag, text)
+            for n, (tag, text) in zip(names, segs)}
 
 
 def main(argv):
@@ -121,10 +175,8 @@ def main(argv):
     work.mkdir(parents=True, exist_ok=True)
     refs = make_refs(work)
     publish = os.environ.get("F5_PUBLISH") == "1"
-    targets = target_durations(code, len(segs))
+    targets = target_durations(code, segs)
     names = [f"{n:03d}" for n in range(len(segs) - 1)] + ["quote"]
-    if publish and not targets:
-        sys.exit(f"語音/{code}/ 沒有 Azure 版可以對齊長度")
 
     import soundfile
     import torch
@@ -161,7 +213,7 @@ def main(argv):
         fix = None
         if publish and targets:  # 總長度＝參考音＋要講的這句（F5 的 fix_duration 是兩段合計）
             fix = duration(ref_wav) + targets[names[i]]
-        tts.infer(ref_file=ref_wav, ref_text=ref_text, gen_text=text, file_wave=str(wav),
+        tts.infer(ref_file=ref_wav, ref_text=ref_text, gen_text=spoken(text), file_wave=str(wav),
                   nfe_step=32, seed=1234, remove_silence=False, fix_duration=fix)
         wavs.append(wav)
         print(f"[f5] {i + 1:03d}/{len(segs)} {tag} {time.monotonic() - t:.0f}s：{text}", flush=True)
@@ -196,7 +248,10 @@ def main(argv):
         concat(pairs, f"第{code}篇_比較_Azure對F5")
     if publish:
         folder = VOICE_DIR / code
-        old = json.loads((folder / "台詞.json").read_text(encoding="utf-8"))
+        folder.mkdir(parents=True, exist_ok=True)
+        old = json.loads((folder / "台詞.json").read_text(encoding="utf-8")) if (folder / "台詞.json").exists() else {}
+        if not old.get("lines"):
+            old["lines"] = script_lines(code)
         for wav, name in zip(norm, names):
             sh("ffmpeg", "-y", "-i", str(wav), "-ar", "24000", "-ac", "1", "-b:a", "48k", str(folder / f"{name}.mp3"))
         manifest = {"engine": "F5-TTS（參考音＝Azure 語音）", "multi_voice": True, "lines": old["lines"],
