@@ -189,12 +189,15 @@ def main(argv):
 
     from concurrent.futures import ThreadPoolExecutor
     from f5_tts.infer import utils_infer
-    if hasattr(utils_infer, "ThreadPoolExecutor"):
+    if hasattr(utils_infer, "ThreadPoolExecutor"):  # CPU 上一次只跑一批（跟 media-tool 一樣）；GPU 也不影響
         utils_infer.ThreadPoolExecutor = lambda *a, **k: ThreadPoolExecutor(max_workers=1)
     from f5_tts.api import F5TTS
 
     t0 = time.monotonic()
-    tts = F5TTS(model="F5TTS_v1_Base", device="cpu")
+    device = os.environ.get("F5_DEVICE") or (  # 筆電的 Intel Arc 用 xpu；GitHub Actions 只有 cpu
+        "cuda" if torch.cuda.is_available() else "xpu" if hasattr(torch, "xpu") and torch.xpu.is_available() else "cpu")
+    tts = F5TTS(model="F5TTS_v1_Base", device=device)
+    print(f"[f5] 用 {device} 跑", flush=True)
     print(f"[f5] 模型載入 {time.monotonic() - t0:.0f}s", flush=True)
 
     limit = int(os.environ.get("F5_LIMIT") or 0)
