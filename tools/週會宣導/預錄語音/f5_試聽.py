@@ -23,6 +23,7 @@ Azure 原本每句幾秒記在 台詞.json 的 durations，之後重跑也照這
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -261,9 +262,7 @@ def main(argv):
                     "durations": targets}
         (folder / "台詞.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"✅ 語音/{code}/ 換成 F5 的聲音（{len(names)} 句）")
-    for f in work.iterdir():
-        f.unlink()
-    work.rmdir()
+    shutil.rmtree(work, ignore_errors=True)  # Windows 上暫存檔偶爾還被佔用，刪不掉就留著，不影響結果
     refs_desc = "、".join(f"{k}＝{v['來源']}" for k, v in json.loads((REF_DIR / "參考音.json").read_text(encoding="utf-8")).items())
     (out / "說明.txt").write_text(
         f"第{code}篇 F5-TTS 技術預覽（內部試聽，不放網站）\n"
